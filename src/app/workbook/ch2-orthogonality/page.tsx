@@ -4,7 +4,7 @@ export const dynamic = 'force-dynamic';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter, useSearchParams } from 'next/navigation';
-import content from './ch2-orthogonality.json';
+import content from './ch2-orthogonality';
 
 type Problem = {
   id: string;
