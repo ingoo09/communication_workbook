@@ -1,5 +1,3 @@
-export const dynamic = 'force-dynamic';
-
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
@@ -156,7 +154,12 @@ function renderFencedText(s: string) {
 }
 
 export default function Ch2OrthogonalityPage() {
+  const isClient = typeof window !== 'undefined';
+
   const data = chapter as unknown as Content;
+
+  if (!isClient) return;
+
   const sp = useSearchParams();
   const router = useRouter();
 
