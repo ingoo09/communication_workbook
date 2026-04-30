@@ -1,4 +1,4 @@
-{
+export const chapter = {
   "id": "2-orthogonality",
   "title": "2장. 직교성과 푸리에 급수 체험 — 문제 풀이 (모의)",
   "sections": [
@@ -226,4 +226,4 @@
       ]
     }
   ]
-}
+} as const;
