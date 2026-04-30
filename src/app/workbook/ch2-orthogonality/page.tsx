@@ -3,7 +3,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter, useSearchParams } from 'next/navigation';
-import content from './ch2-orthogonality';
+import { content } from './ch2-orthogonality';
 
 type Problem = {
   id: string;
