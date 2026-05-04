@@ -35,27 +35,6 @@ export const chapter = {
           "prompt": "벡터 `x`의 간격인 `xstep`을 **0.05, 0.1, 0.5, 1**로 바꾸어 각각 실행하고 결과를 보이시오.  \n`xstep` 값이 커질수록 적분 결과가 실제 값(약 0.0088)과의 차이가 벌어지는 이유를 쓰시오.",
           "answerType": "textarea",
           "solution": "# 1.A3 정답(예시)\n\n`1.A1`의 스크립트에서 `xstep`을 바꾸면, 직사각형(리만 합)으로 적분을 근사하는 “사각형의 폭”이 바뀐다.  \n`xstep`이 **클수록** 사각형이 **거칠어져** 곡선을 잘 따라가지 못하므로, 적분 근사 오차가 커진다.\n\n---\n\n## (1) 실행 결과 예시\n\n아래 코드를 사용하여 `xstep`을 바꾸며 적분 근사값을 비교할 수 있다.\n\n```python\nimport numpy as np\n\na=3\nb=12\nfor xstep in [0.05, 0.1, 0.5, 1]:\n    x = np.arange(a, b, xstep)\n    y = 2*x*np.exp(-2*x)\n    S = np.sum(y) * xstep\n    print(f\"xstep={xstep:>4}  S≈{S:.10f}\")\n```\n\n참고로, 이 적분의 (기호적) 실제값은 다음과 같다.\n\n\\[\n\\int_{3}^{12} 2x e^{-2x}\\,dx \\approx 0.0086756321\n\\]\n\n따라서 `xstep`이 0.05, 0.1일 때는 실제값(약 0.0087~0.0088)에 비교적 가깝고,  \n`xstep`이 0.5, 1처럼 커지면 오차가 눈에 띄게 커지는 것을 확인할 수 있다.\n\n---\n\n## (2) `xstep`이 커질수록 오차가 커지는 이유(서술)\n\n`np.sum(y) * xstep`은 다음 형태의 리만 합(직사각형 면적 합)이다.\n\n\\[\n\\sum_{n} f(x_n)\\,\\Delta x\n\\]\n\n여기서 \\(\\Delta x = xstep\\) 이고, 각 항은 밑변이 `xstep`, 높이가 \\(f(x_n)\\)인 직사각형의 면적이다.  \n`xstep`이 커지면,\n\n- 한 직사각형이 대표하는 구간이 길어짐(표본점이 듬성듬성)\n- 곡선의 굴곡/변화를 직사각형이 반영하지 못함\n\n그래서 곡선 아래 면적(정적분)을 더 거칠게 근사하게 되어 **근사 오차가 증가**한다."
-        },
-        {
-          "id": "2-1A4",
-          "title": "1.A4.",
-          "prompt": "테스트입니다.",
-          "answerType": "textarea",
-          "solution": "# 1.A4 정답입니다."
-        },
-        {
-          "id": "2-1A5",
-          "title": "1.A5.",
-          "prompt": "3 더하기 2는?",
-          "answerType": "textarea",
-          "solution": "5"
-        },
-        {
-          "id": "2-1A6",
-          "title": "1.A6.",
-          "prompt": "6 더하기 7는?",
-          "answerType": "textarea",
-          "solution": "13"
         }
       ]
     },
