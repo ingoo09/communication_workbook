@@ -18,6 +18,3 @@ export async function GET() {
   }
   return NextResponse.json({ problems: data ?? [] });
 }
-
-console.log("URL:", process.env.NEXT_PUBLIC_SUPABASE_URL);
-console.log("KEY:", process.env.SUPABASE_SERVICE_KEY);
