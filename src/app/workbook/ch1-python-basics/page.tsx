@@ -302,7 +302,7 @@ useEffect(() => {
       <div style={{ padding: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>문항이 없습니다</h1>
         <p style={{ marginTop: 8 }}>
-          JSON 경로: <code>src/app/workbook/ch1-python-basics/ch1-python-basics.json</code>
+          JSON 경로: <code>src/app/workbook/ch1-python-basics/ch1-python-basics.ts</code>
         </p>
       </div>
     );
