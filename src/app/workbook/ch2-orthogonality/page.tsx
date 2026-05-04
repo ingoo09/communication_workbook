@@ -156,8 +156,6 @@ function renderFencedText(s: string) {
 }
 
 export default function Ch2OrthogonalityPage() {
-  const isClient = typeof window !== 'undefined';
-
   const data = chapter as unknown as Content;
 
   const sp = useSearchParams();
