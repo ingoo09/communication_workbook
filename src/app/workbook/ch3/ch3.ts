@@ -1,256 +1,282 @@
 export const chapter = {
-  "id": "ch3",
-  "title": "Chapter 3. Fourier Series and Frequency Transfer Function(Free)",
+  "id": "3-fourier-frequency",
+  "title": "3장. Fourier Series and Frequency Transfer Function — 문제 풀이",
   "sections": [
- {
-      "id": "1A1",
-      "prompt": `
-T = (자신의 학번 끝 2자리)로 설정하자.
-푸리에 급수의 기본 주파수 w0를 구하시오.
-      `,
-      "solution": `
-w0 = 2π / T
-      `
-    },
 
+    // =========================
+    // 1.A
+    // =========================
     {
-      "id": "1A2",
-      "prompt": `
-첫 번째 항만 사용하여 그래프를 그렸을 때,
-결과 그래프는 어떤 함수인가?
-      `,
-      "solution": `
-cos(w0 t) 형태의 코사인 함수
-      `
-    },
+      "id": "3-1A",
+      "title": "1.A",
+      "problems": [
+        {
+          "id": "3-1A1",
+          "title": "1.A1.",
+          "prompt": "T를 설정하고 기본 주파수 w0를 구하시오.",
+          "answerType": "textarea",
+          "solution": `
+푸리에 급수에서 기본 주파수는 다음과 같이 정의된다.
 
-    {
-      "id": "1A3",
-      "prompt": `
-두 번째 항까지 추가했을 때 그래프 변화를 설명하시오.
-      `,
-      "solution": `
-고조파가 추가되어 파형이 사각파 형태로 조금 더 가까워짐
-      `
-    },
+\\[
+w_0 = \\frac{2\\pi}{T}
+\\]
 
-    {
-      "id": "1A4",
-      "prompt": `
-세 번째, 네 번째, 다섯 번째 항을 수식으로 쓰시오.
-      `,
-      "solution": `
-(4/π)*(1/5)*cos(5w0 t)
-(4/π)*(-1/7)*cos(7w0 t)
-(4/π)*(1/9)*cos(9w0 t)
-      `
-    },
+따라서, 자신의 학번 끝 두 자리를 T로 설정하면 해당 값에 따라 w0가 결정된다.
+          `
+        },
+        {
+          "id": "3-1A2",
+          "title": "1.A2.",
+          "prompt": "첫 번째 항만 사용했을 때 그래프는 어떤 함수인가?",
+          "answerType": "textarea",
+          "solution": `
+첫 번째 항은 다음과 같다.
 
-    {
-      "id": "1A5",
-      "prompt": `
-세 번째 ~ 다섯 번째 항을 코드로 작성하시오.
-      `,
-      "solution": `
-fTt += (4/np.pi)*(1/5)*np.cos(5*w0*t)
-fTt += (4/np.pi)*(-1/7)*np.cos(7*w0*t)
-fTt += (4/np.pi)*(1/9)*np.cos(9*w0*t)
-      `
-    },
+\\[
+f(t) = \\frac{4}{\\pi} \\cos(w_0 t)
+\\]
 
-    {
-      "id": "1A7",
-      "prompt": `
-항을 많이 더할수록 어떤 파형으로 수렴하는가?
-      `,
-      "solution": `
-사각파(square wave)로 수렴
-      `
+따라서 그래프는 단순한 코사인 함수이며,
+주기 T를 갖는 정현파 형태이다.
+          `
+        },
+        {
+          "id": "3-1A4",
+          "title": "1.A4.",
+          "prompt": "3번째, 4번째, 5번째 항을 구하시오.",
+          "answerType": "textarea",
+          "solution": `
+푸리에 급수는 다음과 같은 패턴을 가진다.
+
+\\[
+\\frac{4}{\\pi}\\left( \\cos(w_0 t) - \\frac{1}{3}\\cos(3w_0 t) + \\frac{1}{5}\\cos(5w_0 t) - ... \\right)
+\\]
+
+따라서,
+
+- 3번째 항:
+\\[
+\\frac{4}{\\pi} \\cdot \\frac{1}{5} \\cos(5w_0 t)
+\\]
+
+- 4번째 항:
+\\[
+\\frac{4}{\\pi} \\cdot \\left(-\\frac{1}{7}\\right) \\cos(7w_0 t)
+\\]
+
+- 5번째 항:
+\\[
+\\frac{4}{\\pi} \\cdot \\frac{1}{9} \\cos(9w_0 t)
+\\]
+          `
+        },
+        {
+          "id": "3-1A7",
+          "title": "1.A7.",
+          "prompt": "항을 많이 더할수록 어떤 파형으로 수렴하는가?",
+          "answerType": "textarea",
+          "solution": `
+푸리에 급수의 항을 많이 더할수록 결과는 이상적인 사각파(square wave)에 점점 가까워진다.
+
+다만, 불연속점에서는 Gibbs 현상이 발생하여 약간의 오버슈트가 나타난다.
+          `
+        }
+      ]
     },
 
     // =========================
     // 1.B
     // =========================
     {
-      "id": "1B1",
-      "prompt": `
-푸리에 급수를 시그마 형태로 표현하시오.
-      `,
-      "solution": `
-f_T(t) = (4/π) Σ_{n=1}^{N} [(-1)^{n-1}/(2n-1) * cos((2n-1)w0 t)]
-      `
-    },
+      "id": "3-1B",
+      "title": "1.B",
+      "problems": [
+        {
+          "id": "3-1B1",
+          "title": "1.B1.",
+          "prompt": "푸리에 급수를 시그마 형태로 표현하시오.",
+          "answerType": "textarea",
+          "solution": `
+푸리에 급수는 다음과 같이 표현된다.
 
-    {
-      "id": "1B3",
-      "prompt": `
-반복문 결과는 어느 그래프와 같은가?
-      `,
-      "solution": `
-같은 항 개수를 사용한 1A 결과와 동일
-      `
-    },
+\\[
+f_T(t) = \\frac{4}{\\pi} \\sum_{n=1}^{N} \\frac{(-1)^{n-1}}{2n-1} \\cos((2n-1)w_0 t)
+\\]
 
-    {
-      "id": "1B4",
-      "prompt": `
-N이 증가할수록 어떤 현상이 나타나는가?
-      `,
-      "solution": `
-사각파에 수렴하며 Gibbs 현상이 나타남
-      `
+이 식은 홀수 고조파만 포함하는 사각파의 푸리에 급수이다.
+          `
+        },
+        {
+          "id": "3-1B3",
+          "title": "1.B3.",
+          "prompt": "반복문 결과 그래프는 어떤 경우와 같은가?",
+          "answerType": "textarea",
+          "solution": `
+반복문을 이용한 결과는 동일한 항 개수를 수동으로 더한 경우와 동일하다.
+
+즉, 1.A에서 같은 개수의 항을 사용했을 때의 그래프와 일치한다.
+          `
+        }
+      ]
     },
 
     // =========================
     // 2
     // =========================
     {
-      "id": "2A",
-      "prompt": `
-RC 회로의 미분 방정식을 유도하시오.
-      `,
-      "solution": `
-f(t) = RC * dg(t)/dt + g(t)
-      `
-    },
+      "id": "3-2",
+      "title": "2. RC 회로",
+      "problems": [
+        {
+          "id": "3-2A",
+          "title": "2.A.",
+          "prompt": "RC 회로의 미분 방정식을 유도하시오.",
+          "answerType": "textarea",
+          "solution": `
+RC 회로에서 키르히호프 전압 법칙(KVL)을 적용하면,
 
-    {
-      "id": "2B",
-      "prompt": `
-전달함수 H(w)를 구하시오.
-      `,
-      "solution": `
-H(w) = 1 / (1 + j w R C)
-      `
-    },
+입력 전압 f(t)는 저항과 커패시터 전압의 합이다.
 
-    {
-      "id": "2C",
-      "prompt": `
-|H(w)|와 ∠H(w)를 구하시오.
-      `,
-      "solution": `
-|H(w)| = 1 / sqrt(1 + (wRC)^2)
-∠H(w) = -atan(wRC)
-      `
-    },
+저항 전압: R i(t)  
+커패시터 전류: i(t) = C dg(t)/dt
 
-    {
-      "id": "2D",
-      "prompt": `
-|H(w)|를 그리는 Python 코드를 완성하시오.
-      `,
-      "solution": `
+따라서,
+
+\\[
+f(t) = R C \\frac{dg(t)}{dt} + g(t)
+\\]
+
+이 된다.
+          `
+        },
+        {
+          "id": "3-2B",
+          "title": "2.B.",
+          "prompt": "전달함수 H(w)를 구하시오.",
+          "answerType": "textarea",
+          "solution": `
+입력을 e^{jwt}, 출력을 H(w)e^{jwt}라 하면,
+
+미분은 jω가 곱해진다.
+
+따라서 식에 대입하면,
+
+\\[
+H(w)e^{jwt} + jωRC H(w)e^{jwt} = e^{jwt}
+\\]
+
+정리하면,
+
+\\[
+H(w) = \\frac{1}{1 + jωRC}
+\\]
+          `
+        },
+        {
+          "id": "3-2D",
+          "title": "2.D.",
+          "prompt": "전달함수 크기를 그리는 코드를 설명하시오.",
+          "code": `
+w=np.arange(-120,120,1/1e4)
+R=0.5e3
+C=1XXXe-6
+Hw=1/(1+1j*w*R*C)
+plt.plot(w,np.abs(Hw))
+          `,
+          "answerType": "textarea",
+          "solution": `
+각 라인의 의미는 다음과 같다.
+
 w = np.arange(-120,120,1/1e4)
+- 주파수 범위를 생성한다.
+
 R = 0.5e3
+- 저항값 설정
+
 C = 1XXXe-6
+- 커패시터 값 설정
+
 Hw = 1/(1+1j*w*R*C)
+- 전달함수를 계산
+
 plt.plot(w, np.abs(Hw))
-      `
-    },
+- 전달함수의 크기를 그래프로 출력
+          `
+        },
+        {
+          "id": "3-2F",
+          "title": "2.F.",
+          "prompt": "왜 저역통과필터인가?",
+          "answerType": "textarea",
+          "solution": `
+주파수가 작을 때 |H(w)| ≈ 1 이고,
+주파수가 커질수록 |H(w)| → 0으로 감소한다.
 
-    {
-      "id": "2E",
-      "prompt": `
-∠H(w)를 그리는 Python 코드를 작성하시오.
-      `,
-      "solution": `
-plt.plot(w, np.angle(Hw))
-      `
-    },
-
-    {
-      "id": "2F",
-      "prompt": `
-이 회로를 저역통과필터라 부르는 이유는?
-      `,
-      "solution": `
-저주파는 통과시키고 고주파는 감쇠시키기 때문
-      `
+즉, 저주파는 통과시키고 고주파는 차단하므로
+Low Pass Filter이다.
+          `
+        }
+      ]
     },
 
     // =========================
     // 3
     // =========================
     {
-      "id": "3A2",
-      "prompt": `
-그래프에서 입력과 출력은 각각 무엇인가?
-      `,
-      "solution": `
-위 그래프: 입력 / 아래 그래프: 출력
-      `
-    },
+      "id": "3-3",
+      "title": "3. 선형 시스템",
+      "problems": [
+        {
+          "id": "3-3A3",
+          "title": "3.A3.",
+          "prompt": "입력과 출력의 주파수 관계를 설명하시오.",
+          "answerType": "textarea",
+          "solution": `
+선형 시스템에서는 입력이 e^{jwt}일 때 출력도 동일한 주파수를 가진다.
 
-    {
-      "id": "3A3",
-      "prompt": `
-입력과 출력의 주파수 관계는?
-      `,
-      "solution": `
-출력 주파수 = 입력 주파수
-      `
-    },
+즉,
 
-    {
-      "id": "3A6",
-      "prompt": `
-선형 시스템의 중요한 성질은?
-      `,
-      "solution": `
-주파수는 변하지 않고 크기와 위상만 변함
-      `
+입력 주파수 = 출력 주파수
+
+이며, 변화하는 것은 진폭과 위상뿐이다.
+          `
+        }
+      ]
     },
 
     // =========================
     // 4
     // =========================
     {
-      "id": "4A1",
-      "prompt": `
-입력이 e^{jnw0t}일 때 출력은?
-      `,
-      "solution": `
-H(nw0) e^{jnw0 t}
-      `
-    },
+      "id": "3-4",
+      "title": "4. 주기함수 응답",
+      "problems": [
+        {
+          "id": "3-4A4",
+          "title": "4.A4.",
+          "prompt": "Gn을 구하시오.",
+          "answerType": "textarea",
+          "solution": `
+푸리에 계수 Fn에 대해,
 
-    {
-      "id": "4A2",
-      "prompt": `
-입력이 Fn e^{jnw0t}일 때 출력은?
-      `,
-      "solution": `
-Fn H(nw0) e^{jnw0 t}
-      `
-    },
+출력 계수는
 
-    {
-      "id": "4A4",
-      "prompt": `
-Gn을 구하시오.
-      `,
-      "solution": `
-Gn = H(nw0) Fn
-      `
-    },
+\\[
+G_n = H(nw_0) F_n
+\\]
 
-    {
-      "id": "4A5",
-      "prompt": `
-출력 g(t)의 특징은?
-      `,
-      "solution": `
-출력도 주기함수
-      `
-    },
+이다.
 
-    {
-      "id": "4B",
-      "prompt": `
-코드의 빈칸을 채우시오.
-      `,
-      "solution": `
+즉, 각 주파수 성분마다 전달함수를 곱하면 출력이 된다.
+          `
+        },
+        {
+          "id": "3-4B",
+          "title": "4.B.",
+          "prompt": "코드 빈칸을 채우시오.",
+          "answerType": "textarea",
+          "solution": `
 w0 = (2*np.pi)/T
 
 if n % 2 == 0:
@@ -259,17 +285,10 @@ else:
     Fn = 2/(1j*n*np.pi)
 
 Gn = Hw * Fn
-      `
-    },
-
-    {
-      "id": "4B3",
-      "prompt": `
-결과로부터 알 수 있는 성질은?
-      `,
-      "solution": `
-푸리에 계수에 전달함수를 곱하면 출력이 됨
-      `
+          `
+        }
+      ]
     }
+
   ]
-} as const;
+};
