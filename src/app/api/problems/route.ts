@@ -10,7 +10,7 @@ export async function GET() {
   const { data, error } = await supabase
     .from("problems")
     .select("id, type, body, chapter_id")
-    .eq("chapter_id", 1)
+    .eq("chapter_id", 2)
     .order("id", { ascending: true });
 
   if (error) {
