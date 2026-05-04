@@ -1,5 +1,5 @@
 export const chapter = {
-  ""id"": "ch3",
+  "id": "ch3",
   "title": "Chapter 3. Fourier Series and Frequency Transfer Function(Free)",
   "sections": [
  {
