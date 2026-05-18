@@ -190,6 +190,11 @@ const [runningCode, setRunningCode] =
 const [codeOutput, setCodeOutput] =
   useState<string | null>(null);
 
+const [pyReady, setPyReady] =
+  useState(false);
+
+const pyodideRef = useRef<any>(null);
+
 const [pyodide, setPyodide] =
   useState<any>(null);
 
@@ -350,6 +355,10 @@ const isFirst = useRef(true);
   initPyodide();
 }, []);
 
+useEffect(() => {
+  initializePython();
+}, []);
+
   if (!current) {
     return (
       <div style={{ padding: 24 }}>
@@ -414,7 +423,42 @@ const isFirst = useRef(true);
     }
   }
 
+  async function initializePython() {
+  try {
+    setCodeOutput(
+      'Python 로딩 중입니다...'
+    );
+
+    if (!(window as any).loadPyodide) {
+      setCodeOutput(
+        'Pyodide 스크립트를 불러오지 못했습니다.'
+      );
+      return;
+    }
+
+    pyodideRef.current =
+      await (window as any).loadPyodide({
+        indexURL:
+          'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
+      });
+
+    setPyReady(true);
+
+    setCodeOutput(
+      'Python 실행 준비 완료!'
+    );
+  } catch (e: any) {
+    setCodeOutput(
+      `Python 초기화 실패:\n${String(
+        e?.message ?? e
+      )}`
+    );
+  }
+}
+
   async function runPythonCode() {
+    const pyodide = pyodideRef.current;
+
     if (!pyodide) {
     setCodeOutput(
       'Python 엔진 초기화 중입니다. 잠시만 기다려주세요.'
@@ -445,9 +489,7 @@ const isFirst = useRef(true);
     );
   } catch (e: any) {
     setCodeOutput(
-      `에러 발생:\n\n${String(
-        e
-      )}`
+      `에러 발생:\n\n${String(e)}`
     );
   } finally {
     setRunningCode(false);
