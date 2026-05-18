@@ -5,21 +5,33 @@ const client = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
+function sanitize(s?: string) {
+  return String(s ?? '')
+    .replace(/\u200b/g, '')
+    .trim();
+}
+
 export async function POST(req: Request) {
   try {
     const body = await req.json();
 
+    // ✅ 현재 page.tsx 구조에 맞춤
     const {
-      question,
-      studentAnswer,
-      modelAnswer,
+      problemId,
+      title,
+      prompt,
+      referenceSolution,
+      userAnswer,
     } = body;
 
-    // 입력값 검사
-    if (!question || !studentAnswer || !modelAnswer) {
+    // 디버깅용 로그
+    console.log('채점 요청:', body);
+
+    // 필수값 체크
+    if (!prompt || !userAnswer) {
       return NextResponse.json(
         {
-          error: '필수 값이 없습니다.',
+          error: '문제 또는 학생 답안이 없습니다.',
         },
         {
           status: 400,
@@ -27,39 +39,46 @@ export async function POST(req: Request) {
       );
     }
 
-    // AI 프롬프트
-    const prompt = `
-너는 온라인 교재의 한국어 AI 채점 시스템이다.
+    // 정답이 없는 경우 대비
+    const solutionText =
+      sanitize(referenceSolution) ||
+      '모범답안이 제공되지 않았습니다. 문제 의도 기반으로 채점하세요.';
 
-학생 답안을 평가하라.
+    const gradingPrompt = `
+너는 대학 수준의 한국어 AI 채점기다.
+
+학생의 답안을 평가하라.
+
+[문제 제목]
+${sanitize(title)}
 
 [문제]
-${question}
+${sanitize(prompt)}
 
 [모범답안]
-${modelAnswer}
+${solutionText}
 
-[학생답안]
-${studentAnswer}
+[학생 답안]
+${sanitize(userAnswer)}
 
-채점 기준:
-- 핵심 개념 포함 여부
-- 설명 정확성
-- 문장 이해 가능 여부
+평가 기준:
+1. 핵심 개념 이해 여부
+2. 수학적/논리적 정확성
+3. 설명의 명확성
+4. 문제 요구 충족 여부
 
 반드시 아래 JSON 형식만 출력하라.
 
 {
   "score": 0~100 사이 숫자,
-  "feedback": "학생에게 줄 피드백"
+  "feedback": "학생에게 줄 자세한 피드백"
 }
 `;
 
-    // OpenAI 호출
     const response = await client.responses.create({
       model: 'gpt-4.1-mini',
 
-      input: prompt,
+      input: gradingPrompt,
 
       text: {
         format: {
@@ -88,22 +107,25 @@ ${studentAnswer}
       },
     });
 
-    // JSON 파싱
     const result = JSON.parse(response.output_text);
 
-    // 반환
     return NextResponse.json({
       success: true,
-      result,
+
+      problemId,
+
+      score: result.score,
+
+      feedback: result.feedback,
     });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error('AI 채점 오류:', error);
 
     return NextResponse.json(
       {
         success: false,
-        error: 'AI 채점 중 오류가 발생했습니다.',
+        error: error?.message || 'AI 채점 실패',
       },
       {
         status: 500,
