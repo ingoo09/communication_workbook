@@ -791,58 +791,48 @@ const isFirst = useRef(true);
   />
 )}
 
-          <div
-            style={{
-              marginTop: 10,
-              display: 'flex',
-              gap: 10,
-              alignItems: 'center',
-              flexWrap: 'wrap',
-            }}
-          >
-            <button
-              onClick={saveMyAnswer}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #ddd',
-              }}
-            >
-{current.pb.answerType === 'code' && (
+<div
+  style={{
+    marginTop: 10,
+    display: 'flex',
+    gap: 10,
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  }}
+>
+  {/* 저장 버튼 */}
   <button
-    onClick={runPythonCode}
-    disabled={runningCode}
+    onClick={saveMyAnswer}
     style={{
       padding: '10px 14px',
       borderRadius: 10,
       border: '1px solid #ddd',
-      background: '#111827',
-      color: '#fff',
-      opacity: runningCode ? 0.7 : 1,
     }}
   >
-    {runningCode
-      ? '실행 중...'
-      : '코드 실행'}
+    저장
   </button>
-)}
-              저장
-            </button>
 
-{current.pb.answerType === 'code' && (
+  {/* 코드 실행 버튼 */}
+  {current.pb.answerType === 'code' && (
     <button
+      onClick={runPythonCode}
+      disabled={runningCode}
       style={{
         padding: '10px 14px',
         borderRadius: 10,
         border: '1px solid #ddd',
         background: '#111827',
         color: '#fff',
+        opacity: runningCode ? 0.7 : 1,
       }}
     >
-      코드 실행
+      {runningCode
+        ? '실행 중...'
+        : '코드 실행'}
     </button>
   )}
 
+  {/* 저장 표시 */}
   {saved && (
     <span
       style={{
@@ -854,80 +844,71 @@ const isFirst = useRef(true);
     </span>
   )}
 
-            {saved && (
-              <span
-                style={{
-                  fontSize: 13,
-                  opacity: 0.75,
-                }}
-              >
-                저장됨
-              </span>
-            )}
-
-{gradeResult && (
-  <div
-    style={{
-      width: '100%',
-      marginTop: 10,
-      padding: 12,
-      borderRadius: 12,
-      border: '1px solid #ddd',
-    }}
-  >
+  {/* AI 채점 결과 */}
+  {gradeResult && (
     <div
       style={{
-        fontWeight: 900,
-        marginBottom: 6,
+        width: '100%',
+        marginTop: 10,
+        padding: 12,
+        borderRadius: 12,
+        border: '1px solid #ddd',
       }}
     >
-      AI 채점 결과
-    </div>
+      <div
+        style={{
+          fontWeight: 900,
+          marginBottom: 6,
+        }}
+      >
+        AI 채점 결과
+      </div>
 
+      <div
+        style={{
+          whiteSpace: 'pre-wrap',
+          lineHeight: 1.6,
+        }}
+      >
+        {gradeResult}
+      </div>
+    </div>
+  )}
+
+  {/* Python 실행 결과 */}
+  {codeOutput && (
     <div
       style={{
-        whiteSpace: 'pre-wrap',
-        lineHeight: 1.6,
+        width: '100%',
+        marginTop: 10,
+        padding: 12,
+        borderRadius: 12,
+        border: '1px solid #ddd',
+        background: '#0b1020',
+        color: '#e6edf3',
       }}
     >
-      {gradeResult}
-    </div>
-  </div>
-)}
+      <div
+        style={{
+          fontWeight: 900,
+          marginBottom: 6,
+        }}
+      >
+        Python 실행 결과
+      </div>
 
-{codeOutput && (
-  <div
-    style={{
-      width: '100%',
-      marginTop: 10,
-      padding: 12,
-      borderRadius: 12,
-      border: '1px solid #ddd',
-      background: '#0b1020',
-      color: '#e6edf3',
-    }}
-  >
-    <div
-      style={{
-        fontWeight: 900,
-        marginBottom: 6,
-      }}
-    >
-      Python 실행 결과
+      <pre
+        style={{
+          whiteSpace: 'pre-wrap',
+          margin: 0,
+          lineHeight: 1.5,
+        }}
+      >
+        {codeOutput}
+      </pre>
     </div>
-
-    <pre
-      style={{
-        whiteSpace: 'pre-wrap',
-        margin: 0,
-        lineHeight: 1.5,
-      }}
-    >
-      {codeOutput}
-    </pre>
-  </div>
-)}
-          </div>
+  )}
+</div>
         </div>
 
       </div>

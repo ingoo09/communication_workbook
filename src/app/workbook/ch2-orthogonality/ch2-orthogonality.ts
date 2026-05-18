@@ -4,11 +4,11 @@ export const chapter = {
   "sections": [
     {
       "id": "2-1A",
-      "title": "1. 간단한 수치적분(Numerical Integration)",
+      "title": "1.A.",
       "problems": [
         {
           "id": "2-1A",
-          "title": "1.A.",
+          "title": "1.A. 간단한 수치적분(Nemerical Integration)",
           "prompt": "Python에서 임의의 함수를 수치적분 할 수 있다.",
           "answerType": "textarea",
           "solution": "이 문항은 **수치적분의 기본 아이디어를 이해하기 위한 서문**이다.\n\n핵심은 다음과 같다.\n\n- 적분구간 \\([a,b]\\)를 작은 간격 `xstep`으로 잘게 나눈다.\n- 각 점에서 함수값 \\(f(x)\\)를 계산한다.\n- 각 구간을 폭 `xstep`, 높이 \\(f(x_n)\\)인 직사각형으로 보고 면적을 더한다.\n- 이렇게 얻은 합\n  \\[\n  \\sum_n f(x_n)\\,\\Delta x\n  \\]\n  이 정적분\n  \\[\n  \\int_a^b f(x)\\,dx\n  \\]\n  의 근사값이 된다.\n\n즉, Python에서는 벡터 `x`, 함수값 벡터 `y`, 그리고 `np.sum(y) * xstep`을 이용해 임의의 함수의 정적분을 **수치적으로 근사**할 수 있다."
@@ -40,7 +40,7 @@ export const chapter = {
     },
     {
       "id": "2-1B",
-      "title": "1. 간단한 수치적분(Numerical Integration)",
+      "title": "1.B.",
       "problems": [
         {
           "id": "2-1B",
@@ -53,7 +53,7 @@ export const chapter = {
     },
     {
       "id": "2-1C",
-      "title": "1. 간단한 수치적분(Numerical Integration)",
+      "title": "1.C.",
       "problems": [
         {
           "id": "2-1C",
@@ -66,7 +66,7 @@ export const chapter = {
     },
     {
       "id": "2-1D",
-      "title": "1. 간단한 수치적분(Numerical Integration)",
+      "title": "1.D.",
       "problems": [
         {
           "id": "2-1D",
@@ -101,7 +101,7 @@ export const chapter = {
     },
     {
       "id": "2-1E",
-      "title": "1. 간단한 수치적분(Numerical Integration)",
+      "title": "1.E.",
       "problems": [
         {
           "id": "2-1E",
@@ -114,7 +114,7 @@ export const chapter = {
     },
     {
       "id": "2-1F",
-      "title": "1. 간단한 수치적분(Numerical Integration)",
+      "title": "1.F.",
       "problems": [
         {
           "id": "2-1F",
@@ -127,7 +127,7 @@ export const chapter = {
     },
     {
       "id": "2-1G",
-      "title": "1. 간단한 수치적분(Numerical Integration)",
+      "title": "1.G.",
       "problems": [
         {
           "id": "2-1G",
@@ -140,7 +140,7 @@ export const chapter = {
     },
     {
       "id": "2-2A",
-      "title": "2. Orthogonal Expansion",
+      "title": "2.A.Orthogonal Expansion",
       "problems": [
         {
           "id": "2-2A",
