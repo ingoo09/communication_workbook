@@ -757,26 +757,6 @@ async function runPythonCode() {
             내 답안
           </div>
 
-          {current.pb.answerType === 'code' ? (
-  <Editor
-    height="320px"
-    defaultLanguage="python"
-    theme="vs-dark"
-    value={userAnswer}
-    onChange={(value) =>
-      setUserAnswer(value || '')
-    }
-    options={{
-      fontSize: 15,
-      minimap: {
-        enabled: false,
-      },
-      scrollBeyondLastLine: false,
-      automaticLayout: true,
-      wordWrap: 'on',
-    }}
-  />
-) : (
 {current.pb.answerType === 'code' ? (
   <Editor
     height="320px"
