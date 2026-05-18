@@ -6,13 +6,14 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { chapter } from './ch2-orthogonality';
+import Editor from '@monaco-editor/react';
 
 type Problem = {
   id: string;
   title: string;
   prompt: string;
   code?: string;
-  answerType?: 'textarea' | 'short';
+  answerType?: 'textarea' | 'short' | 'code';
 
   // 사전 정답/풀이(프로젝트/버전별 키 이름 다양성 대응)
   answer?: string;
@@ -174,6 +175,10 @@ export default function Ch2OrthogonalityPage() {
   // ✅ AI 채점 결과
   const [grading, setGrading] = useState(false);
   const [gradeResult, setGradeResult] = useState<string | null>(null);
+
+  const [runningCode, setRunningCode] = useState(false);
+
+  const [codeOutput, setCodeOutput] = useState<string | null>(null);
 
   const promptRef = useRef<HTMLDivElement | null>(null);
   const answerRef = useRef<HTMLDivElement | null>(null);
@@ -357,6 +362,57 @@ const isFirst = useRef(true);
           userAnswer: userAnswer,
         }),
       });
+
+async function runPythonCode() {
+  setRunningCode(true);
+  setCodeOutput(null);
+
+  try {
+    const response = await fetch(
+      'https://emkc.org/api/v2/piston/execute',
+      {
+        method: 'POST',
+
+        headers: {
+          'Content-Type': 'application/json',
+        },
+
+        body: JSON.stringify({
+          language: 'python',
+
+          version: '3.10.0',
+
+          files: [
+            {
+              content: userAnswer,
+            },
+          ],
+        }),
+      }
+    );
+
+    const result = await response.json();
+
+    if (result?.run?.stderr) {
+      setCodeOutput(
+        `에러 발생:\n\n${result.run.stderr}`
+      );
+    } else {
+      setCodeOutput(
+        result?.run?.stdout ||
+          '(출력 없음)'
+      );
+    }
+  } catch (e: any) {
+    setCodeOutput(
+      `실행 실패:\n${String(
+        e?.message ?? e
+      )}`
+    );
+  } finally {
+    setRunningCode(false);
+  }
+}
 
       const text = await res.text();
       if (!res.ok) {
@@ -701,21 +757,63 @@ const isFirst = useRef(true);
             내 답안
           </div>
 
-          <textarea
-            value={userAnswer}
-            onChange={(e) =>
-              setUserAnswer(e.target.value)
-            }
-            placeholder="여기에 답안을 작성하세요."
-            style={{
-              width: '100%',
-              minHeight: 140,
-              padding: 12,
-              borderRadius: 12,
-              border: '1px solid #ddd',
-              fontSize: 14,
-            }}
-          />
+          {current.pb.answerType === 'code' ? (
+  <Editor
+    height="320px"
+    defaultLanguage="python"
+    theme="vs-dark"
+    value={userAnswer}
+    onChange={(value) =>
+      setUserAnswer(value || '')
+    }
+    options={{
+      fontSize: 15,
+      minimap: {
+        enabled: false,
+      },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      wordWrap: 'on',
+    }}
+  />
+) : (
+{current.pb.answerType === 'code' ? (
+  <Editor
+    height="320px"
+    defaultLanguage="python"
+    theme="vs-dark"
+    value={userAnswer}
+    onChange={(value) =>
+      setUserAnswer(value || '')
+    }
+    options={{
+      fontSize: 15,
+      minimap: {
+        enabled: false,
+      },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      wordWrap: 'on',
+    }}
+  />
+) : (
+  <textarea
+    value={userAnswer}
+    onChange={(e) =>
+      setUserAnswer(e.target.value)
+    }
+    placeholder="여기에 답안을 작성하세요."
+    style={{
+      width: '100%',
+      minHeight: 140,
+      padding: 12,
+      borderRadius: 12,
+      border: '1px solid #ddd',
+      fontSize: 14,
+    }}
+  />
+)}
+)}
 
           <div
             style={{
@@ -734,8 +832,51 @@ const isFirst = useRef(true);
                 border: '1px solid #ddd',
               }}
             >
+{current.pb.answerType === 'code' && (
+  <button
+    onClick={runPythonCode}
+    disabled={runningCode}
+    style={{
+      padding: '10px 14px',
+      borderRadius: 10,
+      border: '1px solid #ddd',
+      background: '#111827',
+      color: '#fff',
+      opacity: runningCode ? 0.7 : 1,
+    }}
+  >
+    {runningCode
+      ? '실행 중...'
+      : '코드 실행'}
+  </button>
+)}
               저장
             </button>
+
+{current.pb.answerType === 'code' && (
+    <button
+      style={{
+        padding: '10px 14px',
+        borderRadius: 10,
+        border: '1px solid #ddd',
+        background: '#111827',
+        color: '#fff',
+      }}
+    >
+      코드 실행
+    </button>
+  )}
+
+  {saved && (
+    <span
+      style={{
+        fontSize: 13,
+        opacity: 0.75,
+      }}
+    >
+      저장됨
+    </span>
+  )}
 
             {saved && (
               <span
@@ -749,6 +890,38 @@ const isFirst = useRef(true);
             )}
 
             {gradeResult && (
+{codeOutput && (
+  <div
+    style={{
+      width: '100%',
+      marginTop: 10,
+      padding: 12,
+      borderRadius: 12,
+      border: '1px solid #ddd',
+      background: '#0b1020',
+      color: '#e6edf3',
+    }}
+  >
+    <div
+      style={{
+        fontWeight: 900,
+        marginBottom: 6,
+      }}
+    >
+      Python 실행 결과
+    </div>
+
+    <pre
+      style={{
+        whiteSpace: 'pre-wrap',
+        margin: 0,
+        lineHeight: 1.5,
+      }}
+    >
+      {codeOutput}
+    </pre>
+  </div>
+)}
               <div
                 style={{
                   width: '100%',

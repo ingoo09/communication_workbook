@@ -1,10 +1,10 @@
 export const chapter = {
   "id": "2-orthogonality",
-  "title": "2장. 직교성과 푸리에 급수 체험 — 문제 풀이 (모의)",
+  "title": "Chapter 2. Numerical Integration & Orthogonal expansion",
   "sections": [
     {
       "id": "2-1A",
-      "title": "1.A",
+      "title": "1. 간단한 수치적분(Numerical Integration)",
       "problems": [
         {
           "id": "2-1A",
@@ -18,7 +18,7 @@ export const chapter = {
           "title": "1.A1.",
           "prompt": "아래는 정적분의 값을 수치적분으로 계산하는 `py` 스크립트 파일이다.\n\n위 `py` 스크립트 파일을 작성하여 실행한 후 결과를 확인하고, 각 라인의 의미가 무엇인지 `py` 스크립트 파일의 **모든 라인**에 대한 설명을 다음의 지침에 따라 작성하시오.\n\n- (지침1) '`=`이 있는 라인': '`=` 왼쪽 변수의 목적(용도)', '`=` 오른쪽 수식이 왼쪽 변수의 목적(용도)에 왜 부합하는지'를 쓰시오.  \n- (지침2) '`=`이 없는 라인': 명령어에 대한 설명과 명령어를 왜 수행하는지 설명.",
           "code": "%reset -sf\n%clear\nimport numpy as np\nnp.random.randint(1,XXX) # XXX=학번 끝 3자리, 내용과 상관 없으나 꼭 추가할 것\na=3\nb=12\nxstep=0.01\nx=np.arange(a,b,xstep)\ny=2*x*np.exp(-2*x)\nS=np.sum(y)*xstep; print(S)",
-          "answerType": "textarea",
+          "answerType": "code",
           "solution": "예시 실행 결과는 대략 다음과 같다.\n\n```text\nS ≈ 0.00875\n```\n\n(`xstep=0.01`이고 `x=np.arange(a,b,xstep)`로 계산했을 때의 대표적인 출력)\n\n각 라인의 의미는 다음과 같다.\n\n```python\n%reset -sf\n```\n- 현재 IPython/Colab 작업 공간의 변수를 정리하는 명령이다.\n- 이전에 만들었던 변수들이 남아 있으면 결과 해석이 꼬일 수 있으므로, 깨끗한 상태에서 시작하려고 수행한다.\n\n```python\n%clear\n```\n- 화면 출력 내용을 정리하는 명령이다.\n- 이전 출력과 현재 실행 결과를 구분하기 쉽게 하려고 사용한다.\n\n```python\nimport numpy as np\n```\n- 수치계산용 라이브러리 `numpy`를 `np`라는 이름으로 불러온다.\n- 이후 벡터 생성, 지수함수 계산, 합 계산 등을 하려면 필요하다.\n\n```python\nnp.random.randint(1,XXX)\n```\n- 1 이상 `XXX` 미만의 임의 정수를 하나 만드는 명령이다.\n- 적분 계산 자체에는 본질적으로 필요하지 않지만, 문제 지시상 반드시 넣으라고 했으므로 포함한다.\n\n```python\na=3\n```\n- 적분 시작점(하한) `a`를 저장한다.\n- 이 문제의 적분 구간이 3에서 시작하므로 `a=3`이 적절하다.\n\n```python\nb=12\n```\n- 적분 끝점(상한) `b`를 저장한다.\n- 이 문제의 적분 구간이 12에서 끝나므로 `b=12`가 적절하다.\n\n```python\nxstep=0.01\n```\n- 샘플 간격이자 직사각형의 밑변 길이 \\(\\Delta x\\)를 저장한다.\n- 수치적분에서는 구간을 잘게 나눠야 하므로, `0.01`처럼 작은 간격을 사용해 근사 오차를 줄인다.\n\n```python\nx=np.arange(a,b,xstep)\n```\n- `a`부터 `b` 직전까지 `xstep` 간격으로 점들을 만든다.\n- 적분구간 안의 샘플 위치 \\(x_n\\)들을 벡터로 만들어, 각 점에서 함수값을 계산하기 위해 필요하다.\n\n```python\ny=2*x*np.exp(-2*x)\n```\n- 각 샘플점 `x`에서 함수 \\(f(x)=2xe^{-2x}\\) 값을 계산해 벡터 `y`에 저장한다.\n- 적분하려는 대상 함수의 높이(직사각형 높이)가 바로 각 점의 함수값이므로, 이 식이 `y`의 목적에 정확히 맞는다.\n\n```python\nS=np.sum(y)*xstep; print(S)\n```\n- `S`의 목적은 정적분의 **수치적분 근사값**을 저장하는 것이다.\n- `np.sum(y)`는 각 샘플점에서의 함수값들을 모두 더한 값이고, 여기에 `xstep`을 곱하면\n  \\[\n  \\sum_n f(x_n)\\,\\Delta x\n  \\]\n  꼴의 리만합이 되어 적분값을 근사하게 된다.\n- `print(S)`는 계산된 근사 적분값을 화면에 출력하기 위해 수행한다."
         },
         {
@@ -40,33 +40,33 @@ export const chapter = {
     },
     {
       "id": "2-1B",
-      "title": "1.B",
+      "title": "1. 간단한 수치적분(Numerical Integration)",
       "problems": [
         {
           "id": "2-1B",
           "title": "1.B.",
           "prompt": "다음 적분을 수치적분으로 구하는 `py` 스크립트 파일을 작성하고, `py` 스크립트 파일을 실행한 결과 값을 보이시오.  \n( `py` 스크립트 파일의 코드를 각 문항에 보일 것 )\n\n\\[\n\\int_{-1}^{5} x^2 e^{-2x}\\,dx\n\\]",
-          "answerType": "textarea",
+          "answerType": "code",
           "solution": "\\[\n\\int_{-1}^{5} x^2 e^{-2x}\\,dx\n\\]\n\n### Python 예시(리만합)\n```python\nimport numpy as np\n\na, b = -1.0, 5.0\ndx = 1e-5  # 충분히 작게\n\nx = np.arange(a, b, dx)   # b는 제외(리만합)\ny = x**2 * np.exp(-2*x)\n\nS_num = np.sum(y) * dx\nprint(S_num)\n```\n\n- 예시 결과(참고): 약 **1.8466** (dx=1e-5 기준)\n\n---"
         }
       ]
     },
     {
       "id": "2-1C",
-      "title": "1.C",
+      "title": "1. 간단한 수치적분(Numerical Integration)",
       "problems": [
         {
           "id": "2-1C",
           "title": "1.C.",
           "prompt": "다음 적분을 수치적분으로 구하는 `py` 스크립트 파일을 작성하고, `py` 스크립트 파일을 실행한 결과 값을 보이시오.  \n( `py` 스크립트 파일의 코드를 각 문항에 보일 것 )\n\n\\[\n\\int_{5}^{5.01} x^3 e^{-x}\\,dx\n\\]",
-          "answerType": "textarea",
+          "answerType": "code",
           "solution": "\\[\n\\int_{5}^{5.01} x^3 e^{-x}\\,dx\n\\]\n\n```python\nimport numpy as np\n\na, b = 5.0, 5.01\ndx = 1e-6  # 구간이 매우 짧으므로 더 작게\n\nx = np.arange(a, b, dx)\ny = x**3 * np.exp(-x)\n\nS_num = np.sum(y) * dx\nprint(S_num)\n```\n\n- 예시 결과(참고): 약 **0.0084056** (dx=1e-6 기준)\n\n---"
         }
       ]
     },
     {
       "id": "2-1D",
-      "title": "1.D",
+      "title": "1. 간단한 수치적분(Numerical Integration)",
       "problems": [
         {
           "id": "2-1D",
@@ -80,7 +80,7 @@ export const chapter = {
           "id": "2-1D1",
           "title": "1.D1.",
           "prompt": "`sympy` 모듈(1장의 문제 5 참고)을 이용하여 문제 **1.B, 1.C**의 적분을 구하시오.  \n(결과가 복잡한 연산으로 주어지면, `evalf()`을 이용하여 실수로 반드시 변환할 것)",
-          "answerType": "textarea",
+          "answerType": "code",
           "solution": "```python\nimport sympy as sp\n\nx = sp.Symbol('x', real=True)\n\nS_B = sp.integrate(x**2*sp.exp(-2*x), (x, -1, 5))\nS_C = sp.integrate(x**3*sp.exp(-x), (x, 5, sp.Rational(501,100)))  # 5.01\n\nprint(\"S_B =\", S_B)\nprint(\"S_B (num) =\", sp.N(S_B, 15))\nprint(\"S_C (num) =\", sp.N(S_C, 15))\n```\n\n- 참고 수치(15-digit):\n  - S_B ≈ **1.84657**\n  - S_C ≈ **0.00840558**\n\n---"
         },
         {
@@ -101,7 +101,7 @@ export const chapter = {
     },
     {
       "id": "2-1E",
-      "title": "1.E",
+      "title": "1. 간단한 수치적분(Numerical Integration)",
       "problems": [
         {
           "id": "2-1E",
@@ -114,7 +114,7 @@ export const chapter = {
     },
     {
       "id": "2-1F",
-      "title": "1.F",
+      "title": "1. 간단한 수치적분(Numerical Integration)",
       "problems": [
         {
           "id": "2-1F",
@@ -127,7 +127,7 @@ export const chapter = {
     },
     {
       "id": "2-1G",
-      "title": "1.G",
+      "title": "1. 간단한 수치적분(Numerical Integration)",
       "problems": [
         {
           "id": "2-1G",
@@ -140,7 +140,7 @@ export const chapter = {
     },
     {
       "id": "2-2A",
-      "title": "2.A",
+      "title": "2. Orthogonal Expansion",
       "problems": [
         {
           "id": "2-2A",
