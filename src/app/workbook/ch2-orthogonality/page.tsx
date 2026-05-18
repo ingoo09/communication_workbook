@@ -355,10 +355,6 @@ const isFirst = useRef(true);
   initPyodide();
 }, []);
 
-useEffect(() => {
-  initializePython();
-}, []);
-
   if (!current) {
     return (
       <div style={{ padding: 24 }}>
@@ -423,24 +419,35 @@ useEffect(() => {
     }
   }
 
-  async function initializePython() {
+async function initializePython() {
   try {
+    console.log('Pyodide 초기화 시작');
+
     setCodeOutput(
       'Python 로딩 중입니다...'
     );
 
+    console.log(
+      'window.loadPyodide:',
+      (window as any).loadPyodide
+    );
+
     if (!(window as any).loadPyodide) {
       setCodeOutput(
-        'Pyodide 스크립트를 불러오지 못했습니다.'
+        'loadPyodide가 없습니다.'
       );
       return;
     }
 
-    pyodideRef.current =
+    const pyodide =
       await (window as any).loadPyodide({
         indexURL:
           'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
       });
+
+    console.log('Pyodide 로딩 완료');
+
+    pyodideRef.current = pyodide;
 
     setPyReady(true);
 
@@ -448,6 +455,8 @@ useEffect(() => {
       'Python 실행 준비 완료!'
     );
   } catch (e: any) {
+    console.error(e);
+
     setCodeOutput(
       `Python 초기화 실패:\n${String(
         e?.message ?? e
@@ -508,10 +517,13 @@ useEffect(() => {
       strategy="afterInteractive"
     />
 
-    <Script
+   <Script
       src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"
       strategy="afterInteractive"
-    />
+      onLoad={() => {
+        initializePython();
+  }}
+/>
 
     <Script
       src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
