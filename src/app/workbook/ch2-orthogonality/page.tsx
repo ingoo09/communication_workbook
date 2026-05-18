@@ -388,7 +388,7 @@ const isFirst = useRef(true);
 
     try {
     const response = await fetch(
-      'https://emkc.org/api/v2/piston/execute',
+      '/api/python',
       {
         method: 'POST',
 
@@ -397,16 +397,8 @@ const isFirst = useRef(true);
         },
 
         body: JSON.stringify({
-          language: 'python',
-
-          version: '3.10.0',
-
-          files: [
-            {
-              content: userAnswer,
-            },
-          ],
-        }),
+  code: userAnswer,
+}),
       }
     );
 
