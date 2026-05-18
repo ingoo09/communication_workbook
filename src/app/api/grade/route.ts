@@ -1,62 +1,113 @@
-import { NextRequest, NextResponse } from "next/server";
-import { createClient } from "@supabase/supabase-js";
+import OpenAI from 'openai';
+import { NextResponse } from 'next/server';
 
-type GradeRequest = { userId: string; problemId: number; answer: string };
-type RuleResult = { score: number; confident: boolean; note?: string };
+const client = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
-function ruleGrade(type: string, answerKey: any, studentRaw: string): RuleResult {
-  if (type === "mcq") {
-    const student = studentRaw.trim().toUpperCase(); // 예: "A"
-    const correct: string[] = answerKey?.correct ?? [];
-    const ok = correct.includes(student);
-    return { score: ok ? 1 : 0, confident: true, note: ok ? "정답" : "오답" };
-  }
-  if (type === "numeric") {
-    const val = parseFloat(studentRaw.replace(/,/g, "."));
-    if (Number.isNaN(val)) return { score: 0, confident: false };
-    const target = Number(answerKey?.value);
-    const tol = Number(answerKey?.tol_abs ?? 0);
-    const ok = Math.abs(val - target) <= tol;
-    return { score: ok ? 1 : 0, confident: true, note: ok ? "정답" : `허용오차 ±${tol}` };
-  }
-  return { score: 0, confident: false };
+export async function POST(req: Request) {
+  try {
+    const body = await req.json();
+
+    const {
+      question,
+      studentAnswer,
+      modelAnswer,
+    } = body;
+
+    // 입력값 검사
+    if (!question || !studentAnswer || !modelAnswer) {
+      return NextResponse.json(
+        {
+          error: '필수 값이 없습니다.',
+        },
+        {
+          status: 400,
+        }
+      );
+    }
+
+    // AI 프롬프트
+    const prompt = `
+너는 온라인 교재의 한국어 AI 채점 시스템이다.
+
+학생 답안을 평가하라.
+
+[문제]
+${question}
+
+[모범답안]
+${modelAnswer}
+
+[학생답안]
+${studentAnswer}
+
+채점 기준:
+- 핵심 개념 포함 여부
+- 설명 정확성
+- 문장 이해 가능 여부
+
+반드시 아래 JSON 형식만 출력하라.
+
+{
+  "score": 0~100 사이 숫자,
+  "feedback": "학생에게 줄 피드백"
 }
+`;
 
-export async function POST(req: NextRequest) {
-  const body = (await req.json()) as GradeRequest;
+    // OpenAI 호출
+    const response = await client.responses.create({
+      model: 'gpt-4.1-mini',
 
-  // 서버 전용 키로 Supabase 연결
-  const supabase = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_KEY!
-  );
+      input: prompt,
 
-  // 문제 로드
-  const { data: problem, error: pErr } = await supabase
-    .from("problems")
-    .select("id,type,answer_key_json")
-    .eq("id", body.problemId)
-    .single();
+      text: {
+        format: {
+          type: 'json_schema',
 
-  if (pErr || !problem) {
-    return NextResponse.json({ error: "problem_not_found" }, { status: 404 });
+          name: 'grading_result',
+
+          schema: {
+            type: 'object',
+
+            properties: {
+              score: {
+                type: 'number',
+              },
+
+              feedback: {
+                type: 'string',
+              },
+            },
+
+            required: ['score', 'feedback'],
+
+            additionalProperties: false,
+          },
+        },
+      },
+    });
+
+    // JSON 파싱
+    const result = JSON.parse(response.output_text);
+
+    // 반환
+    return NextResponse.json({
+      success: true,
+      result,
+    });
+
+  } catch (error) {
+    console.error('AI 채점 오류:', error);
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'AI 채점 중 오류가 발생했습니다.',
+      },
+      {
+        status: 500,
+      }
+    );
   }
-
-  // 규칙 채점
-  const r = ruleGrade(problem.type, problem.answer_key_json, body.answer);
-
-  // 제출 기록(임시 userId 사용)
-  const { error: sErr } = await supabase.from("submissions").insert({
-    user_id: body.userId,
-    problem_id: body.problemId,
-    answer_raw: body.answer,
-    score: r.score,
-    status: "graded",
-  });
-
-  if (sErr) {
-    return NextResponse.json({ error: "submit_failed", detail: sErr.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ score: r.score, feedback: r.note, policy: "rule" });
 }
