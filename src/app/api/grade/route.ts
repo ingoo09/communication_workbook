@@ -78,39 +78,28 @@ ${sanitize(userAnswer)}
 }
 `;
 
-    const response = await client.chat.completions.create({
-      model: 'gpt-5-nano',
+   const response = await client.chat.completions.create({
+  model: 'gpt-5-mini',
 
-      input: gradingPrompt,
+  messages: [
+    {
+      role: 'user',
+      content: gradingPrompt,
+    },
+  ],
 
-      text: {
-        format: {
-          type: 'json_schema',
+  temperature: 0.2,
+});
 
-          name: 'grading_result',
+const content =
+  response.choices[0]?.message?.content ?? '';
 
-          schema: {
-            type: 'object',
+const cleaned = content
+  .replace(/```json/g, '')
+  .replace(/```/g, '')
+  .trim();
 
-            properties: {
-              score: {
-                type: 'number',
-              },
-
-              feedback: {
-                type: 'string',
-              },
-            },
-
-            required: ['score', 'feedback'],
-
-            additionalProperties: false,
-          },
-        },
-      },
-    });
-
-    const result = JSON.parse(response.output_text);
+const result = JSON.parse(cleaned);
 
     return NextResponse.json({
       success: true,
