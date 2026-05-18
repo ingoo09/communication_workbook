@@ -404,6 +404,9 @@ const isFirst = useRef(true);
 
     const result = await response.json();
 
+console.log(result);
+alert(JSON.stringify(result, null, 2));
+
     const stdout =
   result?.run?.stdout ||
   result?.stdout ||
