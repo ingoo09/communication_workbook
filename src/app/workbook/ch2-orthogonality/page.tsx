@@ -868,7 +868,36 @@ async function runPythonCode() {
               </span>
             )}
 
-            {gradeResult && (
+{gradeResult && (
+  <div
+    style={{
+      width: '100%',
+      marginTop: 10,
+      padding: 12,
+      borderRadius: 12,
+      border: '1px solid #ddd',
+    }}
+  >
+    <div
+      style={{
+        fontWeight: 900,
+        marginBottom: 6,
+      }}
+    >
+      AI 채점 결과
+    </div>
+
+    <div
+      style={{
+        whiteSpace: 'pre-wrap',
+        lineHeight: 1.6,
+      }}
+    >
+      {gradeResult}
+    </div>
+  </div>
+)}
+
 {codeOutput && (
   <div
     style={{
@@ -901,34 +930,6 @@ async function runPythonCode() {
     </pre>
   </div>
 )}
-              <div
-                style={{
-                  width: '100%',
-                  marginTop: 10,
-                  padding: 12,
-                  borderRadius: 12,
-                  border: '1px solid #ddd',
-                }}
-              >
-                <div
-                  style={{
-                    fontWeight: 900,
-                    marginBottom: 6,
-                  }}
-                >
-                  AI 채점 결과
-                </div>
-
-                <div
-                  style={{
-                    whiteSpace: 'pre-wrap',
-                    lineHeight: 1.6,
-                  }}
-                >
-                  {gradeResult}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
