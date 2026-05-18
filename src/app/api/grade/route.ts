@@ -2,7 +2,10 @@ import OpenAI from 'openai';
 import { NextResponse } from 'next/server';
 
 const client = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
+  apiKey: process.env.FACTCHAT_API_KEY,
+
+  baseURL:
+    'https://factchat-cloud.mindlogic.ai/v1/gateway',
 });
 
 function sanitize(s?: string) {
@@ -75,8 +78,8 @@ ${sanitize(userAnswer)}
 }
 `;
 
-    const response = await client.responses.create({
-      model: 'gpt-4.1-mini',
+    const response = await client.chat.completions.create({
+      model: 'gpt-5-nano',
 
       input: gradingPrompt,
 
