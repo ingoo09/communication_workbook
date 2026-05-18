@@ -1,11 +1,10 @@
 'use client';
 
 export const dynamic = 'force-dynamic';
-export const revalidate = 0;
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { chapter } from './ch2-orthogonality';
 
 type Problem = {
@@ -164,7 +163,6 @@ export default function Ch2OrthogonalityPage() {
     : [],
 };
 
-  const sp = useSearchParams();
   const router = useRouter();
 
   const [idx, setIdx] = useState(0);
@@ -226,17 +224,23 @@ export default function Ch2OrthogonalityPage() {
 
   // URL 파라미터로 이동 (?p=ID)
   useEffect(() => {
-    const p = sp.get('p');
-    if (!p) return;
-    const i = idToIndex[p];
-    if (i != null && i !== idx) {
-      setIdx(i);
-      setShowAnswer(false);
-      setGradeResult(null);
-      setSaved(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sp, idToIndex]);
+  if (typeof window === 'undefined') return;
+
+  const params = new URLSearchParams(window.location.search);
+
+  const p = params.get('p');
+
+  if (!p) return;
+
+  const i = idToIndex[p];
+
+  if (i != null && i !== idx) {
+    setIdx(i);
+    setShowAnswer(false);
+    setGradeResult(null);
+    setSaved(false);
+  }
+}, [idToIndex]);
 
   const current = flat[idx];
 
