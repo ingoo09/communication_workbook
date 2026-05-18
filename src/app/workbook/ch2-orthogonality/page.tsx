@@ -412,16 +412,28 @@ const isFirst = useRef(true);
 
     const result = await response.json();
 
-    if (result?.run?.stderr) {
-      setCodeOutput(
-        `에러 발생:\n\n${result.run.stderr}`
-      );
-    } else {
-      setCodeOutput(
-        result?.run?.stdout ||
-          '(출력 없음)'
-      );
-    }
+    const stdout =
+  result?.run?.stdout ||
+  result?.stdout ||
+  result?.output ||
+  '';
+
+const stderr =
+  result?.run?.stderr ||
+  result?.stderr ||
+  '';
+
+if (stderr.trim()) {
+  setCodeOutput(
+    `에러 발생:\n\n${stderr}`
+  );
+} else {
+  setCodeOutput(
+    stdout.trim()
+      ? stdout
+      : '(출력 없음)'
+  );
+}
   } catch (e: any) {
     setCodeOutput(
       `실행 실패:\n${String(
