@@ -1,8 +1,10 @@
 'use client';
 
+export const dynamic = 'force-dynamic';
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import { chapter } from './ch1-python-basics';
 
 type Problem = {
@@ -154,13 +156,13 @@ function renderFencedText(s: string) {
 }
 
 export default function Ch2OrthogonalityPage() {
-  const isClient = typeof window !== 'undefined';
+  const data: Content = {
+  title: chapter?.title ?? '',
+  sections: Array.isArray(chapter?.sections)
+    ? chapter.sections
+    : [],
+};
 
-  const data = chapter as unknown as Content;
-
-  if (!isClient) return;
-
-  const sp = useSearchParams();
   const router = useRouter();
 
   const [idx, setIdx] = useState(0);
@@ -222,17 +224,23 @@ export default function Ch2OrthogonalityPage() {
 
   // URL 파라미터로 이동 (?p=ID)
   useEffect(() => {
-    const p = sp.get('p');
-    if (!p) return;
-    const i = idToIndex[p];
-    if (i != null && i !== idx) {
-      setIdx(i);
-      setShowAnswer(false);
-      setGradeResult(null);
-      setSaved(false);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sp, idToIndex]);
+  if (typeof window === 'undefined') return;
+
+  const params = new URLSearchParams(window.location.search);
+
+  const p = params.get('p');
+
+  if (!p) return;
+
+  const i = idToIndex[p];
+
+  if (i != null && i !== idx) {
+    setIdx(i);
+    setShowAnswer(false);
+    setGradeResult(null);
+    setSaved(false);
+  }
+}, [idToIndex]);
 
   const current = flat[idx];
 
@@ -253,17 +261,26 @@ export default function Ch2OrthogonalityPage() {
 
 const isFirst = useRef(true);
   // URL 동기화
-useEffect(() => {
+  useEffect(() => {
   if (!current?.pb?.id) return;
-  // ✅ 첫 렌더에서는 URL 건드리지 않음
+
   if (isFirst.current) {
     isFirst.current = false;
     return;
   }
-  const now = sp.get('p');
+
+  if (typeof window === 'undefined') return;
+
+  const params = new URLSearchParams(window.location.search);
+
+  const now = params.get('p');
+
   if (now === current.pb.id) return;
-  router.replace(`/workbook/ch1-python-basics?p=${encodeURIComponent(current.pb.id)}`);
-}, [idx]);
+
+  router.replace(
+    `/workbook/ch1-python-basics?p=${encodeURIComponent(current.pb.id)}`
+  );
+}, [idx, current?.pb?.id, router]);
 
   // KaTeX 렌더
   function renderMath() {
@@ -350,7 +367,9 @@ useEffect(() => {
       // JSON 응답일 수도, 그냥 텍스트일 수도 있어서 둘 다 처리
       try {
         const j = JSON.parse(text);
-        setGradeResult(String(j.feedback ?? j.result ?? j.message ?? JSON.stringify(j, null, 2)));
+        setGradeResult(
+  `점수: ${j.score}점\n\n${j.feedback}`
+);
       } catch {
         setGradeResult(text);
       }
