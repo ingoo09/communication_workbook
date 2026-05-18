@@ -12,7 +12,7 @@ type Problem = {
   title: string;
   prompt: string;
   code?: string;
-  answerType?: 'textarea' | 'short';
+  answerType?: string;
 
   // 사전 정답/풀이(프로젝트/버전별 키 이름 다양성 대응)
   answer?: string;
