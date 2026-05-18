@@ -449,6 +449,9 @@ async function initializePython() {
 
     pyodideRef.current = pyodide;
 
+    await pyodide.loadPackage('numpy');
+    await pyodide.loadPackage('scipy');
+
     setPyReady(true);
 
     setCodeOutput(
