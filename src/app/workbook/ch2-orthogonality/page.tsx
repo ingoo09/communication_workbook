@@ -7,7 +7,6 @@ import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { chapter } from './ch2-orthogonality';
 import Editor from '@monaco-editor/react';
-import { loadPyodide } from 'pyodide';
 
 type Problem = {
   id: string;
@@ -33,7 +32,12 @@ type Content = { title: string; sections: Section[] };
 
 declare global {
   interface Window {
-    renderMathInElement?: (elem: HTMLElement, opts?: any) => void;
+    renderMathInElement?: (
+      elem: HTMLElement,
+      opts?: any
+    ) => void;
+
+    loadPyodide?: any;
   }
 }
 
@@ -333,7 +337,9 @@ const isFirst = useRef(true);
 
   useEffect(() => {
   async function initPyodide() {
-    const py = await loadPyodide({
+      if (!window.loadPyodide) return;
+
+    const py = await window.loadPyodide({
       indexURL:
         'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
     });
@@ -411,7 +417,7 @@ const isFirst = useRef(true);
   async function runPythonCode() {
     if (!pyodide) {
     setCodeOutput(
-      'Python 로딩 중입니다...'
+      'Python 엔진 초기화 중입니다. 잠시만 기다려주세요.'
     );
     return;
   }
@@ -457,6 +463,11 @@ const isFirst = useRef(true);
 
     <Script
       src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+      strategy="afterInteractive"
+    />
+
+    <Script
+      src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"
       strategy="afterInteractive"
     />
 
