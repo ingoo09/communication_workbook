@@ -261,17 +261,26 @@ export default function Ch2OrthogonalityPage() {
 
 const isFirst = useRef(true);
   // URL 동기화
-useEffect(() => {
+  useEffect(() => {
   if (!current?.pb?.id) return;
-  // ✅ 첫 렌더에서는 URL 건드리지 않음
+
   if (isFirst.current) {
     isFirst.current = false;
     return;
   }
-  const now = sp.get('p');
+
+  if (typeof window === 'undefined') return;
+
+  const params = new URLSearchParams(window.location.search);
+
+  const now = params.get('p');
+
   if (now === current.pb.id) return;
-  router.replace(`/workbook/ch2-orthogonality?p=${encodeURIComponent(current.pb.id)}`);
-}, [idx]);
+
+  router.replace(
+    `/workbook/ch2-orthogonality?p=${encodeURIComponent(current.pb.id)}`
+  );
+}, [idx, current?.pb?.id, router]);
 
   // KaTeX 렌더
   function renderMath() {
