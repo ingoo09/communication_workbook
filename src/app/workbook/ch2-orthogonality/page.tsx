@@ -177,7 +177,6 @@ export default function Ch2OrthogonalityPage() {
   const [gradeResult, setGradeResult] = useState<string | null>(null);
 
   const [runningCode, setRunningCode] = useState(false);
-
   const [codeOutput, setCodeOutput] = useState<string | null>(null);
 
   const promptRef = useRef<HTMLDivElement | null>(null);
@@ -363,11 +362,31 @@ const isFirst = useRef(true);
         }),
       });
 
-async function runPythonCode() {
-  setRunningCode(true);
-  setCodeOutput(null);
+      const text = await res.text();
+      if (!res.ok) {
+        setGradeResult(`채점 API 오류: ${res.status}\n${text}`);
+        return;
+      }
 
-  try {
+      // JSON 응답일 수도, 그냥 텍스트일 수도 있어서 둘 다 처리
+      try {
+        const j = JSON.parse(text);
+        setGradeResult(`점수: ${j.score}점\n\n${j.feedback}`);
+      } catch {
+        setGradeResult(text);
+      }
+    } catch (e: any) {
+      setGradeResult(`채점 중 예외: ${String(e?.message ?? e)}`);
+    } finally {
+      setGrading(false);
+    }
+  }
+
+  async function runPythonCode() {
+    setRunningCode(true);
+    setCodeOutput(null);
+
+    try {
     const response = await fetch(
       'https://emkc.org/api/v2/piston/execute',
       {
@@ -413,28 +432,6 @@ async function runPythonCode() {
     setRunningCode(false);
   }
 }
-
-      const text = await res.text();
-      if (!res.ok) {
-        setGradeResult(`채점 API 오류: ${res.status}\n${text}`);
-        return;
-      }
-
-      // JSON 응답일 수도, 그냥 텍스트일 수도 있어서 둘 다 처리
-      try {
-        const j = JSON.parse(text);
-        setGradeResult(
-  `점수: ${j.score}점\n\n${j.feedback}`
-);
-      } catch {
-        setGradeResult(text);
-      }
-    } catch (e: any) {
-      setGradeResult(`채점 중 예외: ${String(e?.message ?? e)}`);
-    } finally {
-      setGrading(false);
-    }
-  }
 
   return (
   <>
