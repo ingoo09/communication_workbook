@@ -174,15 +174,26 @@ export default function Ch2OrthogonalityPage() {
   const [saved, setSaved] = useState(false);
 
   // ✅ AI 채점 결과
- const [grading, setGrading] = useState(false);
+const [grading, setGrading] =
+  useState(false);
 
-const [gradeResult, setGradeResult] = useState<string | null>(null);
+const [gradeResult, setGradeResult] =
+  useState<string | null>(null);
 
-const [runningCode, setRunningCode] = useState(false);
+const [runningCode, setRunningCode] =
+  useState(false);
 
-const [codeOutput, setCodeOutput] = useState<string | null>(null);
+const [codeOutput, setCodeOutput] =
+  useState<string | null>(null);
 
-const [pyodide, setPyodide] = useState<any>(null);
+const [pyodide, setPyodide] =
+  useState<any>(null);
+
+const promptRef =
+  useRef<HTMLDivElement | null>(null);
+
+const answerRef =
+  useRef<HTMLDivElement | null>(null);
 
   const { flat, idToIndex } = useMemo(() => {
     const out: FlatItem[] = [];
