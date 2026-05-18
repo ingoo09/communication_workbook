@@ -793,7 +793,6 @@ async function runPythonCode() {
     }}
   />
 )}
-)}
 
           <div
             style={{
