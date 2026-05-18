@@ -7,6 +7,7 @@ import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import { chapter } from './ch2-orthogonality';
 import Editor from '@monaco-editor/react';
+import { loadPyodide } from 'pyodide';
 
 type Problem = {
   id: string;
@@ -173,14 +174,15 @@ export default function Ch2OrthogonalityPage() {
   const [saved, setSaved] = useState(false);
 
   // ✅ AI 채점 결과
-  const [grading, setGrading] = useState(false);
-  const [gradeResult, setGradeResult] = useState<string | null>(null);
+ const [grading, setGrading] = useState(false);
 
-  const [runningCode, setRunningCode] = useState(false);
-  const [codeOutput, setCodeOutput] = useState<string | null>(null);
+const [gradeResult, setGradeResult] = useState<string | null>(null);
 
-  const promptRef = useRef<HTMLDivElement | null>(null);
-  const answerRef = useRef<HTMLDivElement | null>(null);
+const [runningCode, setRunningCode] = useState(false);
+
+const [codeOutput, setCodeOutput] = useState<string | null>(null);
+
+const [pyodide, setPyodide] = useState<any>(null);
 
   const { flat, idToIndex } = useMemo(() => {
     const out: FlatItem[] = [];
@@ -318,6 +320,19 @@ const isFirst = useRef(true);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, showAnswer]);
 
+  useEffect(() => {
+  async function initPyodide() {
+    const py = await loadPyodide({
+      indexURL:
+        'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
+    });
+
+    setPyodide(py);
+  }
+
+  initPyodide();
+}, []);
+
   if (!current) {
     return (
       <div style={{ padding: 24 }}>
@@ -383,56 +398,38 @@ const isFirst = useRef(true);
   }
 
   async function runPythonCode() {
-    setRunningCode(true);
-    setCodeOutput(null);
+    if (!pyodide) {
+    setCodeOutput(
+      'Python 로딩 중입니다...'
+    );
+    return;
+  }
 
-    try {
-    const response = await fetch(
-      '/api/python',
-      {
-        method: 'POST',
+  setRunningCode(true);
+  setCodeOutput(null);
 
-        headers: {
-          'Content-Type': 'application/json',
-        },
+  try {
+    let output = '';
 
-        body: JSON.stringify({
-  code: userAnswer,
-}),
-      }
+    pyodide.setStdout({
+      batched: (s: string) => {
+        output += s + '\n';
+      },
+    });
+
+    await pyodide.runPythonAsync(
+      userAnswer
     );
 
-    const result = await response.json();
-
-console.log(result);
-alert(JSON.stringify(result, null, 2));
-
-    const stdout =
-  result?.run?.stdout ||
-  result?.stdout ||
-  result?.output ||
-  '';
-
-const stderr =
-  result?.run?.stderr ||
-  result?.stderr ||
-  '';
-
-if (stderr.trim()) {
-  setCodeOutput(
-    `에러 발생:\n\n${stderr}`
-  );
-} else {
-  setCodeOutput(
-    stdout.trim()
-      ? stdout
-      : '(출력 없음)'
-  );
-}
+    setCodeOutput(
+      output.trim()
+        ? output
+        : '(출력 없음)'
+    );
   } catch (e: any) {
     setCodeOutput(
-      `실행 실패:\n${String(
-        e?.message ?? e
+      `에러 발생:\n\n${String(
+        e
       )}`
     );
   } finally {
