@@ -79,7 +79,7 @@ ${sanitize(userAnswer)}
 `;
 
    const response = await client.chat.completions.create({
-  model: 'gpt-5-nano',
+  model: 'gpt-5-mini',
 
   messages: [
     {

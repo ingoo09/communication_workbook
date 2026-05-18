@@ -381,59 +381,235 @@ const isFirst = useRef(true);
   }
 
   return (
-    <>
-      <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
-      <Script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js" strategy="afterInteractive" />
-      <Script
-        src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-        strategy="afterInteractive"
-        onLoad={() => renderMath()}
-      />
+  <>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+    />
 
-      <div style={{ padding: 24, maxWidth: 1050, margin: '0 auto' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 12 }}>
+    <Script
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+      strategy="afterInteractive"
+    />
+
+    <Script
+      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+      strategy="afterInteractive"
+      onLoad={() => renderMath()}
+    />
+
+    {/* 전체 레이아웃 */}
+    <div
+      style={{
+        display: 'flex',
+        minHeight: '100vh',
+        background: '#f5f7fb',
+      }}
+    >
+
+      {/* 좌측 목차 */}
+      <div
+        style={{
+          width: 280,
+          background: '#fff',
+          borderRight: '1px solid #e5e7eb',
+          padding: 20,
+          overflowY: 'auto',
+          position: 'sticky',
+          top: 0,
+          height: '100vh',
+          flexShrink: 0,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 22,
+            fontWeight: 900,
+            marginBottom: 24,
+          }}
+        >
+          {data.title}
+        </div>
+
+        {(data.sections ?? []).map((sec) => (
+          <div
+            key={sec.id}
+            style={{ marginBottom: 24 }}
+          >
+            <div
+              style={{
+                fontWeight: 800,
+                marginBottom: 10,
+                color: '#111827',
+                fontSize: 15,
+              }}
+            >
+              {sec.title}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 6,
+              }}
+            >
+              {sec.problems.map((pb) => {
+                const targetIdx = idToIndex[pb.id];
+
+                // 서문 제외
+                if (targetIdx == null) return null;
+
+                const active =
+                  current.pb.id === pb.id;
+
+                return (
+                  <button
+                    key={pb.id}
+                    onClick={() => {
+                      setIdx(targetIdx);
+                      setShowAnswer(false);
+                      setGradeResult(null);
+                    }}
+                    style={{
+                      textAlign: 'left',
+                      padding: '10px 12px',
+                      borderRadius: 10,
+                      border: 'none',
+                      cursor: 'pointer',
+                      background: active
+                        ? '#111827'
+                        : 'transparent',
+                      color: active
+                        ? '#fff'
+                        : '#374151',
+                      fontSize: 14,
+                      transition: '0.15s',
+                    }}
+                  >
+                    {pb.title}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* 우측 본문 */}
+      <div
+        style={{
+          flex: 1,
+          padding: 24,
+          maxWidth: 1050,
+          margin: '0 auto',
+        }}
+      >
+
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            gap: 12,
+          }}
+        >
           <div>
-            <div style={{ opacity: 0.7, marginBottom: 6 }}>{current.secTitle}</div>
-            <div style={{ display: 'flex', gap: 12, alignItems: 'baseline' }}>
-              <h1 style={{ fontSize: 34, fontWeight: 900, margin: 0 }}>{current.pb.title}</h1>
+            <div
+              style={{
+                opacity: 0.7,
+                marginBottom: 6,
+              }}
+            >
+              {current.secTitle}
+            </div>
+
+            <div
+              style={{
+                display: 'flex',
+                gap: 12,
+                alignItems: 'baseline',
+              }}
+            >
+              <h1
+                style={{
+                  fontSize: 34,
+                  fontWeight: 900,
+                  margin: 0,
+                }}
+              >
+                {current.pb.title}
+              </h1>
+
               <span style={{ opacity: 0.7 }}>
                 {idx + 1} / {flat.length}
               </span>
             </div>
           </div>
 
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+          <div
+            style={{
+              display: 'flex',
+              gap: 10,
+              flexWrap: 'wrap',
+              justifyContent: 'flex-end',
+            }}
+          >
             <button
               onClick={() => {
-                setIdx((v) => Math.max(0, v - 1));
+                setIdx((v) =>
+                  Math.max(0, v - 1)
+                );
                 setShowAnswer(false);
                 setGradeResult(null);
               }}
               disabled={idx === 0}
-              style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', opacity: idx === 0 ? 0.5 : 1 }}
-            >
-              이전
-            </button>
-            <button
-              onClick={() => {
-                setIdx((v) => Math.min(flat.length - 1, v + 1));
-                setShowAnswer(false);
-                setGradeResult(null);
-              }}
-              disabled={idx === flat.length - 1}
               style={{
                 padding: '10px 14px',
                 borderRadius: 10,
                 border: '1px solid #ddd',
-                opacity: idx === flat.length - 1 ? 0.5 : 1,
+                opacity: idx === 0 ? 0.5 : 1,
+              }}
+            >
+              이전
+            </button>
+
+            <button
+              onClick={() => {
+                setIdx((v) =>
+                  Math.min(
+                    flat.length - 1,
+                    v + 1
+                  )
+                );
+                setShowAnswer(false);
+                setGradeResult(null);
+              }}
+              disabled={
+                idx === flat.length - 1
+              }
+              style={{
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid #ddd',
+                opacity:
+                  idx === flat.length - 1
+                    ? 0.5
+                    : 1,
               }}
             >
               다음
             </button>
 
             <button
-              onClick={() => setShowAnswer((v) => !v)}
-              style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}
+              onClick={() =>
+                setShowAnswer((v) => !v)
+              }
+              style={{
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid #ddd',
+              }}
             >
               정답 및 풀이 보기
             </button>
@@ -441,48 +617,170 @@ const isFirst = useRef(true);
             <button
               onClick={gradeWithAI}
               disabled={grading}
-              style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd', opacity: grading ? 0.6 : 1 }}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid #ddd',
+                opacity: grading ? 0.6 : 1,
+              }}
             >
-              {grading ? 'AI 채점 중...' : 'AI 채점'}
+              {grading
+                ? 'AI 채점 중...'
+                : 'AI 채점'}
             </button>
           </div>
         </div>
 
-        <div style={{ marginTop: 16, padding: 18, border: '1px solid #eee', borderRadius: 14, background: '#fff' }}>
-          <div ref={promptRef}>{renderFencedText(displayPrompt || '(문제 본문이 비어 있습니다)')}</div>
+        <div
+          style={{
+            marginTop: 16,
+            padding: 18,
+            border: '1px solid #eee',
+            borderRadius: 14,
+            background: '#fff',
+          }}
+        >
+          <div ref={promptRef}>
+            {renderFencedText(
+              displayPrompt ||
+                '(문제 본문이 비어 있습니다)'
+            )}
+          </div>
         </div>
 
         {showAnswer && (
-          <div style={{ marginTop: 14, padding: 18, border: '1px solid #ddd', borderRadius: 14, background: '#fafafa' }}>
-            <div style={{ fontWeight: 900, marginBottom: 10 }}>정답 및 풀이</div>
+          <div
+            style={{
+              marginTop: 14,
+              padding: 18,
+              border: '1px solid #ddd',
+              borderRadius: 14,
+              background: '#fafafa',
+            }}
+          >
+            <div
+              style={{
+                fontWeight: 900,
+                marginBottom: 10,
+              }}
+            >
+              정답 및 풀이
+            </div>
+
             <div ref={answerRef}>
-              {preparedAnswer ? renderFencedText(preparedAnswer) : <div style={{ opacity: 0.7 }}>(사전 정답이 없습니다)</div>}
+              {preparedAnswer ? (
+                renderFencedText(
+                  preparedAnswer
+                )
+              ) : (
+                <div
+                  style={{ opacity: 0.7 }}
+                >
+                  (사전 정답이 없습니다)
+                </div>
+              )}
             </div>
           </div>
         )}
 
-        <div style={{ marginTop: 18, padding: 18, border: '1px solid #eee', borderRadius: 14, background: '#fff' }}>
-          <div style={{ fontWeight: 900, marginBottom: 8 }}>내 답안</div>
+        <div
+          style={{
+            marginTop: 18,
+            padding: 18,
+            border: '1px solid #eee',
+            borderRadius: 14,
+            background: '#fff',
+          }}
+        >
+          <div
+            style={{
+              fontWeight: 900,
+              marginBottom: 8,
+            }}
+          >
+            내 답안
+          </div>
+
           <textarea
             value={userAnswer}
-            onChange={(e) => setUserAnswer(e.target.value)}
+            onChange={(e) =>
+              setUserAnswer(e.target.value)
+            }
             placeholder="여기에 답안을 작성하세요."
-            style={{ width: '100%', minHeight: 140, padding: 12, borderRadius: 12, border: '1px solid #ddd', fontSize: 14 }}
+            style={{
+              width: '100%',
+              minHeight: 140,
+              padding: 12,
+              borderRadius: 12,
+              border: '1px solid #ddd',
+              fontSize: 14,
+            }}
           />
-          <div style={{ marginTop: 10, display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
-            <button onClick={saveMyAnswer} style={{ padding: '10px 14px', borderRadius: 10, border: '1px solid #ddd' }}>
+
+          <div
+            style={{
+              marginTop: 10,
+              display: 'flex',
+              gap: 10,
+              alignItems: 'center',
+              flexWrap: 'wrap',
+            }}
+          >
+            <button
+              onClick={saveMyAnswer}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 10,
+                border: '1px solid #ddd',
+              }}
+            >
               저장
             </button>
-            {saved && <span style={{ fontSize: 13, opacity: 0.75 }}>저장됨</span>}
+
+            {saved && (
+              <span
+                style={{
+                  fontSize: 13,
+                  opacity: 0.75,
+                }}
+              >
+                저장됨
+              </span>
+            )}
+
             {gradeResult && (
-              <div style={{ width: '100%', marginTop: 10, padding: 12, borderRadius: 12, border: '1px solid #ddd' }}>
-                <div style={{ fontWeight: 900, marginBottom: 6 }}>AI 채점 결과</div>
-                <div style={{ whiteSpace: 'pre-wrap', lineHeight: 1.6 }}>{gradeResult}</div>
+              <div
+                style={{
+                  width: '100%',
+                  marginTop: 10,
+                  padding: 12,
+                  borderRadius: 12,
+                  border: '1px solid #ddd',
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 900,
+                    marginBottom: 6,
+                  }}
+                >
+                  AI 채점 결과
+                </div>
+
+                <div
+                  style={{
+                    whiteSpace: 'pre-wrap',
+                    lineHeight: 1.6,
+                  }}
+                >
+                  {gradeResult}
+                </div>
               </div>
             )}
           </div>
         </div>
+
       </div>
-    </>
-  );
-}
+    </div>
+  </>
+);
