@@ -156,7 +156,12 @@ function renderFencedText(s: string) {
 }
 
 export default function Ch2OrthogonalityPage() {
-  const data = chapter as unknown as Content;
+  const data: Content = {
+  title: chapter?.title ?? '',
+  sections: Array.isArray(chapter?.sections)
+    ? chapter.sections
+    : [],
+};
 
   const sp = useSearchParams();
   const router = useRouter();
