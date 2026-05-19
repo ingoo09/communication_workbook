@@ -3,15 +3,15 @@ export const chapter = {
   "title": "Chapter 2. Numerical Integration & Orthogonal expansion",
   "sections": [
     {
-      "id": "2-1A",
-      "title": "1.A.",
+      "id": "2-1",
+      "title": "1. 수치적분",
       "problems": [
         {
-          "id": "2-1A",
-          "title": "1.A.",
+          "id": "2-1",
+          "title": "1. 수치적분",
           "prompt": "Python에서 임의의 함수를 수치적분 할 수 있다.",
           "answerType": "textarea",
-          "solution": "이 문항은 **수치적분의 기본 아이디어를 이해하기 위한 서문**이다.\n\n핵심은 다음과 같다.\n\n- 적분구간 \\([a,b]\\)를 작은 간격 `xstep`으로 잘게 나눈다.\n- 각 점에서 함수값 \\(f(x)\\)를 계산한다.\n- 각 구간을 폭 `xstep`, 높이 \\(f(x_n)\\)인 직사각형으로 보고 면적을 더한다.\n- 이렇게 얻은 합\n  \\[\n  \\sum_n f(x_n)\\,\\Delta x\n  \\]\n  이 정적분\n  \\[\n  \\int_a^b f(x)\\,dx\n  \\]\n  의 근사값이 된다.\n\n즉, Python에서는 벡터 `x`, 함수값 벡터 `y`, 그리고 `np.sum(y) * xstep`을 이용해 임의의 함수의 정적분을 **수치적으로 근사**할 수 있다."
+          "solution": ""
         },
         {
           "id": "2-1A1",
