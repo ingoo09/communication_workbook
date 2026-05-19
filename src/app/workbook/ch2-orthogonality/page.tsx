@@ -264,6 +264,7 @@ const answerRef =
     setIdx(i);
     setShowAnswer(false);
     setGradeResult(null);
+    setCodeOutput(null);
     setSaved(false);
   }
 }, [idToIndex]);
@@ -451,6 +452,9 @@ async function initializePython() {
 
     await pyodide.loadPackage('numpy');
     await pyodide.loadPackage('scipy');
+    await pyodide.loadPackage('sympy');
+    await pyodide.loadPackage('pandas');
+    await pyodide.loadPackage('matplotlib');
 
     setPyReady(true);
 
@@ -606,6 +610,7 @@ async function initializePython() {
                       setIdx(targetIdx);
                       setShowAnswer(false);
                       setGradeResult(null);
+                      setCodeOutput(null);
                     }}
                     style={{
                       textAlign: 'left',
@@ -698,6 +703,7 @@ async function initializePython() {
                 );
                 setShowAnswer(false);
                 setGradeResult(null);
+                setCodeOutput(null);
               }}
               disabled={idx === 0}
               style={{
@@ -720,6 +726,7 @@ async function initializePython() {
                 );
                 setShowAnswer(false);
                 setGradeResult(null);
+                setCodeOutput(null);
               }}
               disabled={
                 idx === flat.length - 1
@@ -927,39 +934,9 @@ async function initializePython() {
     </span>
   )}
 
-  {/* AI 채점 결과 */}
-  {gradeResult && (
-    <div
-      style={{
-        width: '100%',
-        marginTop: 10,
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid #ddd',
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 900,
-          marginBottom: 6,
-        }}
-      >
-        AI 채점 결과
-      </div>
-
-      <div
-        style={{
-          whiteSpace: 'pre-wrap',
-          lineHeight: 1.6,
-        }}
-      >
-        {gradeResult}
-      </div>
-    </div>
-  )}
-
   {/* Python 실행 결과 */}
-  {codeOutput && (
+{current.pb.answerType === 'code' &&
+  codeOutput && (
     <div
       style={{
         width: '100%',
@@ -991,6 +968,38 @@ async function initializePython() {
       </pre>
     </div>
   )}
+
+{/* AI 채점 결과 */}
+  {gradeResult && (
+    <div
+      style={{
+        width: '100%',
+        marginTop: 10,
+        padding: 12,
+        borderRadius: 12,
+        border: '1px solid #ddd',
+      }}
+    >
+      <div
+        style={{
+          fontWeight: 900,
+          marginBottom: 6,
+        }}
+      >
+        AI 채점 결과
+      </div>
+
+      <div
+        style={{
+          whiteSpace: 'pre-wrap',
+          lineHeight: 1.6,
+        }}
+      >
+        {gradeResult}
+      </div>
+    </div>
+  )}
+
 </div>
         </div>
 
