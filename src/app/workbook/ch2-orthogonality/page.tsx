@@ -476,7 +476,6 @@ async function initializePython() {
 }
 
 async function runPythonCode() {
-  setPlotImage(null);
   const pyodide = pyodideRef.current;
 
   if (!pyodide) {
@@ -487,9 +486,7 @@ async function runPythonCode() {
   }
 
   setRunningCode(true);
-
   setCodeOutput(null);
-
   setPlotImage(null);
 
   try {
@@ -505,6 +502,55 @@ async function runPythonCode() {
         output += s + '\n';
       },
     });
+
+// matplotlib figure 기본값 생성
+await pyodide.runPythonAsync(`
+image_base64 = ""
+has_figure = False
+`);
+
+
+// 사용자 코드 실행
+await pyodide.runPythonAsync(
+  userAnswer
+);
+
+
+// figure 존재 여부 검사
+await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+import io
+import base64
+
+has_figure = len(plt.get_fignums()) > 0
+
+if has_figure:
+    buf = io.BytesIO()
+
+    plt.savefig(buf, format='png')
+
+    buf.seek(0)
+
+    image_base64 = base64.b64encode(
+        buf.read()
+    ).decode('utf-8')
+`);
+
+const hasFigure =
+  pyodide.globals.get('has_figure');
+
+if (hasFigure) {
+  const imageBase64 =
+    pyodide.globals.get(
+      'image_base64'
+    );
+
+  if (imageBase64) {
+    setPlotImage(
+      `data:image/png;base64,${imageBase64}`
+    );
+  }
+}
 
     const wrappedCode = `
 import matplotlib
@@ -544,11 +590,13 @@ if (
   setPlotImage(null);
 }
 
-    setCodeOutput(
-      output.trim()
-        ? output
-        : '(출력 없음)'
-    );
+setCodeOutput(
+  output.trim()
+    ? output
+    : hasFigure
+    ? '(Figure)'
+    : '(출력 없음)'
+);
   } catch (e: any) {
     setCodeOutput(
       `에러 발생:\n\n${String(
