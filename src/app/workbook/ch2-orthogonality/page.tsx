@@ -476,6 +476,7 @@ async function initializePython() {
 }
 
 async function runPythonCode() {
+  setPlotImage(null);
   const pyodide = pyodideRef.current;
 
   if (!pyodide) {
@@ -528,14 +529,20 @@ image_base64 = base64.b64encode(
 image_base64
 `;
 
-    const imageBase64 =
-      await pyodide.runPythonAsync(
-        wrappedCode
-      );
+    const imageBase64 = pyodide.globals.get(
+  'image_base64'
+);
 
-    setPlotImage(
-      `data:image/png;base64,${imageBase64}`
-    );
+if (
+  imageBase64 &&
+  String(imageBase64).trim() !== ''
+) {
+  setPlotImage(
+    `data:image/png;base64,${imageBase64}`
+  );
+} else {
+  setPlotImage(null);
+}
 
     setCodeOutput(
       output.trim()
