@@ -1,12 +1,21 @@
+export const runtime = 'nodejs';
+export const dynamic = 'force-dynamic';
+
 import OpenAI from 'openai';
 import { NextResponse } from 'next/server';
 
-const client = new OpenAI({
-  apiKey: process.env.FACTCHAT_API_KEY,
+export async function POST(req: Request) {
+  try {
 
-  baseURL:
-    'https://factchat-cloud.mindlogic.ai/v1/gateway',
-});
+    const client = new OpenAI({
+      apiKey:
+        process.env.FACTCHAT_API_KEY || '',
+
+      baseURL:
+        'https://factchat-cloud.mindlogic.ai/v1/gateway',
+    });
+
+   const body = await req.json();
 
 function sanitize(s?: string) {
   return String(s ?? '')
