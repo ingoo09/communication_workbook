@@ -538,7 +538,7 @@ async function initializePython() {
       );
 
     setPlotImage(
-      \`data:image/png;base64,\${imageBase64}\`
+      `data:image/png;base64,${imageBase64}`
     );
 
     setCodeOutput(
