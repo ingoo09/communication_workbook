@@ -475,10 +475,10 @@ async function initializePython() {
   }
 }
 
-  async function runPythonCode() {
-    const pyodide = pyodideRef.current;
+async function runPythonCode() {
+  const pyodide = pyodideRef.current;
 
-    if (!pyodide) {
+  if (!pyodide) {
     setCodeOutput(
       'Python 엔진 초기화 중입니다. 잠시만 기다려주세요.'
     );
@@ -486,18 +486,12 @@ async function initializePython() {
   }
 
   setRunningCode(true);
+
   setCodeOutput(null);
+
   setPlotImage(null);
 
   try {
-    let output = '';
-
-    pyodide.setStdout({
-      batched: (s: string) => {
-        output += s + '\n';
-      },
-    });
-
     await pyodide.loadPackage([
       'numpy',
       'matplotlib',
@@ -512,25 +506,27 @@ async function initializePython() {
     });
 
     const wrappedCode = `
-    import matplotlib
-    matplotlib.use("AGG")
+import matplotlib
+matplotlib.use("AGG")
 
-    import matplotlib.pyplot as plt
-    import io
-    import base64
+import matplotlib.pyplot as plt
+import io
+import base64
 
-    ${userAnswer}
+${userAnswer}
 
-    buf = io.BytesIO()
-    plt.savefig(buf, format='png')
-    buf.seek(0)
+buf = io.BytesIO()
 
-    image_base64 = base64.b64encode(
-        buf.read()
-    ).decode('utf-8')
+plt.savefig(buf, format='png')
 
-    image_base64
-    `;
+buf.seek(0)
+
+image_base64 = base64.b64encode(
+    buf.read()
+).decode('utf-8')
+
+image_base64
+`;
 
     const imageBase64 =
       await pyodide.runPythonAsync(
@@ -546,15 +542,11 @@ async function initializePython() {
         ? output
         : '(출력 없음)'
     );
-
-    setCodeOutput(
-      output.trim()
-        ? output
-        : '(출력 없음)'
-    );
   } catch (e: any) {
     setCodeOutput(
-      `에러 발생:\n\n${String(e)}`
+      `에러 발생:\n\n${String(
+        e?.message ?? e
+      )}`
     );
   } finally {
     setRunningCode(false);
