@@ -78,6 +78,30 @@ const chapters = [
       'LPF, BPF를 설계하고, 주파수 특성과 임펄스 응답을 학습합니다.',
   },
 
+{
+    id: 7,
+    title: 'Samplint and Signal Reconstruction',
+    level: 'Advanced',
+    free: false,
+    href: '#',
+    progress: 0,
+    duration: '7h',
+    description:
+      '샘플링에 의한 스펙트럼 변화를 관찰하고, LPF를 사용하여 샘플링 신호 복원을 학습합니다..',
+  },
+
+{
+    id: 8,
+    title: 'Correlation and Spectral Density',
+    level: 'Advanced',
+    free: false,
+    href: '#',
+    progress: 0,
+    duration: '7h',
+    description:
+      '상관함수와 Spectral Density의 관계를 학습합니다.',
+  },
+
 ];
 
 export default function WorkbookHome() {
@@ -125,7 +149,7 @@ export default function WorkbookHome() {
                 opacity: 0.7,
               }}
             >
-              AI Interactive Engineering Workbook
+              Communication System and Digital Communication Workbook
             </div>
 
             <div
@@ -214,7 +238,7 @@ export default function WorkbookHome() {
               marginBottom: 26,
             }}
           >
-            AI + Python + Interactive Learning
+            Communication System and Digital Communication
           </div>
 
           <h1
@@ -226,9 +250,9 @@ export default function WorkbookHome() {
               letterSpacing: '-2px',
             }}
           >
-            차세대
+            통신시스템과
             <br />
-            공학 교육 플랫폼
+            디지털통신
           </h1>
 
           <p
@@ -413,8 +437,7 @@ export default function WorkbookHome() {
                 fontSize: 18,
               }}
             >
-              코세라 스타일의
-              인터랙티브 학습 구조
+              교재 커리큘럼
             </p>
           </div>
 
@@ -429,7 +452,7 @@ export default function WorkbookHome() {
               fontWeight: 700,
             }}
           >
-            현재 1~3장 무료 공개
+            1~3장 무료
           </div>
         </div>
 
@@ -528,7 +551,6 @@ export default function WorkbookHome() {
                     letterSpacing: 1,
                   }}
                 >
-                  CHAPTER {chapter.id}
                 </div>
 
                 <h3
