@@ -477,7 +477,7 @@ async function initializePython() {
 
 async function runPythonCode() {
   const pyodide = pyodideRef.current;
-
+  setPlotImage(null);
   if (!pyodide) {
     setCodeOutput(
       'Python 엔진 초기화 중입니다. 잠시만 기다려주세요.'
@@ -494,6 +494,11 @@ async function runPythonCode() {
       'numpy',
       'matplotlib',
     ]);
+
+await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
 
     let output = '';
 
