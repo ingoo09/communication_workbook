@@ -706,8 +706,18 @@ setCodeOutput(
                       setIdx(targetIdx);
                       setShowAnswer(false);
                       setGradeResult(null);
+
                       setCodeOutput(null);
                       setPlotImage(null);
+
+  if (pyodide) {
+    try {
+      await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+    } catch {}
+  }
                     }}
                     style={{
                       textAlign: 'left',
@@ -800,16 +810,20 @@ setCodeOutput(
                 );
                 setShowAnswer(false);
                 setGradeResult(null);
-                setCodeOutput(null);
-                setPlotImage(null);
-              }}
-              disabled={idx === 0}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #ddd',
-                opacity: idx === 0 ? 0.5 : 1,
-              }}
+  // ✅ 실행 결과 초기화
+  setCodeOutput(null);
+  setPlotImage(null);
+
+  // ✅ matplotlib figure 제거
+  if (pyodide) {
+    try {
+      await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+    } catch {}
+  }              
+}}
             >
               이전
             </button>
@@ -824,21 +838,20 @@ setCodeOutput(
                 );
                 setShowAnswer(false);
                 setGradeResult(null);
-                setCodeOutput(null);
-                setPlotImage(null);
-              }}
-              disabled={
-                idx === flat.length - 1
-              }
-              style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #ddd',
-                opacity:
-                  idx === flat.length - 1
-                    ? 0.5
-                    : 1,
-              }}
+  // ✅ 실행 결과 초기화
+  setCodeOutput(null);
+  setPlotImage(null);
+
+  // ✅ matplotlib figure 제거
+  if (pyodide) {
+    try {
+      await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+    } catch {}
+  }              
+}}
             >
               다음
             </button>
