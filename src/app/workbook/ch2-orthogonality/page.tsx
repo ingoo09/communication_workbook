@@ -177,6 +177,8 @@ export default function Ch2OrthogonalityPage() {
   const [userAnswer, setUserAnswer] = useState('');
   const [saved, setSaved] = useState(false);
 
+  const [plotImage, setPlotImage] = useState<string | null>(null);
+
   // ✅ AI 채점 결과
 const [grading, setGrading] =
   useState(false);
@@ -265,6 +267,7 @@ const answerRef =
     setShowAnswer(false);
     setGradeResult(null);
     setCodeOutput(null);
+    setPlotImage(null);
     setSaved(false);
   }
 }, [idToIndex]);
@@ -484,6 +487,7 @@ async function initializePython() {
 
   setRunningCode(true);
   setCodeOutput(null);
+  setPlotImage(null);
 
   try {
     let output = '';
@@ -494,8 +498,53 @@ async function initializePython() {
       },
     });
 
-    await pyodide.runPythonAsync(
-      userAnswer
+    await pyodide.loadPackage([
+      'numpy',
+      'matplotlib',
+    ]);
+
+    let output = '';
+
+    pyodide.setStdout({
+      batched: (s: string) => {
+        output += s + '\n';
+      },
+    });
+
+    const wrappedCode = `
+    import matplotlib
+    matplotlib.use("AGG")
+
+    import matplotlib.pyplot as plt
+    import io
+    import base64
+
+    ${userAnswer}
+
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+
+    image_base64 = base64.b64encode(
+        buf.read()
+    ).decode('utf-8')
+
+    image_base64
+    `;
+
+    const imageBase64 =
+      await pyodide.runPythonAsync(
+        wrappedCode
+      );
+
+    setPlotImage(
+      \`data:image/png;base64,\${imageBase64}\`
+    );
+
+    setCodeOutput(
+      output.trim()
+        ? output
+        : '(출력 없음)'
     );
 
     setCodeOutput(
@@ -611,6 +660,7 @@ async function initializePython() {
                       setShowAnswer(false);
                       setGradeResult(null);
                       setCodeOutput(null);
+                      setPlotImage(null);
                     }}
                     style={{
                       textAlign: 'left',
@@ -704,6 +754,7 @@ async function initializePython() {
                 setShowAnswer(false);
                 setGradeResult(null);
                 setCodeOutput(null);
+                setPlotImage(null);
               }}
               disabled={idx === 0}
               style={{
@@ -727,6 +778,7 @@ async function initializePython() {
                 setShowAnswer(false);
                 setGradeResult(null);
                 setCodeOutput(null);
+                setPlotImage(null);
               }}
               disabled={
                 idx === flat.length - 1
@@ -966,6 +1018,20 @@ async function initializePython() {
       >
         {codeOutput}
       </pre>
+
+      {plotImage && (
+      <img
+        src={plotImage}
+        alt="plot"
+        style={{
+          marginTop: 16,
+          maxWidth: '100%',
+          borderRadius: 12,
+          background: '#fff',
+          padding: 10,
+        }}
+      />
+    )}
     </div>
   )}
 
