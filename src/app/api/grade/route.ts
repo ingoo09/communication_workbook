@@ -4,6 +4,12 @@ export const dynamic = 'force-dynamic';
 import OpenAI from 'openai';
 import { NextResponse } from 'next/server';
 
+function sanitize(s?: string) {
+  return String(s ?? '')
+    .replace(/\u200b/g, '')
+    .trim();
+}
+
 export async function POST(req: Request) {
   try {
 
@@ -15,19 +21,8 @@ export async function POST(req: Request) {
         'https://factchat-cloud.mindlogic.ai/v1/gateway',
     });
 
-   const body = await req.json();
-
-function sanitize(s?: string) {
-  return String(s ?? '')
-    .replace(/\u200b/g, '')
-    .trim();
-}
-
-export async function POST(req: Request) {
-  try {
     const body = await req.json();
 
-    // ✅ 현재 page.tsx 구조에 맞춤
     const {
       problemId,
       title,
@@ -36,14 +31,11 @@ export async function POST(req: Request) {
       userAnswer,
     } = body;
 
-    // 디버깅용 로그
-    console.log('채점 요청:', body);
-
-    // 필수값 체크
     if (!prompt || !userAnswer) {
       return NextResponse.json(
         {
-          error: '문제 또는 학생 답안이 없습니다.',
+          error:
+            '문제 또는 학생 답안이 없습니다.',
         },
         {
           status: 400,
@@ -51,15 +43,12 @@ export async function POST(req: Request) {
       );
     }
 
-    // 정답이 없는 경우 대비
     const solutionText =
       sanitize(referenceSolution) ||
-      '모범답안이 제공되지 않았습니다. 문제 의도 기반으로 채점하세요.';
+      '모범답안 없음';
 
     const gradingPrompt = `
 너는 대학 수준의 한국어 AI 채점기다.
-
-학생의 답안을 평가하라.
 
 [문제 제목]
 ${sanitize(title)}
@@ -74,59 +63,49 @@ ${solutionText}
 ${sanitize(userAnswer)}
 
 평가 기준:
-1. 핵심 개념 이해 여부
-2. 수학적/논리적 정확성
-3. 설명의 명확성
-4. 문제 요구 충족 여부
+1. 핵심 개념 이해
+2. 논리적 정확성
+3. 설명 명확성
 
-반드시 아래 JSON 형식만 출력하라.
+반드시 JSON만 출력:
 
 {
-  "score": 0~100 사이 숫자,
-  "feedback": "학생에게 줄 자세한 피드백"
+  "score": 0~100,
+  "feedback": "피드백"
 }
 `;
 
-   const response = await client.chat.completions.create({
-  model: 'gpt-5-mini',
+    const response =
+      await client.chat.completions.create({
+        model: 'gpt-4.1-mini',
 
-  messages: [
-    {
-      role: 'user',
-      content: gradingPrompt,
-    },
-  ],
+        messages: [
+          {
+            role: 'user',
+            content: gradingPrompt,
+          },
+        ],
+      });
 
-  temperature: 0.2,
-});
-
-const content =
-  response.choices[0]?.message?.content ?? '';
-
-const cleaned = content
-  .replace(/```json/g, '')
-  .replace(/```/g, '')
-  .trim();
-
-const result = JSON.parse(cleaned);
+    const text =
+      response.choices?.[0]?.message?.content ||
+      '';
 
     return NextResponse.json({
       success: true,
-
       problemId,
-
-      score: result.score,
-
-      feedback: result.feedback,
+      raw: text,
     });
 
   } catch (error: any) {
-    console.error('AI 채점 오류:', error);
+
+    console.error(error);
 
     return NextResponse.json(
       {
         success: false,
-        error: error?.message || 'AI 채점 실패',
+        error:
+          error?.message || '채점 실패',
       },
       {
         status: 500,
