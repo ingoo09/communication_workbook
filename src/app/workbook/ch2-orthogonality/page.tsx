@@ -702,7 +702,7 @@ setCodeOutput(
                 return (
                   <button
                     key={pb.id}
-                    onClick={() => {
+                    onClick={async () => {
                       setIdx(targetIdx);
                       setShowAnswer(false);
                       setGradeResult(null);
@@ -804,7 +804,7 @@ plt.close('all')
             }}
           >
             <button
-              onClick={() => {
+              onClick={async () => {
                 setIdx((v) =>
                   Math.max(0, v - 1)
                 );
@@ -829,7 +829,7 @@ plt.close('all')
             </button>
 
             <button
-              onClick={() => {
+              onClick={async () => {
                 setIdx((v) =>
                   Math.min(
                     flat.length - 1,
