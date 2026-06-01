@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
-import { chapter } from './ch2-orthogonality';
+import { chapter } from './ch2';
 import Editor from '@monaco-editor/react';
 
 type Problem = {

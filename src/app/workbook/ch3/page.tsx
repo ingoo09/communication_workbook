@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
-import { chapter } from './ch3-orthogonality';
+import { chapter } from './ch3';
 import Editor from '@monaco-editor/react';
 
 type Problem = {
@@ -161,7 +161,7 @@ function renderFencedText(s: string) {
   return nodes;
 }
 
-export default function ch3OrthogonalityPage() {
+export default function Ch2OrthogonalityPage() {
   const data: Content = {
   title: chapter?.title ?? '',
   sections: Array.isArray(chapter?.sections)
