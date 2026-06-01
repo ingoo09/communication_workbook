@@ -412,6 +412,7 @@ const isFirst = useRef(true);
       // JSON 응답일 수도, 그냥 텍스트일 수도 있어서 둘 다 처리
       try {
         const j = JSON.parse(text);
+        const result = JSON.parse(j.raw);
         setGradeResult(`점수: ${j.score}점\n\n${j.feedback}`);
       } catch {
         setGradeResult(text);
