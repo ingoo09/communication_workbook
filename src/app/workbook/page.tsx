@@ -8,7 +8,7 @@ const chapters = [
     title: 'Python Basics',
     level: 'Beginner',
     free: true,
-    href: '/workbook/ch1-python-basics',
+    href: '/workbook/ch1',
     progress: 100,
     duration: '2h 30m',
     description:
@@ -21,7 +21,7 @@ const chapters = [
       'Numerical Integration & Orthogonal Expansion',
     level: 'Intermediate',
     free: true,
-    href: '/workbook/ch2-orthogonality',
+    href: '/workbook/ch2',
     progress: 65,
     duration: '4h 10m',
     description:

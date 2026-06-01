@@ -87,15 +87,18 @@ ${sanitize(userAnswer)}
         ],
       });
 
-    const text =
-      response.choices?.[0]?.message?.content ||
-      '';
+const text =
+  response.choices?.[0]?.message?.content || '{}';
 
-    return NextResponse.json({
-      success: true,
-      problemId,
-      raw: text,
-    });
+const result = JSON.parse(text);
+
+return NextResponse.json({
+  success: true,
+  problemId,
+
+  score: result.score,
+  feedback: result.feedback,
+});
 
   } catch (error: any) {
 

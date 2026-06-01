@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Script from 'next/script';
 import { useRouter } from 'next/navigation';
-import { chapter } from './ch1-python-basics';
+import { chapter } from './ch1';
 
 type Problem = {
   id: string;
@@ -42,7 +42,7 @@ type FlatItem = {
   preface?: Problem;
 };
 
-const STORAGE_KEY = 'workbook::ch1-python-basics::answers';
+const STORAGE_KEY = 'workbook::ch1';
 
 function sanitize(s?: string) {
   return String(s ?? '')
@@ -278,7 +278,7 @@ const isFirst = useRef(true);
   if (now === current.pb.id) return;
 
   router.replace(
-    `/workbook/ch1-python-basics?p=${encodeURIComponent(current.pb.id)}`
+    `/workbook/ch1?p=${encodeURIComponent(current.pb.id)}`
   );
 }, [idx, current?.pb?.id, router]);
 
@@ -319,7 +319,7 @@ const isFirst = useRef(true);
       <div style={{ padding: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>문항이 없습니다</h1>
         <p style={{ marginTop: 8 }}>
-          JSON 경로: <code>src/app/workbook/ch1-python-basics/ch1-python-basics.ts</code>
+          JSON 경로: <code>src/app/workbook/ch1/ch1.ts</code>
         </p>
       </div>
     );

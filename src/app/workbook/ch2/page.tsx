@@ -48,7 +48,7 @@ type FlatItem = {
   preface?: Problem;
 };
 
-const STORAGE_KEY = 'workbook::ch2-orthogonality::answers';
+const STORAGE_KEY = 'workbook::ch2';
 
 function sanitize(s?: string) {
   return String(s ?? '')
@@ -308,7 +308,7 @@ const isFirst = useRef(true);
   if (now === current.pb.id) return;
 
   router.replace(
-    `/workbook/ch2-orthogonality?p=${encodeURIComponent(current.pb.id)}`
+    `/workbook/ch2?p=${encodeURIComponent(current.pb.id)}`
   );
 }, [idx, current?.pb?.id, router]);
 
@@ -364,7 +364,7 @@ const isFirst = useRef(true);
       <div style={{ padding: 24 }}>
         <h1 style={{ fontSize: 22, fontWeight: 800 }}>문항이 없습니다</h1>
         <p style={{ marginTop: 8 }}>
-          JSON 경로: <code>src/app/workbook/ch2-orthogonality/ch2-orthogonality.ts</code>
+          JSON 경로: <code>src/app/workbook/ch2/ch2.ts</code>
         </p>
       </div>
     );
