@@ -34,8 +34,8 @@ const chapters = [
       'Fourier Series & Frequency Transfer Function',
     level: 'Intermediate',
     free: true,
-    href: '/workbook/ch3',
-    progress: 20,
+    href: '#',
+    progress: 0,
     duration: '5h 00m',
     description:
       '푸리에 급수와 선형 시스템의 주파수 전달 함수를 학습합니다.',
