@@ -178,7 +178,13 @@ export default function WorkbookPage({
   // ✅ AI 채점 결과
   const [grading, setGrading] = useState(false);
 
-  const [gradeResult, setGradeResult] = useState<string | null>(null);
+  type GradeResult = {
+    score?: number;
+    feedback?: string;
+    error?: string;
+  };
+
+  const [gradeResult, setGradeResult] = useState<GradeResult | null>(null);
 
   const [runningCode, setRunningCode] = useState(false);
 
@@ -404,21 +410,45 @@ export default function WorkbookPage({
       });
 
       const text = await res.text();
+
+      let parsed: any = null;
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        // JSON이 아닌 응답도 오류 메시지로 표시한다.
+      }
+
       if (!res.ok) {
-        setGradeResult(`채점 API 오류: ${res.status}\n${text}`);
+        setGradeResult({
+          error:
+            parsed?.error ||
+            parsed?.message ||
+            `채점 API 오류 (${res.status})`,
+          feedback: parsed ? undefined : text,
+        });
         return;
       }
 
-      // JSON 응답일 수도, 그냥 텍스트일 수도 있어서 둘 다 처리
-      try {
-        const j = JSON.parse(text);
-        const result = JSON.parse(j.raw);
-        setGradeResult(`점수: ${j.score}점\n\n${j.feedback}`);
-      } catch {
-        setGradeResult(text);
+      const score = Number(parsed?.score);
+      const feedback = String(parsed?.feedback ?? '').trim();
+
+      if (!Number.isFinite(score) || !feedback) {
+        setGradeResult({
+          error: '채점 결과 형식이 올바르지 않습니다.',
+          feedback: text,
+        });
+        return;
       }
+
+      setGradeResult({
+        score: Math.max(0, Math.min(100, score)),
+        feedback,
+      });
     } catch (e: any) {
-      setGradeResult(`채점 중 예외: ${String(e?.message ?? e)}`);
+      setGradeResult({
+        error: '채점 요청 중 오류가 발생했습니다.',
+        feedback: String(e?.message ?? e),
+      });
     } finally {
       setGrading(false);
     }
@@ -951,30 +981,105 @@ plt.close('all')
               {gradeResult && (
                 <div
                   style={{
-                    width: "100%",
-                    marginTop: 10,
-                    padding: 12,
-                    borderRadius: 12,
-                    border: "1px solid #ddd",
+                    width: '100%',
+                    marginTop: 14,
+                    padding: 18,
+                    borderRadius: 16,
+                    border: gradeResult.error
+                      ? '1px solid #fecaca'
+                      : '1px solid #dbeafe',
+                    background: gradeResult.error ? '#fff7f7' : '#f8fbff',
                   }}
                 >
                   <div
                     style={{
-                      fontWeight: 900,
-                      marginBottom: 6,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      gap: 12,
+                      marginBottom: 14,
                     }}
                   >
-                    AI 채점 결과
+                    <div style={{ fontWeight: 900, fontSize: 17 }}>
+                      AI 채점 결과
+                    </div>
+
+                    {typeof gradeResult.score === 'number' && (
+                      <div
+                        style={{
+                          minWidth: 76,
+                          padding: '8px 12px',
+                          borderRadius: 999,
+                          background:
+                            gradeResult.score >= 80
+                              ? '#dcfce7'
+                              : gradeResult.score >= 60
+                              ? '#fef3c7'
+                              : '#fee2e2',
+                          color:
+                            gradeResult.score >= 80
+                              ? '#166534'
+                              : gradeResult.score >= 60
+                              ? '#92400e'
+                              : '#991b1b',
+                          textAlign: 'center',
+                          fontWeight: 900,
+                        }}
+                      >
+                        {gradeResult.score}점
+                      </div>
+                    )}
                   </div>
 
-                  <div
-                    style={{
-                      whiteSpace: "pre-wrap",
-                      lineHeight: 1.6,
-                    }}
-                  >
-                    {gradeResult}
-                  </div>
+                  {typeof gradeResult.score === 'number' && (
+                    <div
+                      style={{
+                        height: 8,
+                        borderRadius: 999,
+                        background: '#e5e7eb',
+                        overflow: 'hidden',
+                        marginBottom: 16,
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: `${gradeResult.score}%`,
+                          height: '100%',
+                          borderRadius: 999,
+                          background:
+                            gradeResult.score >= 80
+                              ? '#22c55e'
+                              : gradeResult.score >= 60
+                              ? '#f59e0b'
+                              : '#ef4444',
+                        }}
+                      />
+                    </div>
+                  )}
+
+                  {gradeResult.error && (
+                    <div
+                      style={{
+                        marginBottom: gradeResult.feedback ? 12 : 0,
+                        color: '#b91c1c',
+                        fontWeight: 800,
+                      }}
+                    >
+                      {gradeResult.error}
+                    </div>
+                  )}
+
+                  {gradeResult.feedback && (
+                    <div
+                      style={{
+                        whiteSpace: 'pre-wrap',
+                        lineHeight: 1.75,
+                        color: '#1f2937',
+                      }}
+                    >
+                      {gradeResult.feedback}
+                    </div>
+                  )}
                 </div>
               )}
             </div>

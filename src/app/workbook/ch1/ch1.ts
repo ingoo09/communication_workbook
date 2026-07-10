@@ -13,58 +13,62 @@ export const chapter = {
           type: 'console',
           title: '1.A1.',
           prompt:
-            '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 자신의 말로 작성하시오.',
+            '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
           setupCode: 'import numpy as np',
           items: [
             {
               id: 'command-1',
-              command: 'A = 12',
-              prompt: '대입문을 실행한 뒤 Console에 값이 출력되는지 확인하시오.',
+              command: 'A=12; A',
               referenceExplanation:
-                '정수 12를 변수 A에 저장한다. 대입문은 값을 저장하는 명령이므로 별도의 출력은 나타나지 않는다.',
+                '정수 12를 변수 A에 저장한다. 변수 A에 저장된 값을 조회하므로 12가 출력된다.',
             },
             {
               id: 'command-2',
-              command: 'A',
-              prompt: '변수 이름만 입력했을 때 표시되는 값을 확인하시오.',
-              validation: { mode: 'exact', expectedOutput: '12' },
+              command: 'B',
               referenceExplanation:
-                '현재 변수 A에 저장된 값을 조회하므로 12가 출력된다.',
+                '변수 B에 저장된 값을 조회하지만, 변수 B에 저장된 값이 없으므로 오류가 발생한다.',
             },
             {
               id: 'command-3',
-              command: 'B = A ** 3',
-              prompt: '`**` 연산자의 의미와 변수 B에 저장되는 값을 설명하시오.',
+              command: 'B=A*3; B',
+              validation: { mode: 'exact', expectedOutput: '18' },
               referenceExplanation:
-                'A의 세제곱을 계산하여 B에 저장한다. A가 12이므로 B에는 1728이 저장되며 대입문 자체는 출력이 없다.',
+                'A에 3을 곱한 값을 변수 B에 저장한다. 결과는 18이 출력된다.',
             },
             {
               id: 'command-4',
               command: 'B * 6',
-              validation: { mode: 'exact', expectedOutput: '10368' },
+              validation: { mode: 'exact', expectedOutput: '108' },
               referenceExplanation:
-                'B에 저장된 1728에 6을 곱한다. 변수 B의 값은 바뀌지 않고 계산 결과 10368만 출력된다.',
+                '곱셈 연산으로 B에 6을 곱한다. 18에 6을 곱한 108이 출력되고, 변수 B에 별도로 저장되지는 않는다',
             },
             {
               id: 'command-5',
               command: 'B / 5',
-              validation: { mode: 'numeric', expectedValue: 345.6, tolerance: 1e-12 },
+              validation: { mode: 'numeric', expectedValue: 3.6, tolerance: 1e-12 },
               referenceExplanation:
-                '일반 나눗셈 연산으로 B를 5로 나눈다. Python의 `/` 결과는 실수 345.6으로 출력된다.',
+                '일반 나눗셈 연산으로 B를 5로 나눈다. Python의 `/` 결과는 실수 3.6으로 출력된다.',
             },
             {
               id: 'command-6',
               command: 'B // 5',
-              validation: { mode: 'exact', expectedOutput: '345' },
+              validation: { mode: 'exact', expectedOutput: '3' },
               referenceExplanation:
-                '`//`는 몫을 구하는 바닥 나눗셈 연산자이다. 1728을 5로 나눈 몫 345가 출력된다.',
+                '`//`는 몫을 구하는 바닥 나눗셈 연산자이다. 18을 5로 나눈 몫 3이 출력된다.',
             },
             {
               id: 'command-7',
               command: 'B % 5',
               validation: { mode: 'exact', expectedOutput: '3' },
               referenceExplanation:
-                '`%`는 나머지 연산자이다. 1728을 5로 나눈 나머지 3이 출력된다.',
+                '`%`는 나머지 연산자이다. 18을 5로 나눈 나머지 3이 출력된다.',
+            },
+            {
+              id: 'command-15',
+              command: 'A = 12e6',
+              validation: { mode: 'exact', expectedOutput: '12e6' },
+              referenceExplanation:
+                '',
             },
           ],
           referenceAnswer:
