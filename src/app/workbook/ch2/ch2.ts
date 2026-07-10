@@ -1,3 +1,5 @@
+import type { WorkbookChapter } from '@/types/workbook';
+
 export const chapter = {
   "id": "2-orthogonality",
   "title": "Chapter 2. Numerical Integration & Orthogonal expansion",

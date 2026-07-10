@@ -5,34 +5,8 @@ import Script from 'next/script';
 import { useRouter } from 'next/navigation';
 import Editor from '@monaco-editor/react';
 
-type Problem = {
-  id: string;
-  title: string;
-  prompt: string;
-  code?: string;
-  answerType?: 'textarea' | 'short' | 'code';
-
-  // 사전 정답/풀이(프로젝트/버전별 키 이름 다양성 대응)
-  answer?: string;
-  answer_md?: string;
-  solution?: string;
-  solution_md?: string;
-  solutionText?: string;
-  solutionMarkdown?: string;
-  explanation?: string;
-  explanation_md?: string;
-  rationale?: string;
-};
-
-export type WorkbookChapter = {
-  id?: string;
-  title: string;
-  sections: ReadonlyArray<{
-    id: string;
-    title: string;
-    problems: ReadonlyArray<Problem>;
-  }>;
-};
+import type { WorkbookChapter, WorkbookProblem } from '@/types/workbook';
+import { PROBLEM_TYPE_LABEL, resolveProblemType } from '@/types/workbook';
 
 type WorkbookPageProps = {
   chapter: WorkbookChapter;
@@ -54,8 +28,8 @@ declare global {
 type FlatItem = {
   secId: string;
   secTitle: string;
-  pb: Problem;
-  preface?: Problem;
+  pb: WorkbookProblem;
+  preface?: WorkbookProblem;
 };
 
 function sanitize(s?: string) {
@@ -78,7 +52,7 @@ function parseTitle(title: string) {
   return { groupKey, subIndex };
 }
 
-function pickAnswer(pb: Problem): string {
+function pickAnswer(pb: WorkbookProblem): string {
   // ✅ 사전 정답/풀이 키 이름이 무엇이든 최대한 잡아낸다
   const candidates = [
     pb.answer,
@@ -98,7 +72,7 @@ function pickAnswer(pb: Problem): string {
   return '';
 }
 
-function buildDisplayPrompt(pb: Problem, preface?: Problem): string {
+function buildDisplayPrompt(pb: WorkbookProblem, preface?: WorkbookProblem): string {
   const parts: string[] = [];
 
   if (preface) {
@@ -112,7 +86,7 @@ function buildDisplayPrompt(pb: Problem, preface?: Problem): string {
   const t = sanitize(pb.prompt);
   if (t) parts.push(t);
 
-  const c = sanitize(pb.code);
+  const c = sanitize(pb.code ?? (pb.type === 'python' ? pb.starterCode : undefined));
   if (c) parts.push(`\n\n\`\`\`python\n${c}\n\`\`\``);
 
   return parts.join('').trim();
@@ -233,7 +207,7 @@ const answerRef =
       }
 
       // “진짜 서문” 맵 (자식이 있을 때만 서문)
-      const prefaceLocal: Record<string, Problem> = {};
+      const prefaceLocal: Record<string, WorkbookProblem> = {};
       for (const pb of problems) {
         const info = parseTitle(pb.title);
         if (!info) continue;
@@ -384,6 +358,7 @@ const isFirst = useRef(true);
 
   const displayPrompt = buildDisplayPrompt(current.pb, current.preface);
   const preparedAnswer = pickAnswer(current.pb);
+  const currentProblemType = resolveProblemType(current.pb);
 
   function saveMyAnswer() {
     try {
@@ -805,6 +780,20 @@ plt.close('all')
                 }}
               >
                 {current.pb.title}
+                <span
+                  style={{
+                    marginLeft: 10,
+                    padding: '3px 8px',
+                    borderRadius: 999,
+                    background: '#eef2ff',
+                    color: '#3730a3',
+                    fontSize: 12,
+                    fontWeight: 700,
+                    verticalAlign: 'middle',
+                  }}
+                >
+                  {PROBLEM_TYPE_LABEL[currentProblemType]}
+                </span>
               </h1>
 
               <span style={{ opacity: 0.7 }}>
@@ -974,7 +963,7 @@ plt.close('all')
             내 답안
           </div>
 
-{current.pb.answerType === 'code' ? (
+{currentProblemType === 'python' ? (
   <Editor
     height="320px"
     defaultLanguage="python"
@@ -1033,7 +1022,7 @@ plt.close('all')
   </button>
 
   {/* 코드 실행 버튼 */}
-  {current.pb.answerType === 'code' && (
+  {currentProblemType === 'python' && (
     <button
       onClick={runPythonCode}
       disabled={runningCode}
@@ -1065,7 +1054,7 @@ plt.close('all')
   )}
 
   {/* Python 실행 결과 */}
-{current.pb.answerType === 'code' &&
+{currentProblemType === 'python' &&
   codeOutput && (
     <div
       style={{

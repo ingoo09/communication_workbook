@@ -1,3 +1,5 @@
+import type { WorkbookChapter } from '@/types/workbook';
+
 export const chapter = {
   "id": "1-python-basics",
   "title": "1장. 파이썬 기초",
