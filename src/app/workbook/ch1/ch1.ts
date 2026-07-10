@@ -4,11 +4,11 @@ export const chapter = {
   id: '1-python-basics',
   title: 'Chapter 1. Python Basics',
   sections: [
-    {
+    { //문제 1
       id: '1-1',
       title: '1. Python의 다양한 변수 연산 및 그래프 출력',
       problems: [
-        {
+        { //문제 1.A
           id: '1-1A',
           type: 'console',
           title: '1.A.',
@@ -113,7 +113,7 @@ export const chapter = {
           referenceAnswer:
             '핵심은 대입문과 표현식의 차이, 산술 연산자(/, //, %), 복소수의 표현과 실수부·허수부·크기·위상·켤레복소수의 의미를 구분하는 것이다. 각 명령별 모범 설명은 Console 항목의 모범답안에 제시되어 있다.',
         },
-        {
+        { //문제 1.B
           id: '1-1B',
           type: 'console',
           title: '1.B.',
@@ -180,7 +180,7 @@ export const chapter = {
           referenceAnswer:
             'np.arange는 간격을 기준으로, np.linspace는 원소 개수를 기준으로 배열을 생성한다. 같은 크기의 배열에 대한 +와 *는 원소별 연산이며, np.dot은 벡터 내적을 수행한다. 인덱스는 0부터 시작하고 슬라이싱의 끝 인덱스는 포함하지 않는다.',
         },
-        {
+        { //문제 1.C
           id: '1-1C',
           type: 'console',
           title: '1.C.',
@@ -242,7 +242,7 @@ export const chapter = {
           referenceAnswer:
             '다차원 배열은 np.array와 중첩 리스트로 생성한다. shape는 각 축의 크기, ndim은 차원 수를 나타낸다. X[행, 열]로 원소를 선택하고, :는 해당 축의 모든 원소를 뜻한다. T는 전치, @는 행렬곱이다.',
         },
-        {
+        { //문제 1.D
           id: '1-1D',
           type: 'console',
           title: '1.D.',
@@ -315,7 +315,7 @@ export const chapter = {
           referenceAnswer:
             'np.random.rand는 균등분포 난수, np.random.randn은 표준정규분포 난수를 생성한다. 유한한 표본에서는 이론값과 정확히 같지 않지만, 표본 수가 커질수록 평균은 0, 분산과 표준편차는 1에 가까워지는 경향이 있다.',
         },
-        {
+        { //문제 1.E
           id: '1-1E',
           type: 'console',
           title: '1.E.',
@@ -375,7 +375,7 @@ export const chapter = {
           referenceAnswer:
             'NumPy 수학 함수는 배열의 모든 원소에 동시에 적용된다. Matplotlib에서는 figure로 새 그림을 만들고 plot으로 데이터를 그린 뒤 xlabel, ylabel, title, grid, legend 등으로 그래프 정보를 추가한다. 사인파·코사인파의 위상 관계와 지수감쇠 함수의 감소 특성을 그래프로 확인하는 것이 핵심이다.',
         },
-        {
+        { //문제 1.F
           id: '1-1F',
           type: 'console',
           title: '1.F.',
@@ -449,26 +449,22 @@ export const chapter = {
         },
       ],
     },
-    {
+    { //문제 2
       id: '1-2',
-      title: '2. Python 스크립트 사용하기',
+      title: '2. Python 스크립트 만들고 사용하기',
       problems: [
-        {
+        { //문제 2.A1
           id: '1-2A1',
           type: 'python',
           title: '2.A1.',
-          prompt: `
-          아래는 \(a=0.1,\;0.25,\;0.3,\;0.4,\;0.5,\;0.6,\;0.7,\;0.8\)인 경우에 대하여, 함수 \(y=x\sin(ax)\;(0<x<20)\)를 하나의 그래프에 겹쳐 그리는 Python 스크립트이다.
-          아래 Python 스크립트의 모든 라인에 대해 주석(Comment)을 작성하시오.
-          (지침 1) '='이 있는 라인
-          - '=' 왼쪽 변수의 목적(용도)을 설명하시오.
-          - '=' 오른쪽 수식이 왜 해당 변수의 의미에 부합하는지 설명하시오.
-          (지침 2) '='이 없는 라인
-          - 명령어의 기능을 설명하시오.
-          - 왜 해당 명령을 수행하는지 설명하시오.
-          `,
-          starterCode: `
-import numpy as np
+          prompt: `아래는 \(a=0.1,\;0.25,\;0.3,\;0.4,\;0.5,\;0.6,\;0.7,\;0.8\)인 경우에 대하여, 함수 \(y=x\sin(ax)\;(0<x<20)\)를 하나의 그래프에 겹쳐 그리는 Python 스크립트이다. 아래 Python 스크립트의 모든 라인에 대해 주석(Comment)을 작성하시오.
+(지침 1) '='이 있는 라인
+  - '=' 왼쪽 변수의 목적(용도)을 설명하시오.
+  - '=' 오른쪽 수식이 왜 해당 변수의 의미에 부합하는지 설명하시오.
+(지침 2) '='이 없는 라인
+  - 명령어의 기능을 설명하시오.
+  - 왜 해당 명령을 수행하는지 설명하시오.`,
+          starterCode: `import numpy as np
 import matplotlib.pyplot as plt
 
 x = np.arange(1,20,0.1)
@@ -484,11 +480,9 @@ plt.plot(x,y)
 plt.xlabel('x')
 plt.ylabel('y=x sin(ax)')
 plt.legend(['a=0.1','a=0.25','a=0.3','a=0.4','a=0.5','a=0.6','a=0.7','a=0.8'])
-plt.grid()
-`,
+plt.grid()`,
           referenceAnswer: `
 아래는 각 라인의 기능과 해당 명령을 수행하는 이유를 주석으로 작성한 예시이다.
-
 \`\`\`python
 # 수치 계산과 배열 연산에 필요한 NumPy 모듈을 np라는 이름으로 불러온다.
 # x 좌표 생성, 0으로 초기화된 배열 생성, 사인 함수 계산을 위해 필요하다.
