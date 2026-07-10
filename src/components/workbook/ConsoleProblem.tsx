@@ -535,14 +535,14 @@ _console_result
 
       <div style={{ marginTop: 14 }}>
         <label style={{ display: "block", fontWeight: 800, marginBottom: 8 }}>
-          이 명령의 동작과 결과의 의미
+          내 답안
         </label>
         <textarea
           value={currentAnswer.explanation}
           onChange={(event) =>
             updateCurrent({ explanation: event.target.value })
           }
-          placeholder="예: 정수 12를 변수 A에 저장한다. 대입문이므로 화면에는 별도의 값이 출력되지 않는다."
+          placeholder="여기에 답안을 작성하세요."
           style={{
             width: "100%",
             minHeight: 120,
