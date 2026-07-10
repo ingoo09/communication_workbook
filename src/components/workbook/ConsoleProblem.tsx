@@ -542,7 +542,7 @@ _console_result
           onChange={(event) =>
             updateCurrent({ explanation: event.target.value })
           }
-          placeholder="여기에 답안을 작성하세요."
+          placeholder="여기에 답안을 입력하세요."
           style={{
             width: "100%",
             minHeight: 120,
