@@ -55,6 +55,7 @@ function parseTitle(title: string) {
 function pickAnswer(pb: WorkbookProblem): string {
   // ✅ 사전 정답/풀이 키 이름이 무엇이든 최대한 잡아낸다
   const candidates = [
+    pb.referenceAnswer,
     pb.answer,
     pb.answer_md,
     pb.solution_md,
@@ -161,6 +162,8 @@ export default function WorkbookPage({
   const [showAnswer, setShowAnswer] = useState(false);
 
   const [userAnswer, setUserAnswer] = useState('');
+  const [proofStepAnswers, setProofStepAnswers] = useState<Record<string, string>>({});
+  const [proofConclusion, setProofConclusion] = useState('');
   const [saved, setSaved] = useState(false);
 
   const [plotImage, setPlotImage] = useState<string | null>(null);
@@ -190,6 +193,9 @@ const promptRef =
   useRef<HTMLDivElement | null>(null);
 
 const answerRef =
+  useRef<HTMLDivElement | null>(null);
+
+const proofRef =
   useRef<HTMLDivElement | null>(null);
 
   const { flat, idToIndex } = useMemo(() => {
@@ -267,10 +273,27 @@ const answerRef =
       const raw = window.localStorage.getItem(storageKey);
       const j = raw ? JSON.parse(raw) : {};
       const v = j[current.pb.id] ?? '';
-      setUserAnswer(String(v));
+
+      if (resolveProblemType(current.pb) === 'proof') {
+        if (v && typeof v === 'object' && v.kind === 'proof') {
+          setProofStepAnswers(v.steps ?? {});
+          setProofConclusion(String(v.conclusion ?? ''));
+        } else {
+          setProofStepAnswers({});
+          setProofConclusion(typeof v === 'string' ? v : '');
+        }
+        setUserAnswer('');
+      } else {
+        setUserAnswer(String(v ?? ''));
+        setProofStepAnswers({});
+        setProofConclusion('');
+      }
+
       setSaved(false);
     } catch {
       setUserAnswer('');
+      setProofStepAnswers({});
+      setProofConclusion('');
       setSaved(false);
     }
   }, [idx, current?.pb?.id]);
@@ -319,6 +342,15 @@ const isFirst = useRef(true);
         ],
         throwOnError: false,
       });
+      window.renderMathInElement?.(proofRef.current as any, {
+        delimiters: [
+          { left: '$$', right: '$$', display: true },
+          { left: '$', right: '$', display: false },
+          { left: '\\[', right: '\\]', display: true },
+          { left: '\\(', right: '\\)', display: false },
+        ],
+        throwOnError: false,
+      });
     } catch {
       // ignore
     }
@@ -329,6 +361,13 @@ const isFirst = useRef(true);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, showAnswer]);
+
+  useEffect(() => {
+    if (!current || resolveProblemType(current.pb) !== 'proof') return;
+    const t = window.setTimeout(() => renderMath(), 0);
+    return () => window.clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [proofStepAnswers, proofConclusion, current?.pb?.id]);
 
   useEffect(() => {
   async function initPyodide() {
@@ -360,11 +399,36 @@ const isFirst = useRef(true);
   const preparedAnswer = pickAnswer(current.pb);
   const currentProblemType = resolveProblemType(current.pb);
 
+  function buildProofAnswerText() {
+    if (currentProblemType !== 'proof' || current.pb.type !== 'proof') {
+      return userAnswer;
+    }
+
+    const stepText = (current.pb.proofSteps ?? [])
+      .map((step, index) => {
+        const answer = proofStepAnswers[step.id] ?? '';
+        return `증명 단계 ${index + 1}: ${step.prompt}\n${answer}`;
+      })
+      .join('\n\n');
+
+    return [stepText, `최종 결론\n${proofConclusion}`]
+      .filter(Boolean)
+      .join('\n\n');
+  }
+
   function saveMyAnswer() {
     try {
       const raw = window.localStorage.getItem(storageKey);
       const j = raw ? JSON.parse(raw) : {};
-      j[current.pb.id] = userAnswer;
+
+      j[current.pb.id] = currentProblemType === 'proof'
+        ? {
+            kind: 'proof',
+            steps: proofStepAnswers,
+            conclusion: proofConclusion,
+          }
+        : userAnswer;
+
       window.localStorage.setItem(storageKey, JSON.stringify(j));
       setSaved(true);
       window.setTimeout(() => setSaved(false), 1200);
@@ -386,7 +450,7 @@ const isFirst = useRef(true);
           title: current.pb.title,
           prompt: sanitize(current.pb.prompt),
           referenceSolution: preparedAnswer,
-          userAnswer: userAnswer,
+          userAnswer: buildProofAnswerText(),
         }),
       });
 
@@ -982,6 +1046,117 @@ plt.close('all')
       wordWrap: 'on',
     }}
   />
+) : currentProblemType === 'proof' && current.pb.type === 'proof' ? (
+  <div ref={proofRef}>
+    {(current.pb.givenExpressions?.length ?? 0) > 0 && (
+      <div
+        style={{
+          marginBottom: 16,
+          padding: 14,
+          borderRadius: 12,
+          background: '#f8fafc',
+          border: '1px solid #e2e8f0',
+        }}
+      >
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>주어진 식</div>
+        {current.pb.givenExpressions?.map((expression, index) => (
+          <div key={index} style={{ marginTop: 6 }}>
+            {renderFencedText(`\[${expression}\]`)}
+          </div>
+        ))}
+      </div>
+    )}
+
+    {(current.pb.proofSteps ?? []).map((step, index) => {
+      const value = proofStepAnswers[step.id] ?? '';
+      return (
+        <div
+          key={step.id}
+          style={{
+            marginBottom: 16,
+            padding: 16,
+            border: '1px solid #dbeafe',
+            borderRadius: 14,
+            background: '#f8fbff',
+          }}
+        >
+          <div style={{ fontWeight: 900, marginBottom: 6 }}>
+            증명 단계 {index + 1}
+          </div>
+          <div style={{ marginBottom: 10, lineHeight: 1.6 }}>{step.prompt}</div>
+          {step.hint && (
+            <div style={{ marginBottom: 10, fontSize: 13, color: '#475569' }}>
+              힌트: {step.hint}
+            </div>
+          )}
+          <textarea
+            value={value}
+            onChange={(e) =>
+              setProofStepAnswers((prev) => ({
+                ...prev,
+                [step.id]: e.target.value,
+              }))
+            }
+            placeholder="LaTeX 수식 또는 이 단계의 설명을 입력하세요. 예: \int_0^T ..."
+            style={{
+              width: '100%',
+              minHeight: 100,
+              padding: 12,
+              borderRadius: 12,
+              border: '1px solid #bfdbfe',
+              fontSize: 14,
+              fontFamily: 'monospace',
+            }}
+          />
+          {value.trim() && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: 12,
+                borderRadius: 10,
+                background: '#fff',
+                border: '1px dashed #bfdbfe',
+              }}
+            >
+              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
+                수식 미리보기
+              </div>
+              {renderFencedText(`\[${value}\]`)}
+            </div>
+          )}
+        </div>
+      );
+    })}
+
+    <div
+      style={{
+        padding: 16,
+        border: '1px solid #ddd6fe',
+        borderRadius: 14,
+        background: '#faf8ff',
+      }}
+    >
+      <div style={{ fontWeight: 900, marginBottom: 8 }}>최종 결론 및 설명</div>
+      {current.pb.finalExpression && (
+        <div style={{ marginBottom: 10 }}>
+          목표 식: {renderFencedText(`\[${current.pb.finalExpression}\]`)}
+        </div>
+      )}
+      <textarea
+        value={proofConclusion}
+        onChange={(e) => setProofConclusion(e.target.value)}
+        placeholder="각 단계가 왜 성립하는지 설명하고 최종 결론을 작성하세요."
+        style={{
+          width: '100%',
+          minHeight: 140,
+          padding: 12,
+          borderRadius: 12,
+          border: '1px solid #ddd6fe',
+          fontSize: 14,
+        }}
+      />
+    </div>
+  </div>
 ) : (
   <textarea
     value={userAnswer}

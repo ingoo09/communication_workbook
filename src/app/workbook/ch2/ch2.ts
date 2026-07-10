@@ -146,6 +146,31 @@ export const chapter = {
           "title": "2.A1",
           "type": "proof",
           "prompt": "수치적분 방법과 sympy 모듈을 이용한 적분 방법에 앞서, 수식 전개로 \\(\\{ s_1(t), s_2(t), s_3(t), \\dots \\}\\)는 직교 집합임을 확인할 수 있다. \\(s_1(t)\\)는 사인(sine) 파형이라 했으므로 \\(s_1(t)=\\sin(2\\pi f_1 t)\\)로 나타내며, 주기가 \\(2T\\)라 했으므로 주파수 \\(f_1=1/(2T)\\)이다. \\(s_n(t)\\)은 \\(s_1(t)\\)의 주파수의 정수 \\(n\\)배의 주파수를 갖는 사인파라고 했으므로 \\(s_n(t)=\\sin(2\\pi n f_1 t)\\)이다. 임의의 두 원소 \\(s_l(t), s_k(t)\\)를 내적 공식 \\(\\int_0^T s_l(t)s_k(t)\\,dt\\)에 대입하여 정리하면 내적이 0임을 보일 수 있다. 수식으로 정리하여 보이시오.",
+          "givenExpressions": [
+            "s_n(t)=\\sin\\left(\\frac{\\pi n}{T}t\\right)",
+            "\\langle s_l,s_k\\rangle=\\int_0^T s_l(t)s_k(t)\\,dt"
+          ],
+          "proofSteps": [
+            {
+              "id": "step-1",
+              "prompt": "주기 2T로부터 기본 주파수 f_1을 구하고, s_n(t)를 T와 n을 이용한 식으로 정리하시오.",
+              "hint": "f_1=1/(2T)를 s_n(t)=sin(2πnf_1t)에 대입하세요.",
+              "expectedExpression": "s_n(t)=\\sin\\left(\\frac{\\pi n}{T}t\\right)"
+            },
+            {
+              "id": "step-2",
+              "prompt": "서로 다른 정수 l과 k에 대한 내적식을 쓰고, 곱-합 공식을 적용하시오.",
+              "hint": "sin A sin B = 1/2[cos(A-B)-cos(A+B)]를 사용하세요.",
+              "expectedExpression": "\\frac12\\int_0^T\\left[\\cos\\left(\\frac{\\pi(l-k)}{T}t\\right)-\\cos\\left(\\frac{\\pi(l+k)}{T}t\\right)\\right]dt"
+            },
+            {
+              "id": "step-3",
+              "prompt": "적분 결과에 경계값 t=0과 t=T를 대입하여 내적이 0이 됨을 보이시오.",
+              "hint": "정수 m에 대해 sin(πm)=0임을 이용하세요.",
+              "expectedExpression": "\\int_0^T s_l(t)s_k(t)\\,dt=0\\quad(l\\ne k)"
+            }
+          ],
+          "finalExpression": "\\int_0^T s_l(t)s_k(t)\\,dt=0\\quad(l\\ne k)",
           "referenceAnswer": "# Chapter 2 — 2.A + 2.A1 (Answer)\n\n> 본 파일은 **2.A1(수식 전개로 직교성 증명)**의 풀이를 제공합니다.  \n> (2.A는 설정/서문)\n\n---\n\n## 정답(수식 전개로 직교성 증명)\n\n주기 \\(2T\\)이므로\n\\[\nf_1=\\frac{1}{2T}.\n\\]\n또한\n\\[\ns_n(t)=\\sin(2\\pi n f_1 t)\n\\]\n이므로\n\\[\ns_n(t)=\\sin\\left(2\\pi n\\cdot \\frac{1}{2T}\\,t\\right)\n=\\sin\\left(\\frac{\\pi n}{T}t\\right).\n\\]\n\n임의의 서로 다른 정수 \\(l\\neq k\\)에 대해 내적을 계산하면\n\\[\n\\int_0^T s_l(t)s_k(t)\\,dt\n=\\int_0^T \\sin\\left(\\frac{\\pi l}{T}t\\right)\\sin\\left(\\frac{\\pi k}{T}t\\right)\\,dt.\n\\]\n\n곱-합 공식\n\\[\n\\sin A\\sin B=\\frac12\\big[\\cos(A-B)-\\cos(A+B)\\big]\n\\]\n을 쓰면\n\\[\n=\\frac12\\int_0^T\\left[\n\\cos\\left(\\frac{\\pi(l-k)}{T}t\\right)\n-\\cos\\left(\\frac{\\pi(l+k)}{T}t\\right)\n\\right]dt.\n\\]\n\n적분하면\n\\[\n=\\frac12\\left[\n\\frac{\\sin\\left(\\frac{\\pi(l-k)}{T}t\\right)}{\\frac{\\pi(l-k)}{T}}\n-\\frac{\\sin\\left(\\frac{\\pi(l+k)}{T}t\\right)}{\\frac{\\pi(l+k)}{T}}\n\\right]_{0}^{T}.\n\\]\n\n여기서 \\(t=T\\)일 때 \\(\\sin(\\pi(l\\pm k))=0\\), \\(t=0\\)일 때도 \\(\\sin 0=0\\)이므로(그리고 \\(l\\neq k\\)라서 분모는 0이 아님),\n\\[\n\\int_0^T s_l(t)s_k(t)\\,dt=0\\quad (l\\neq k).\n\\]\n\n따라서 \\(\\{s_1(t), s_2(t), s_3(t), \\dots\\}\\)는 구간 \\(0\\le t\\le T\\)에서 서로 직교이다.\n\n---\n\n## (참고) 같은 원소의 내적(에너지)\n\\[\n\\int_0^T s_l^2(t)\\,dt=\\frac{T}{2}.\n\\]",
           "tags": []
         },
