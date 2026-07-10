@@ -5,13 +5,13 @@ export const chapter = {
   title: '1장. 파이썬 기초',
   sections: [
     {
-      id: '1-1A',
-      title: '1.A 스칼라 변수와 기본 연산',
+      id: '1-1',
+      title: '1. Python의 다양한 변수 연산 및 그래프 출력',
       problems: [
         {
-          id: '1-1A1',
+          id: '1-1A',
           type: 'console',
-          title: '1.A.',
+          title: '1.A. 스칼라(실수, 복소수) 변수 연산',
           prompt:
             '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
           setupCode: 'import numpy as np',
@@ -66,26 +66,20 @@ export const chapter = {
             {
               id: 'command-15',
               command: 'A = 12e6; print(A)',
-              validation: { mode: 'exact', expectedOutput: '12e6' },
+              validation: { mode: 'numeric', expectedValue: 12000000.0, tolerance: 1e-12 },
               referenceExplanation:
-                '12에 10^6을 곱한 값을 변수 A에 저장한다. 변수 A에 저장된 값을 조회하므로 12e6이 출력된다.',
+                '12에 10^6을 곱한 값을 변수 A에 저장한다. 변수 A에 저장된 값을 조회하므로 실수 12000000.0이 출력된다.',
             },
           ],
           referenceAnswer:
             '각 명령별 모범 설명은 Console 화면에서 작성한 답안과 비교할 수 있다. 핵심은 대입문과 표현식의 차이, 거듭제곱, 일반 나눗셈, 몫, 나머지 연산을 구분하는 것이다.',
         },
-      ],
-    },
-    {
-      id: '1-1B',
-      title: '1.B 벡터(1차원 Array) 변수 연산',
-      problems: [
         {
-          id: '1-1B1',
+          id: '1-1B',
           type: 'console',
-          title: '1.B.',
+          title: '1.B. 벡터(1차원 Array) 변수 연산',
           prompt:
-            '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.\n(numpy 모듈은 이미 불러왔다고 가정한다.)',
+            '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
           setupCode: 'import numpy as np',
           items: [
             {
