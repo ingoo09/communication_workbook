@@ -1,12 +1,13 @@
-'use client';
+"use client";
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import Script from 'next/script';
-import { useRouter } from 'next/navigation';
-import Editor from '@monaco-editor/react';
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import Script from "next/script";
+import { useRouter } from "next/navigation";
+import ProblemRenderer from "./ProblemRenderer";
+import { consoleAnswerToText } from "./ConsoleProblem";
 
-import type { WorkbookChapter, WorkbookProblem } from '@/types/workbook';
-import { PROBLEM_TYPE_LABEL, resolveProblemType } from '@/types/workbook';
+import type { WorkbookChapter, WorkbookProblem } from "@/types/workbook";
+import { PROBLEM_TYPE_LABEL, resolveProblemType } from "@/types/workbook";
 
 type WorkbookPageProps = {
   chapter: WorkbookChapter;
@@ -16,10 +17,7 @@ type WorkbookPageProps = {
 
 declare global {
   interface Window {
-    renderMathInElement?: (
-      elem: HTMLElement,
-      opts?: any
-    ) => void;
+    renderMathInElement?: (elem: HTMLElement, opts?: any) => void;
 
     loadPyodide?: any;
   }
@@ -33,18 +31,18 @@ type FlatItem = {
 };
 
 function sanitize(s?: string) {
-  return String(s ?? '')
-    .replace(/\u200b/g, '')
-    .replace(/\ue000/g, '')
-    .replace(/\u00A0/g, ' ')
-    .replace(/[ \t]+\n/g, '\n')
-    .replace(/\n{3,}/g, '\n\n')
+  return String(s ?? "")
+    .replace(/\u200b/g, "")
+    .replace(/\ue000/g, "")
+    .replace(/\u00A0/g, " ")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
     .trim();
 }
 
 function parseTitle(title: string) {
   // "1.A.", "1.A1.", "2.B1." 등에서 groupKey="1.A", subIndex=1 추출
-  const t = (title ?? '').trim();
+  const t = (title ?? "").trim();
   const m = t.match(/^(\d+)\.([A-Z])(\d+)?\.?$/);
   if (!m) return null;
   const groupKey = `${m[1]}.${m[2]}`; // "1.A"
@@ -70,10 +68,13 @@ function pickAnswer(pb: WorkbookProblem): string {
     const v = sanitize(c);
     if (v.length) return v;
   }
-  return '';
+  return "";
 }
 
-function buildDisplayPrompt(pb: WorkbookProblem, preface?: WorkbookProblem): string {
+function buildDisplayPrompt(
+  pb: WorkbookProblem,
+  preface?: WorkbookProblem,
+): string {
   const parts: string[] = [];
 
   if (preface) {
@@ -81,16 +82,18 @@ function buildDisplayPrompt(pb: WorkbookProblem, preface?: WorkbookProblem): str
     const pc = sanitize(preface.code);
     if (pt) parts.push(`**${preface.title} (사전 설명)**\n\n${pt}`);
     if (pc) parts.push(`\n\n\`\`\`python\n${pc}\n\`\`\``);
-    parts.push('\n\n---\n');
+    parts.push("\n\n---\n");
   }
 
   const t = sanitize(pb.prompt);
   if (t) parts.push(t);
 
-  const c = sanitize(pb.code ?? (pb.type === 'python' ? pb.starterCode : undefined));
+  const c = sanitize(
+    pb.code ?? (pb.type === "python" ? pb.starterCode : undefined),
+  );
   if (c) parts.push(`\n\n\`\`\`python\n${c}\n\`\`\``);
 
-  return parts.join('').trim();
+  return parts.join("").trim();
 }
 
 function renderFencedText(s: string) {
@@ -104,14 +107,17 @@ function renderFencedText(s: string) {
     const before = s.slice(last, m.index);
     if (before.length) {
       nodes.push(
-        <div key={`t-${k++}`} style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>
+        <div
+          key={`t-${k++}`}
+          style={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}
+        >
           {before}
-        </div>
+        </div>,
       );
     }
 
-    const lang = (m[1] || '').trim();
-    const code = m[2] || '';
+    const lang = (m[1] || "").trim();
+    const code = m[2] || "";
     nodes.push(
       <pre
         key={`c-${k++}`}
@@ -119,14 +125,14 @@ function renderFencedText(s: string) {
           marginTop: 12,
           marginBottom: 12,
           padding: 14,
-          background: '#0b1020',
-          color: '#e6edf3',
+          background: "#0b1020",
+          color: "#e6edf3",
           borderRadius: 12,
-          overflowX: 'auto',
+          overflowX: "auto",
         }}
       >
         <code className={lang ? `language-${lang}` : undefined}>{code}</code>
-      </pre>
+      </pre>,
     );
 
     last = m.index + m[0].length;
@@ -135,9 +141,12 @@ function renderFencedText(s: string) {
   const tail = s.slice(last);
   if (tail.length) {
     nodes.push(
-      <div key={`t-${k++}`} style={{ whiteSpace: 'pre-wrap', lineHeight: 1.65 }}>
+      <div
+        key={`t-${k++}`}
+        style={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}
+      >
         {tail}
-      </div>
+      </div>,
     );
   }
 
@@ -150,7 +159,7 @@ export default function WorkbookPage({
   contentPath,
 }: WorkbookPageProps) {
   const data: WorkbookChapter = {
-    title: chapter?.title ?? '',
+    title: chapter?.title ?? "",
     sections: Array.isArray(chapter?.sections) ? chapter.sections : [],
   };
   const storageKey = `workbook::${chapterSlug}`;
@@ -161,42 +170,29 @@ export default function WorkbookPage({
   const [idx, setIdx] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
 
-  const [userAnswer, setUserAnswer] = useState('');
-  const [proofStepAnswers, setProofStepAnswers] = useState<Record<string, string>>({});
-  const [proofConclusion, setProofConclusion] = useState('');
+  const [userAnswer, setUserAnswer] = useState("");
   const [saved, setSaved] = useState(false);
 
   const [plotImage, setPlotImage] = useState<string | null>(null);
 
   // ✅ AI 채점 결과
-const [grading, setGrading] =
-  useState(false);
+  const [grading, setGrading] = useState(false);
 
-const [gradeResult, setGradeResult] =
-  useState<string | null>(null);
+  const [gradeResult, setGradeResult] = useState<string | null>(null);
 
-const [runningCode, setRunningCode] =
-  useState(false);
+  const [runningCode, setRunningCode] = useState(false);
 
-const [codeOutput, setCodeOutput] =
-  useState<string | null>(null);
+  const [codeOutput, setCodeOutput] = useState<string | null>(null);
 
-const [pyReady, setPyReady] =
-  useState(false);
+  const [pyReady, setPyReady] = useState(false);
 
-const pyodideRef = useRef<any>(null);
+  const pyodideRef = useRef<any>(null);
 
-const [pyodide, setPyodide] =
-  useState<any>(null);
+  const [pyodide, setPyodide] = useState<any>(null);
 
-const promptRef =
-  useRef<HTMLDivElement | null>(null);
+  const promptRef = useRef<HTMLDivElement | null>(null);
 
-const answerRef =
-  useRef<HTMLDivElement | null>(null);
-
-const proofRef =
-  useRef<HTMLDivElement | null>(null);
+  const answerRef = useRef<HTMLDivElement | null>(null);
 
   const { flat, idToIndex } = useMemo(() => {
     const out: FlatItem[] = [];
@@ -225,7 +221,11 @@ const proofRef =
       // flatten: 서문은 제외, A1에만 서문 붙임
       for (const pb of problems) {
         const info = parseTitle(pb.title);
-        const isRealPreface = !!(info && info.subIndex === null && hasChild[info.groupKey]);
+        const isRealPreface = !!(
+          info &&
+          info.subIndex === null &&
+          hasChild[info.groupKey]
+        );
         if (isRealPreface) continue;
 
         const item: FlatItem = { secId: sec.id, secTitle: sec.title, pb };
@@ -244,25 +244,25 @@ const proofRef =
 
   // URL 파라미터로 이동 (?p=ID)
   useEffect(() => {
-  if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
-  const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
 
-  const p = params.get('p');
+    const p = params.get("p");
 
-  if (!p) return;
+    if (!p) return;
 
-  const i = idToIndex[p];
+    const i = idToIndex[p];
 
-  if (i != null && i !== idx) {
-    setIdx(i);
-    setShowAnswer(false);
-    setGradeResult(null);
-    setCodeOutput(null);
-    setPlotImage(null);
-    setSaved(false);
-  }
-}, [idToIndex]);
+    if (i != null && i !== idx) {
+      setIdx(i);
+      setShowAnswer(false);
+      setGradeResult(null);
+      setCodeOutput(null);
+      setPlotImage(null);
+      setSaved(false);
+    }
+  }, [idToIndex]);
 
   const current = flat[idx];
 
@@ -272,82 +272,66 @@ const proofRef =
     try {
       const raw = window.localStorage.getItem(storageKey);
       const j = raw ? JSON.parse(raw) : {};
-      const v = j[current.pb.id] ?? '';
+      const savedValue = j[current.pb.id];
+      const fallback =
+        resolveProblemType(current.pb) === "python"
+          ? String(
+              (current.pb.type === "python"
+                ? current.pb.starterCode
+                : undefined) ??
+                current.pb.code ??
+                "",
+            )
+          : "";
+      const v = savedValue ?? fallback;
 
-      if (resolveProblemType(current.pb) === 'proof') {
-        if (v && typeof v === 'object' && v.kind === 'proof') {
-          setProofStepAnswers(v.steps ?? {});
-          setProofConclusion(String(v.conclusion ?? ''));
-        } else {
-          setProofStepAnswers({});
-          setProofConclusion(typeof v === 'string' ? v : '');
-        }
-        setUserAnswer('');
-      } else {
-        setUserAnswer(String(v ?? ''));
-        setProofStepAnswers({});
-        setProofConclusion('');
-      }
-
+      setUserAnswer(typeof v === "string" ? v : JSON.stringify(v ?? ""));
       setSaved(false);
     } catch {
-      setUserAnswer('');
-      setProofStepAnswers({});
-      setProofConclusion('');
+      setUserAnswer("");
       setSaved(false);
     }
   }, [idx, current?.pb?.id]);
 
-const isFirst = useRef(true);
+  const isFirst = useRef(true);
   // URL 동기화
   useEffect(() => {
-  if (!current?.pb?.id) return;
+    if (!current?.pb?.id) return;
 
-  if (isFirst.current) {
-    isFirst.current = false;
-    return;
-  }
+    if (isFirst.current) {
+      isFirst.current = false;
+      return;
+    }
 
-  if (typeof window === 'undefined') return;
+    if (typeof window === "undefined") return;
 
-  const params = new URLSearchParams(window.location.search);
+    const params = new URLSearchParams(window.location.search);
 
-  const now = params.get('p');
+    const now = params.get("p");
 
-  if (now === current.pb.id) return;
+    if (now === current.pb.id) return;
 
-  router.replace(
-    `${chapterPath}?p=${encodeURIComponent(current.pb.id)}`
-  );
-}, [chapterPath, idx, current?.pb?.id, router]);
+    router.replace(`${chapterPath}?p=${encodeURIComponent(current.pb.id)}`);
+  }, [chapterPath, idx, current?.pb?.id, router]);
 
   // KaTeX 렌더
   function renderMath() {
     try {
       window.renderMathInElement?.(promptRef.current as any, {
         delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\[", right: "\\]", display: true },
+          { left: "\\(", right: "\\)", display: false },
         ],
         throwOnError: false,
       });
       window.renderMathInElement?.(answerRef.current as any, {
         delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
-        ],
-        throwOnError: false,
-      });
-      window.renderMathInElement?.(proofRef.current as any, {
-        delimiters: [
-          { left: '$$', right: '$$', display: true },
-          { left: '$', right: '$', display: false },
-          { left: '\\[', right: '\\]', display: true },
-          { left: '\\(', right: '\\)', display: false },
+          { left: "$$", right: "$$", display: true },
+          { left: "$", right: "$", display: false },
+          { left: "\\[", right: "\\]", display: true },
+          { left: "\\(", right: "\\)", display: false },
         ],
         throwOnError: false,
       });
@@ -361,28 +345,6 @@ const isFirst = useRef(true);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [idx, showAnswer]);
-
-  useEffect(() => {
-    if (!current || resolveProblemType(current.pb) !== 'proof') return;
-    const t = window.setTimeout(() => renderMath(), 0);
-    return () => window.clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [proofStepAnswers, proofConclusion, current?.pb?.id]);
-
-  useEffect(() => {
-  async function initPyodide() {
-      if (!window.loadPyodide) return;
-
-    const py = await window.loadPyodide({
-      indexURL:
-        'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
-    });
-
-    setPyodide(py);
-  }
-
-  initPyodide();
-}, []);
 
   if (!current) {
     return (
@@ -399,21 +361,11 @@ const isFirst = useRef(true);
   const preparedAnswer = pickAnswer(current.pb);
   const currentProblemType = resolveProblemType(current.pb);
 
-  function buildProofAnswerText() {
-    if (currentProblemType !== 'proof' || current.pb.type !== 'proof') {
-      return userAnswer;
+  function buildSubmissionText() {
+    if (currentProblemType === "console" && current.pb.type === "console") {
+      return consoleAnswerToText(current.pb, userAnswer);
     }
-
-    const stepText = (current.pb.proofSteps ?? [])
-      .map((step, index) => {
-        const answer = proofStepAnswers[step.id] ?? '';
-        return `증명 단계 ${index + 1}: ${step.prompt}\n${answer}`;
-      })
-      .join('\n\n');
-
-    return [stepText, `최종 결론\n${proofConclusion}`]
-      .filter(Boolean)
-      .join('\n\n');
+    return userAnswer;
   }
 
   function saveMyAnswer() {
@@ -421,13 +373,7 @@ const isFirst = useRef(true);
       const raw = window.localStorage.getItem(storageKey);
       const j = raw ? JSON.parse(raw) : {};
 
-      j[current.pb.id] = currentProblemType === 'proof'
-        ? {
-            kind: 'proof',
-            steps: proofStepAnswers,
-            conclusion: proofConclusion,
-          }
-        : userAnswer;
+      j[current.pb.id] = userAnswer;
 
       window.localStorage.setItem(storageKey, JSON.stringify(j));
       setSaved(true);
@@ -442,15 +388,18 @@ const isFirst = useRef(true);
     setGradeResult(null);
     try {
       // ✅ 교수님 프로젝트 기준 grade route 위치: src/app/api/grade/route.ts
-      const res = await fetch('/api/grade', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+      const res = await fetch("/api/grade", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           problemId: current.pb.id,
           title: current.pb.title,
           prompt: sanitize(current.pb.prompt),
           referenceSolution: preparedAnswer,
-          userAnswer: buildProofAnswerText(),
+          userAnswer:
+            current.pb.type === "console"
+              ? consoleAnswerToText(current.pb, userAnswer)
+              : userAnswer,
         }),
       });
 
@@ -475,106 +424,83 @@ const isFirst = useRef(true);
     }
   }
 
-async function initializePython() {
-  try {
-    console.log('Pyodide 초기화 시작');
+  async function initializePython() {
+    try {
+      console.log("Pyodide 초기화 시작");
 
-    setCodeOutput(
-      'Python 로딩 중입니다...'
-    );
+      setCodeOutput("Python 로딩 중입니다...");
 
-    console.log(
-      'window.loadPyodide:',
-      (window as any).loadPyodide
-    );
+      console.log("window.loadPyodide:", (window as any).loadPyodide);
 
-    if (!(window as any).loadPyodide) {
-      setCodeOutput(
-        'loadPyodide가 없습니다.'
-      );
+      if (!(window as any).loadPyodide) {
+        setCodeOutput("loadPyodide가 없습니다.");
+        return;
+      }
+
+      const pyodide = await (window as any).loadPyodide({
+        indexURL: "https://cdn.jsdelivr.net/pyodide/v0.27.2/full/",
+      });
+
+      console.log("Pyodide 로딩 완료");
+
+      pyodideRef.current = pyodide;
+      setPyodide(pyodide);
+
+      await pyodide.loadPackage("numpy");
+      await pyodide.loadPackage("scipy");
+      await pyodide.loadPackage("sympy");
+      await pyodide.loadPackage("pandas");
+      await pyodide.loadPackage("matplotlib");
+
+      setPyReady(true);
+
+      setCodeOutput("Python 실행 준비 완료!");
+    } catch (e: any) {
+      console.error(e);
+
+      setCodeOutput(`Python 초기화 실패:\n${String(e?.message ?? e)}`);
+    }
+  }
+
+  async function runPythonCode() {
+    const pyodide = pyodideRef.current;
+    setPlotImage(null);
+    if (!pyodide) {
+      setCodeOutput("Python 엔진 초기화 중입니다. 잠시만 기다려주세요.");
       return;
     }
 
-    const pyodide =
-      await (window as any).loadPyodide({
-        indexURL:
-          'https://cdn.jsdelivr.net/pyodide/v0.27.2/full/',
-      });
+    setRunningCode(true);
+    setCodeOutput(null);
+    setPlotImage(null);
 
-    console.log('Pyodide 로딩 완료');
+    try {
+      await pyodide.loadPackage(["numpy", "matplotlib"]);
 
-    pyodideRef.current = pyodide;
-
-    await pyodide.loadPackage('numpy');
-    await pyodide.loadPackage('scipy');
-    await pyodide.loadPackage('sympy');
-    await pyodide.loadPackage('pandas');
-    await pyodide.loadPackage('matplotlib');
-
-    setPyReady(true);
-
-    setCodeOutput(
-      'Python 실행 준비 완료!'
-    );
-  } catch (e: any) {
-    console.error(e);
-
-    setCodeOutput(
-      `Python 초기화 실패:\n${String(
-        e?.message ?? e
-      )}`
-    );
-  }
-}
-
-async function runPythonCode() {
-  const pyodide = pyodideRef.current;
-  setPlotImage(null);
-  if (!pyodide) {
-    setCodeOutput(
-      'Python 엔진 초기화 중입니다. 잠시만 기다려주세요.'
-    );
-    return;
-  }
-
-  setRunningCode(true);
-  setCodeOutput(null);
-  setPlotImage(null);
-
-  try {
-    await pyodide.loadPackage([
-      'numpy',
-      'matplotlib',
-    ]);
-
-await pyodide.runPythonAsync(`
+      await pyodide.runPythonAsync(`
 import matplotlib.pyplot as plt
 plt.close('all')
 `);
 
-    let output = '';
+      let output = "";
 
-    pyodide.setStdout({
-      batched: (s: string) => {
-        output += s + '\n';
-      },
-    });
+      pyodide.setStdout({
+        batched: (s: string) => {
+          output += s + "\n";
+        },
+      });
 
-// matplotlib figure 기본값 생성
-await pyodide.runPythonAsync(`
+      // matplotlib figure 기본값 생성
+      await pyodide.runPythonAsync(`
 image_base64 = ""
 has_figure = False
 `);
 
+      // 사용자 코드 실행
+      await pyodide.runPythonAsync(userAnswer);
 
-// 사용자 코드 실행
-await pyodide.runPythonAsync(
-  userAnswer
-);
-
-
-// figure 존재 여부 검사
-await pyodide.runPythonAsync(`
+      // figure 존재 여부 검사
+      await pyodide.runPythonAsync(`
 import matplotlib.pyplot as plt
 import io
 import base64
@@ -593,23 +519,17 @@ if has_figure:
     ).decode('utf-8')
 `);
 
-const hasFigure =
-  pyodide.globals.get('has_figure');
+      const hasFigure = pyodide.globals.get("has_figure");
 
-if (hasFigure) {
-  const imageBase64 =
-    pyodide.globals.get(
-      'image_base64'
-    );
+      if (hasFigure) {
+        const imageBase64 = pyodide.globals.get("image_base64");
 
-  if (imageBase64) {
-    setPlotImage(
-      `data:image/png;base64,${imageBase64}`
-    );
-  }
-}
+        if (imageBase64) {
+          setPlotImage(`data:image/png;base64,${imageBase64}`);
+        }
+      }
 
-    const wrappedCode = `
+      const wrappedCode = `
 import matplotlib
 matplotlib.use("AGG")
 
@@ -632,687 +552,435 @@ image_base64 = base64.b64encode(
 image_base64
 `;
 
-    const imageBase64 = pyodide.globals.get(
-  'image_base64'
-);
+      const imageBase64 = pyodide.globals.get("image_base64");
 
-if (
-  imageBase64 &&
-  String(imageBase64).trim() !== ''
-) {
-  setPlotImage(
-    `data:image/png;base64,${imageBase64}`
-  );
-} else {
-  setPlotImage(null);
-}
+      if (imageBase64 && String(imageBase64).trim() !== "") {
+        setPlotImage(`data:image/png;base64,${imageBase64}`);
+      } else {
+        setPlotImage(null);
+      }
 
-setCodeOutput(
-  output.trim()
-    ? output
-    : hasFigure
-    ? '(Figure)'
-    : '(출력 없음)'
-);
-  } catch (e: any) {
-    setCodeOutput(
-      `에러 발생:\n\n${String(
-        e?.message ?? e
-      )}`
-    );
-  } finally {
-    setRunningCode(false);
+      setCodeOutput(
+        output.trim() ? output : hasFigure ? "(Figure)" : "(출력 없음)",
+      );
+    } catch (e: any) {
+      setCodeOutput(`에러 발생:\n\n${String(e?.message ?? e)}`);
+    } finally {
+      setRunningCode(false);
+    }
   }
-}
 
   return (
-  <>
-    <link
-      rel="stylesheet"
-      href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
-    />
+    <>
+      <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
+      />
 
-    <Script
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
-      strategy="afterInteractive"
-    />
+      <Script
+        src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"
+        strategy="afterInteractive"
+      />
 
-   <Script
-      src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"
-      strategy="afterInteractive"
-      onLoad={() => {
-        initializePython();
-  }}
-/>
+      <Script
+        src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"
+        strategy="afterInteractive"
+        onLoad={() => {
+          initializePython();
+        }}
+      />
 
-    <Script
-      src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
-      strategy="afterInteractive"
-      onLoad={() => renderMath()}
-    />
+      <Script
+        src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
+        strategy="afterInteractive"
+        onLoad={() => renderMath()}
+      />
 
-    {/* 전체 레이아웃 */}
-    <div
-      style={{
-        display: 'flex',
-        minHeight: '100vh',
-        background: '#f5f7fb',
-      }}
-    >
-
-      {/* 좌측 목차 */}
+      {/* 전체 레이아웃 */}
       <div
         style={{
-          width: 280,
-          background: '#fff',
-          borderRight: '1px solid #e5e7eb',
-          padding: 20,
-          overflowY: 'auto',
-          position: 'sticky',
-          top: 0,
-          height: '100vh',
-          flexShrink: 0,
+          display: "flex",
+          minHeight: "100vh",
+          background: "#f5f7fb",
         }}
       >
+        {/* 좌측 목차 */}
         <div
           style={{
-            fontSize: 22,
-            fontWeight: 900,
-            marginBottom: 24,
+            width: 280,
+            background: "#fff",
+            borderRight: "1px solid #e5e7eb",
+            padding: 20,
+            overflowY: "auto",
+            position: "sticky",
+            top: 0,
+            height: "100vh",
+            flexShrink: 0,
           }}
         >
-          {data.title}
-        </div>
-
-        {(data.sections ?? []).map((sec) => (
-          <div
-            key={sec.id}
-            style={{ marginBottom: 24 }}
-          >
-            <div
-              style={{
-                fontWeight: 800,
-                marginBottom: 10,
-                color: '#111827',
-                fontSize: 15,
-              }}
-            >
-              {sec.title}
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 6,
-              }}
-            >
-              {sec.problems.map((pb) => {
-                const targetIdx = idToIndex[pb.id];
-
-                // 서문 제외
-                if (targetIdx == null) return null;
-
-                const active =
-                  current.pb.id === pb.id;
-
-                return (
-                  <button
-                    key={pb.id}
-                    onClick={async () => {
-                      setIdx(targetIdx);
-                      setShowAnswer(false);
-                      setGradeResult(null);
-
-                      setCodeOutput(null);
-                      setPlotImage(null);
-
-  if (pyodide) {
-    try {
-      await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close('all')
-`);
-    } catch {}
-  }
-                    }}
-                    style={{
-                      textAlign: 'left',
-                      padding: '10px 12px',
-                      borderRadius: 10,
-                      border: 'none',
-                      cursor: 'pointer',
-                      background: active
-                        ? '#111827'
-                        : 'transparent',
-                      color: active
-                        ? '#fff'
-                        : '#374151',
-                      fontSize: 14,
-                      transition: '0.15s',
-                    }}
-                  >
-                    {pb.title}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* 우측 본문 */}
-      <div
-        style={{
-          flex: 1,
-          padding: 24,
-          maxWidth: 1050,
-          margin: '0 auto',
-        }}
-      >
-
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-            gap: 12,
-          }}
-        >
-          <div>
-            <div
-              style={{
-                opacity: 0.7,
-                marginBottom: 6,
-              }}
-            >
-              {current.secTitle}
-            </div>
-
-            <div
-              style={{
-                display: 'flex',
-                gap: 12,
-                alignItems: 'baseline',
-              }}
-            >
-              <h1
-                style={{
-                  fontSize: 34,
-                  fontWeight: 900,
-                  margin: 0,
-                }}
-              >
-                {current.pb.title}
-                <span
-                  style={{
-                    marginLeft: 10,
-                    padding: '3px 8px',
-                    borderRadius: 999,
-                    background: '#eef2ff',
-                    color: '#3730a3',
-                    fontSize: 12,
-                    fontWeight: 700,
-                    verticalAlign: 'middle',
-                  }}
-                >
-                  {PROBLEM_TYPE_LABEL[currentProblemType]}
-                </span>
-              </h1>
-
-              <span style={{ opacity: 0.7 }}>
-                {idx + 1} / {flat.length}
-              </span>
-            </div>
-          </div>
-
           <div
             style={{
-              display: 'flex',
-              gap: 10,
-              flexWrap: 'wrap',
-              justifyContent: 'flex-end',
+              fontSize: 22,
+              fontWeight: 900,
+              marginBottom: 24,
             }}
           >
-            <button
-              onClick={async () => {
-                setIdx((v) =>
-                  Math.max(0, v - 1)
-                );
-                setShowAnswer(false);
-                setGradeResult(null);
-  // ✅ 실행 결과 초기화
-  setCodeOutput(null);
-  setPlotImage(null);
-
-  // ✅ matplotlib figure 제거
-  if (pyodide) {
-    try {
-      await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close('all')
-`);
-    } catch {}
-  }              
-}}
-            >
-              이전
-            </button>
-
-            <button
-              onClick={async () => {
-                setIdx((v) =>
-                  Math.min(
-                    flat.length - 1,
-                    v + 1
-                  )
-                );
-                setShowAnswer(false);
-                setGradeResult(null);
-  // ✅ 실행 결과 초기화
-  setCodeOutput(null);
-  setPlotImage(null);
-
-  // ✅ matplotlib figure 제거
-  if (pyodide) {
-    try {
-      await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close('all')
-`);
-    } catch {}
-  }              
-}}
-            >
-              다음
-            </button>
-
-            <button
-              onClick={() =>
-                setShowAnswer((v) => !v)
-              }
-              style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #ddd',
-              }}
-            >
-              정답 및 풀이 보기
-            </button>
-
-            <button
-              onClick={gradeWithAI}
-              disabled={grading}
-              style={{
-                padding: '10px 14px',
-                borderRadius: 10,
-                border: '1px solid #ddd',
-                opacity: grading ? 0.6 : 1,
-              }}
-            >
-              {grading
-                ? 'AI 채점 중...'
-                : 'AI 채점'}
-            </button>
+            {data.title}
           </div>
+
+          {(data.sections ?? []).map((sec) => (
+            <div key={sec.id} style={{ marginBottom: 24 }}>
+              <div
+                style={{
+                  fontWeight: 800,
+                  marginBottom: 10,
+                  color: "#111827",
+                  fontSize: 15,
+                }}
+              >
+                {sec.title}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                }}
+              >
+                {sec.problems.map((pb) => {
+                  const targetIdx = idToIndex[pb.id];
+
+                  // 서문 제외
+                  if (targetIdx == null) return null;
+
+                  const active = current.pb.id === pb.id;
+
+                  return (
+                    <button
+                      key={pb.id}
+                      onClick={async () => {
+                        setIdx(targetIdx);
+                        setShowAnswer(false);
+                        setGradeResult(null);
+
+                        setCodeOutput(null);
+                        setPlotImage(null);
+
+                        if (pyodide) {
+                          try {
+                            await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+                          } catch {}
+                        }
+                      }}
+                      style={{
+                        textAlign: "left",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "none",
+                        cursor: "pointer",
+                        background: active ? "#111827" : "transparent",
+                        color: active ? "#fff" : "#374151",
+                        fontSize: 14,
+                        transition: "0.15s",
+                      }}
+                    >
+                      {pb.title}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
         </div>
 
+        {/* 우측 본문 */}
         <div
           style={{
-            marginTop: 16,
-            padding: 18,
-            border: '1px solid #eee',
-            borderRadius: 14,
-            background: '#fff',
+            flex: 1,
+            padding: 24,
+            maxWidth: 1050,
+            margin: "0 auto",
           }}
         >
-          <div ref={promptRef}>
-            {renderFencedText(
-              displayPrompt ||
-                '(문제 본문이 비어 있습니다)'
-            )}
-          </div>
-        </div>
-
-        {showAnswer && (
           <div
             style={{
-              marginTop: 14,
+              display: "flex",
+              justifyContent: "space-between",
+              alignItems: "center",
+              gap: 12,
+            }}
+          >
+            <div>
+              <div
+                style={{
+                  opacity: 0.7,
+                  marginBottom: 6,
+                }}
+              >
+                {current.secTitle}
+              </div>
+
+              <div
+                style={{
+                  display: "flex",
+                  gap: 12,
+                  alignItems: "baseline",
+                }}
+              >
+                <h1
+                  style={{
+                    fontSize: 34,
+                    fontWeight: 900,
+                    margin: 0,
+                  }}
+                >
+                  {current.pb.title}
+                  <span
+                    style={{
+                      marginLeft: 10,
+                      padding: "3px 8px",
+                      borderRadius: 999,
+                      background: "#eef2ff",
+                      color: "#3730a3",
+                      fontSize: 12,
+                      fontWeight: 700,
+                      verticalAlign: "middle",
+                    }}
+                  >
+                    {PROBLEM_TYPE_LABEL[currentProblemType]}
+                  </span>
+                </h1>
+
+                <span style={{ opacity: 0.7 }}>
+                  {idx + 1} / {flat.length}
+                </span>
+              </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+              }}
+            >
+              <button
+                onClick={async () => {
+                  setIdx((v) => Math.max(0, v - 1));
+                  setShowAnswer(false);
+                  setGradeResult(null);
+                  // ✅ 실행 결과 초기화
+                  setCodeOutput(null);
+                  setPlotImage(null);
+
+                  // ✅ matplotlib figure 제거
+                  if (pyodide) {
+                    try {
+                      await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+                    } catch {}
+                  }
+                }}
+              >
+                이전
+              </button>
+
+              <button
+                onClick={async () => {
+                  setIdx((v) => Math.min(flat.length - 1, v + 1));
+                  setShowAnswer(false);
+                  setGradeResult(null);
+                  // ✅ 실행 결과 초기화
+                  setCodeOutput(null);
+                  setPlotImage(null);
+
+                  // ✅ matplotlib figure 제거
+                  if (pyodide) {
+                    try {
+                      await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+                    } catch {}
+                  }
+                }}
+              >
+                다음
+              </button>
+
+              <button
+                onClick={() => setShowAnswer((v) => !v)}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                }}
+              >
+                정답 및 풀이 보기
+              </button>
+
+              <button
+                onClick={gradeWithAI}
+                disabled={grading}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                  opacity: grading ? 0.6 : 1,
+                }}
+              >
+                {grading ? "AI 채점 중..." : "AI 채점"}
+              </button>
+            </div>
+          </div>
+
+          <div
+            style={{
+              marginTop: 16,
               padding: 18,
-              border: '1px solid #ddd',
+              border: "1px solid #eee",
               borderRadius: 14,
-              background: '#fafafa',
+              background: "#fff",
+            }}
+          >
+            <div ref={promptRef}>
+              {renderFencedText(displayPrompt || "(문제 본문이 비어 있습니다)")}
+            </div>
+          </div>
+
+          {showAnswer && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: 18,
+                border: "1px solid #ddd",
+                borderRadius: 14,
+                background: "#fafafa",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 900,
+                  marginBottom: 10,
+                }}
+              >
+                정답 및 풀이
+              </div>
+
+              <div ref={answerRef}>
+                {preparedAnswer ? (
+                  renderFencedText(preparedAnswer)
+                ) : (
+                  <div style={{ opacity: 0.7 }}>(사전 정답이 없습니다)</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div
+            style={{
+              marginTop: 18,
+              padding: 18,
+              border: "1px solid #eee",
+              borderRadius: 14,
+              background: "#fff",
             }}
           >
             <div
               style={{
                 fontWeight: 900,
-                marginBottom: 10,
+                marginBottom: 8,
               }}
             >
-              정답 및 풀이
+              내 답안
             </div>
 
-            <div ref={answerRef}>
-              {preparedAnswer ? (
-                renderFencedText(
-                  preparedAnswer
-                )
-              ) : (
-                <div
-                  style={{ opacity: 0.7 }}
+            <ProblemRenderer
+              problem={current.pb}
+              value={userAnswer}
+              onChange={setUserAnswer}
+              pyodide={pyodide}
+              pyReady={pyReady}
+              runningCode={runningCode}
+              codeOutput={codeOutput}
+              plotImage={plotImage}
+              onRunPython={runPythonCode}
+            />
+
+            <div
+              style={{
+                marginTop: 10,
+                display: "flex",
+                gap: 10,
+                alignItems: "center",
+                flexWrap: "wrap",
+              }}
+            >
+              {/* 저장 버튼 */}
+              <button
+                onClick={saveMyAnswer}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                }}
+              >
+                저장
+              </button>
+
+              {/* 저장 표시 */}
+              {saved && (
+                <span
+                  style={{
+                    fontSize: 13,
+                    opacity: 0.75,
+                  }}
                 >
-                  (사전 정답이 없습니다)
+                  저장됨
+                </span>
+              )}
+
+              {/* AI 채점 결과 */}
+              {gradeResult && (
+                <div
+                  style={{
+                    width: "100%",
+                    marginTop: 10,
+                    padding: 12,
+                    borderRadius: 12,
+                    border: "1px solid #ddd",
+                  }}
+                >
+                  <div
+                    style={{
+                      fontWeight: 900,
+                      marginBottom: 6,
+                    }}
+                  >
+                    AI 채점 결과
+                  </div>
+
+                  <div
+                    style={{
+                      whiteSpace: "pre-wrap",
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    {gradeResult}
+                  </div>
                 </div>
               )}
             </div>
           </div>
-        )}
-
-        <div
-          style={{
-            marginTop: 18,
-            padding: 18,
-            border: '1px solid #eee',
-            borderRadius: 14,
-            background: '#fff',
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 900,
-              marginBottom: 8,
-            }}
-          >
-            내 답안
-          </div>
-
-{currentProblemType === 'python' ? (
-  <Editor
-    height="320px"
-    defaultLanguage="python"
-    theme="vs-dark"
-    value={userAnswer}
-    onChange={(value) =>
-      setUserAnswer(value || '')
-    }
-    options={{
-      fontSize: 15,
-      minimap: {
-        enabled: false,
-      },
-      scrollBeyondLastLine: false,
-      automaticLayout: true,
-      wordWrap: 'on',
-    }}
-  />
-) : currentProblemType === 'proof' && current.pb.type === 'proof' ? (
-  <div ref={proofRef}>
-    {(current.pb.givenExpressions?.length ?? 0) > 0 && (
-      <div
-        style={{
-          marginBottom: 16,
-          padding: 14,
-          borderRadius: 12,
-          background: '#f8fafc',
-          border: '1px solid #e2e8f0',
-        }}
-      >
-        <div style={{ fontWeight: 800, marginBottom: 8 }}>주어진 식</div>
-        {current.pb.givenExpressions?.map((expression, index) => (
-          <div key={index} style={{ marginTop: 6 }}>
-            {renderFencedText(`\[${expression}\]`)}
-          </div>
-        ))}
-      </div>
-    )}
-
-    {(current.pb.proofSteps ?? []).map((step, index) => {
-      const value = proofStepAnswers[step.id] ?? '';
-      return (
-        <div
-          key={step.id}
-          style={{
-            marginBottom: 16,
-            padding: 16,
-            border: '1px solid #dbeafe',
-            borderRadius: 14,
-            background: '#f8fbff',
-          }}
-        >
-          <div style={{ fontWeight: 900, marginBottom: 6 }}>
-            증명 단계 {index + 1}
-          </div>
-          <div style={{ marginBottom: 10, lineHeight: 1.6 }}>{step.prompt}</div>
-          {step.hint && (
-            <div style={{ marginBottom: 10, fontSize: 13, color: '#475569' }}>
-              힌트: {step.hint}
-            </div>
-          )}
-          <textarea
-            value={value}
-            onChange={(e) =>
-              setProofStepAnswers((prev) => ({
-                ...prev,
-                [step.id]: e.target.value,
-              }))
-            }
-            placeholder="LaTeX 수식 또는 이 단계의 설명을 입력하세요. 예: \int_0^T ..."
-            style={{
-              width: '100%',
-              minHeight: 100,
-              padding: 12,
-              borderRadius: 12,
-              border: '1px solid #bfdbfe',
-              fontSize: 14,
-              fontFamily: 'monospace',
-            }}
-          />
-          {value.trim() && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: 12,
-                borderRadius: 10,
-                background: '#fff',
-                border: '1px dashed #bfdbfe',
-              }}
-            >
-              <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 6 }}>
-                수식 미리보기
-              </div>
-              {renderFencedText(`\[${value}\]`)}
-            </div>
-          )}
         </div>
-      );
-    })}
-
-    <div
-      style={{
-        padding: 16,
-        border: '1px solid #ddd6fe',
-        borderRadius: 14,
-        background: '#faf8ff',
-      }}
-    >
-      <div style={{ fontWeight: 900, marginBottom: 8 }}>최종 결론 및 설명</div>
-      {current.pb.finalExpression && (
-        <div style={{ marginBottom: 10 }}>
-          목표 식: {renderFencedText(`\[${current.pb.finalExpression}\]`)}
-        </div>
-      )}
-      <textarea
-        value={proofConclusion}
-        onChange={(e) => setProofConclusion(e.target.value)}
-        placeholder="각 단계가 왜 성립하는지 설명하고 최종 결론을 작성하세요."
-        style={{
-          width: '100%',
-          minHeight: 140,
-          padding: 12,
-          borderRadius: 12,
-          border: '1px solid #ddd6fe',
-          fontSize: 14,
-        }}
-      />
-    </div>
-  </div>
-) : (
-  <textarea
-    value={userAnswer}
-    onChange={(e) =>
-      setUserAnswer(e.target.value)
-    }
-    placeholder="여기에 답안을 작성하세요."
-    style={{
-      width: '100%',
-      minHeight: 140,
-      padding: 12,
-      borderRadius: 12,
-      border: '1px solid #ddd',
-      fontSize: 14,
-    }}
-  />
-)}
-
-<div
-  style={{
-    marginTop: 10,
-    display: 'flex',
-    gap: 10,
-    alignItems: 'center',
-    flexWrap: 'wrap',
-  }}
->
-  {/* 저장 버튼 */}
-  <button
-    onClick={saveMyAnswer}
-    style={{
-      padding: '10px 14px',
-      borderRadius: 10,
-      border: '1px solid #ddd',
-    }}
-  >
-    저장
-  </button>
-
-  {/* 코드 실행 버튼 */}
-  {currentProblemType === 'python' && (
-    <button
-      onClick={runPythonCode}
-      disabled={runningCode}
-      style={{
-        padding: '10px 14px',
-        borderRadius: 10,
-        border: '1px solid #ddd',
-        background: '#111827',
-        color: '#fff',
-        opacity: runningCode ? 0.7 : 1,
-      }}
-    >
-      {runningCode
-        ? '실행 중...'
-        : '코드 실행'}
-    </button>
-  )}
-
-  {/* 저장 표시 */}
-  {saved && (
-    <span
-      style={{
-        fontSize: 13,
-        opacity: 0.75,
-      }}
-    >
-      저장됨
-    </span>
-  )}
-
-  {/* Python 실행 결과 */}
-{currentProblemType === 'python' &&
-  codeOutput && (
-    <div
-      style={{
-        width: '100%',
-        marginTop: 10,
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid #ddd',
-        background: '#0b1020',
-        color: '#e6edf3',
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 900,
-          marginBottom: 6,
-        }}
-      >
-        Python 실행 결과
       </div>
-
-      <pre
-        style={{
-          whiteSpace: 'pre-wrap',
-          margin: 0,
-          lineHeight: 1.5,
-        }}
-      >
-        {codeOutput}
-      </pre>
-
-      {plotImage && (
-      <img
-        src={plotImage}
-        alt="plot"
-        style={{
-          marginTop: 16,
-          maxWidth: '100%',
-          borderRadius: 12,
-          background: '#fff',
-          padding: 10,
-        }}
-      />
-    )}
-    </div>
-  )}
-
-{/* AI 채점 결과 */}
-  {gradeResult && (
-    <div
-      style={{
-        width: '100%',
-        marginTop: 10,
-        padding: 12,
-        borderRadius: 12,
-        border: '1px solid #ddd',
-      }}
-    >
-      <div
-        style={{
-          fontWeight: 900,
-          marginBottom: 6,
-        }}
-      >
-        AI 채점 결과
-      </div>
-
-      <div
-        style={{
-          whiteSpace: 'pre-wrap',
-          lineHeight: 1.6,
-        }}
-      >
-        {gradeResult}
-      </div>
-    </div>
-  )}
-
-</div>
-        </div>
-
-      </div>
-    </div>
-  </>
-);
+    </>
+  );
 }
