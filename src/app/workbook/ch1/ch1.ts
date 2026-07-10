@@ -11,14 +11,14 @@ export const chapter = {
         {
           id: '1-1A1',
           type: 'console',
-          title: '1.A1.',
+          title: '1.A.',
           prompt:
             '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
           setupCode: 'import numpy as np',
           items: [
             {
               id: 'command-1',
-              command: 'A=12; A',
+              command: 'A=12; print(A)',
               referenceExplanation:
                 '정수 12를 변수 A에 저장한다. 변수 A에 저장된 값을 조회하므로 12가 출력된다.',
             },
@@ -30,43 +30,91 @@ export const chapter = {
             },
             {
               id: 'command-3',
-              command: 'B=A*3; B',
-              validation: { mode: 'exact', expectedOutput: '18' },
+              command: 'B=A*3; print(B)',
+              validation: { mode: 'exact', expectedOutput: '36' },
               referenceExplanation:
-                'A에 3을 곱한 값을 변수 B에 저장한다. 결과는 18이 출력된다.',
+                'A에 3을 곱한 값을 변수 B에 저장한다. 결과는 36이 출력된다.',
             },
             {
               id: 'command-4',
               command: 'B * 6',
-              validation: { mode: 'exact', expectedOutput: '108' },
+              validation: { mode: 'exact', expectedOutput: '216' },
               referenceExplanation:
-                '곱셈 연산으로 B에 6을 곱한다. 18에 6을 곱한 108이 출력되고, 변수 B에 별도로 저장되지는 않는다',
+                '곱셈 연산으로 B에 6을 곱한다. 36에 6을 곱한 216이 출력되고, 변수 B에 별도로 저장되지는 않는다',
             },
             {
               id: 'command-5',
               command: 'B / 5',
-              validation: { mode: 'numeric', expectedValue: 3.6, tolerance: 1e-12 },
+              validation: { mode: 'numeric', expectedValue: 7.2, tolerance: 1e-12 },
               referenceExplanation:
-                '일반 나눗셈 연산으로 B를 5로 나눈다. Python의 `/` 결과는 실수 3.6으로 출력된다.',
+                '일반 나눗셈 연산으로 B를 5로 나눈다. Python의 `/` 결과는 실수 7.2로 출력된다.',
             },
             {
               id: 'command-6',
               command: 'B // 5',
-              validation: { mode: 'exact', expectedOutput: '3' },
+              validation: { mode: 'exact', expectedOutput: '7' },
               referenceExplanation:
-                '`//`는 몫을 구하는 바닥 나눗셈 연산자이다. 18을 5로 나눈 몫 3이 출력된다.',
+                '`//`는 몫을 구하는 바닥 나눗셈 연산자이다. 36을 5로 나눈 몫 7이 출력된다.',
             },
             {
               id: 'command-7',
               command: 'B % 5',
-              validation: { mode: 'exact', expectedOutput: '3' },
+              validation: { mode: 'exact', expectedOutput: '1' },
               referenceExplanation:
-                '`%`는 나머지 연산자이다. 18을 5로 나눈 나머지 3이 출력된다.',
+                '`%`는 나머지 연산자이다. 36을 5로 나눈 나머지 1이 출력된다.',
             },
             {
               id: 'command-15',
-              command: 'A = 12e6',
+              command: 'A = 12e6; print(A)',
               validation: { mode: 'exact', expectedOutput: '12e6' },
+              referenceExplanation:
+                '12에 10^6을 곱한 값을 변수 A에 저장한다. 변수 A에 저장된 값을 조회하므로 12e6이 출력된다.',
+            },
+          ],
+          referenceAnswer:
+            '각 명령별 모범 설명은 Console 화면에서 작성한 답안과 비교할 수 있다. 핵심은 대입문과 표현식의 차이, 거듭제곱, 일반 나눗셈, 몫, 나머지 연산을 구분하는 것이다.',
+        },
+      ],
+    },
+    {
+      id: '1-1B',
+      title: '1.B 벡터(1차원 Array) 변수 연산',
+      problems: [
+        {
+          id: '1-1B1',
+          type: 'console',
+          title: '1.B.',
+          prompt:
+            '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.\n(numpy 모듈은 이미 불러왔다고 가정한다.)',
+          setupCode: 'import numpy as np',
+          items: [
+            {
+              id: 'command-1',
+              command: 'X=np.arange(-2,5)',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-2',
+              command: 'print(X)',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-3',
+              command: 'X=np.arange(2,13,3)',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-4',
+              command: 'Y=np.linspace(1,7,4)',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-5',
+              command: 'Z=X+Y; print(Z)',
               referenceExplanation:
                 '',
             },
