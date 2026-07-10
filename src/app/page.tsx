@@ -22,10 +22,10 @@ const PARTS: Array<{
   range: string;
   description: string;
 }> = [
-  { id: 1, label: 'Part 1', range: '1~8장', description: '신호와 시스템의 기초' },
-  { id: 2, label: 'Part 2', range: '9~13장', description: '아날로그 및 디지털 변조' },
-  { id: 3, label: 'Part 3', range: '14~24장', description: '확률 과정과 디지털 통신' },
-  { id: 4, label: 'Part 4', range: '25~30장', description: '심화 통신 시스템' },
+  { id: 1, label: 'Part Ⅰ', range: '1~8장', description: '신호와 시스템' },
+  { id: 2, label: 'Part Ⅱ', range: '9~13장', description: '통신시스템' },
+  { id: 3, label: 'Part Ⅲ', range: '14~24장', description: '디지털통신' },
+  { id: 4, label: 'Part Ⅳ', range: '25~30장', description: '고급 디지털통신' },
 ];
 
 const knownChapters: Record<number, Pick<Chapter, 'title' | 'description' | 'duration'>> = {
@@ -69,6 +69,116 @@ const knownChapters: Record<number, Pick<Chapter, 'title' | 'description' | 'dur
     duration: '7h',
     description: '상관함수와 spectral density의 관계를 학습합니다.',
   },
+  9: {
+    title: 'AM Modulation',
+    duration: '7h',
+    description: '',
+  },
+  10: {
+    title: 'QM and FDM',
+    duration: '7h',
+    description: '',
+  },
+  11: {
+    title: 'Hilbert Transform and SSB',
+    duration: '7h',
+    description: '',
+  },
+  12: {
+    title: 'VCO and FM Modulation',
+    duration: '7h',
+    description: '',
+  },
+  13: {
+    title: 'PLL and Synchronization',
+    duration: '7h',
+    description: '',
+  },
+  14: {
+    title: 'Probability and Random Variables',
+    duration: '7h',
+    description: '',
+  },
+  15: {
+    title: 'Random Signals',
+    duration: '7h',
+    description: '',
+  },
+  16: {
+    title: 'ML Detection for Binary Transmission',
+    duration: '7h',
+    description: '',
+  },
+  17: {
+    title: 'Signal Vector Space and ML Detection Ⅰ',
+    duration: '7h',
+    description: '',
+  },
+  18: {
+    title: 'Signal Vector Space and ML Detection Ⅱ',
+    duration: '7h',
+    description: '',
+  },
+  19: {
+    title: 'Correlator-based ML Detection',
+    duration: '7h',
+    description: '',
+  },
+  20: {
+    title: 'Pulse Shaping and Matched Filter',
+    duration: '7h',
+    description: '',
+  },
+  21: {
+    title: 'BPSK BER Simulation (Waveform Level)',
+    duration: '7h',
+    description: '',
+  },
+  22: {
+    title: 'QPSK and OQPSK',
+    duration: '7h',
+    description: '',
+  },
+  23: {
+    title: 'QAM',
+    duration: '7h',
+    description: '',
+  },
+  24: {
+    title: 'Convolutional Coding',
+    duration: '7h',
+    description: '',
+  },
+  25: {
+    title: 'Fading, Diversity and Combining',
+    duration: '7h',
+    description: '',
+  },
+  26: {
+    title: 'OFDM under AWGN Channel',
+    duration: '7h',
+    description: '',
+  },
+  27: {
+    title: 'OFDM under Multipath Fading Channel',
+    duration: '7h',
+    description: '',
+  },
+  28: {
+    title: 'MIMO System Ⅰ : Space Time Code',
+    duration: '7h',
+    description: '',
+  },
+  29: {
+    title: 'MIMO System Ⅱ : Spatial Multiplexing',
+    duration: '7h',
+    description: '',
+  },
+  30: {
+    title: 'Near Ultrasonic wireless OFDM Modem Design',
+    duration: '7h',
+    description: '',
+  }
 };
 
 function getPart(chapterId: number): PartId {
