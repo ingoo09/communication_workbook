@@ -2,7 +2,7 @@ import type { WorkbookChapter } from '@/types/workbook';
 
 export const chapter = {
   id: '1-python-basics',
-  title: '1장. 파이썬 기초',
+  title: 'Chapter 1. Python Basics',
   sections: [
     {
       id: '1-1',
@@ -11,9 +11,9 @@ export const chapter = {
         {
           id: '1-1A',
           type: 'console',
-          title: '1.A. 스칼라(실수, 복소수) 변수 연산',
+          title: '1.A.',
           prompt:
-            '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
+            '스칼라(실수, 복소수) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
           setupCode: 'import numpy as np',
           items: [
             {
@@ -77,32 +77,26 @@ export const chapter = {
         {
           id: '1-1B',
           type: 'console',
-          title: '1.B. 벡터(1차원 Array) 변수 연산',
+          title: '1.B.',
           prompt:
-            '아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
+            ' 벡터(1차원 Array) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
           setupCode: 'import numpy as np',
           items: [
             {
               id: 'command-1',
-              command: 'X=np.arange(-2,5)',
-              referenceExplanation:
-                '',
-            },
-            {
-              id: 'command-2',
-              command: 'print(X)',
+              command: 'X=np.arange(-2,5); print(X)',
               referenceExplanation:
                 '',
             },
             {
               id: 'command-3',
-              command: 'X=np.arange(2,13,3)',
+              command: 'X=np.arange(2,13,3); print(X)',
               referenceExplanation:
                 '',
             },
             {
               id: 'command-4',
-              command: 'Y=np.linspace(1,7,4)',
+              command: 'Y=np.linspace(1,7,4); print(Y)',
               referenceExplanation:
                 '',
             },
@@ -114,8 +108,155 @@ export const chapter = {
             },
           ],
           referenceAnswer:
-            '각 명령별 모범 설명은 Console 화면에서 작성한 답안과 비교할 수 있다. 핵심은 대입문과 표현식의 차이, 거듭제곱, 일반 나눗셈, 몫, 나머지 연산을 구분하는 것이다.',
+            '',
         },
+        {
+          id: '1-1C',
+          type: 'console',
+          title: '1.C.',
+          prompt:
+            ' 행렬(다차원 Array) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
+          setupCode: 'import numpy as np',
+          items: [
+            {
+              id: 'command-1',
+              command: 'X=np.arange([3,6,-2],[0,5,2],[7,-1,4]); print(X)',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-3',
+              command: 'X.shape',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-4',
+              command: 'Z=X[2,1]; print(Z)',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-5',
+              command: 'X[:,2]',
+              referenceExplanation:
+                '',
+            },
+          ],
+          referenceAnswer:
+            '',
+        },
+        {
+          id: '1-1D',
+          type: 'console',
+          title: '1.D.',
+          prompt:
+            ' 랜덤(Random) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
+          setupCode: 'import numpy as np',
+          items: [
+            {
+              id: 'command-1',
+              command: 'np.random.rand()',
+              prompt: '이 명령어는 10회 이상 반복 실행하여 명령어의 의미를 유추하시오.',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-2',
+              command: '6*np.random.rand()',
+              prompt: '이 명령어는 10회 이상 반복 실행하여 명령어의 의미를 유추하시오.',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-3',
+              command: 'np.random.rand()+2',
+              prompt: '이 명령어는 10회 이상 반복 실행하여 명령어의 의미를 유추하시오.',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-4',
+              command: 'np.random.rand(1,5)',
+              prompt: '이 명령어는 10회 이상 반복 실행하여 명령어의 의미를 유추하시오.',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-9',
+              command: 'N=np.random.randn(10000); print(N)',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-10',
+              command: 'np.mean(N)',
+              prompt: '실행결과가 이론치에 근사하는지도 쓰시오.',
+              referenceExplanation:
+                '',
+            },
+            {
+              id: 'command-11',
+              command: 'np.var(N)',
+              prompt: '실행결과가 이론치에 근사하는지도 쓰시오.',
+              referenceExplanation:
+                '',
+            },
+          ],
+          referenceAnswer:
+            '',
+        },
+        {
+          id: '1-1E',
+          type: 'console',
+          title: '1.E.',
+          prompt:
+            '기본적인 numpy 수학(Math) 함수와 matplotlib 그래프 그리기\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
+          setupCode: 'import numpy as np',
+          items: [
+
+            
+          ],
+          referenceAnswer:
+            '',
+        },
+        {
+          id: '1-1F',
+          type: 'console',
+          title: '1.F.',
+          prompt:
+            '불(Bool) 연산과 그래프 그리기\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.',
+          setupCode: 'import numpy as np',
+          items: [
+              {
+                id: 'command-1',
+                command: 'A=np.array([0,1,2,3,4])',
+                referenceExplanation:
+                  '',
+              },
+              {
+                id: 'command-1',
+                command: 'A<3',
+                referenceExplanation:
+                  '',
+              },
+          ],
+          referenceAnswer:
+            '',
+        },
+      ],
+    },
+    {
+      id: '1-2',
+      title: '2. Py 스크립트 사용하기',
+      problems: [
+        {
+          id: '1-2A',
+          type: 'python',
+          title: '2.A.',
+          prompt:
+            '아래는 py 스크립트이다.' 
+        }
       ],
     },
   ],
