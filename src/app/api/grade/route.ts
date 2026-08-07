@@ -67,30 +67,56 @@ ${sanitize(userAnswer)}
 2. 논리적 정확성
 3. 설명 명확성
 
-반드시 JSON만 출력:
+제한 사항:
+- 학생이 작성하지 않은 항목의 정답, 출력값, 코드 또는 풀이를 절대 제공하지 않는다.
+- 누락된 항목은 번호와 누락 여부만 알려준다.
+- 틀린 답에는 오류 유형과 다시 확인할 개념만 제시한다.
+- 모범답안의 문장이나 수치를 그대로 공개하지 않는다.
+- 피드백은 힌트 수준으로 제한한다.
+
+다음 형식의 JSON 객체만 반환한다.
 
 {
-  "score": 0~100,
-  "feedback": "피드백"
+    "score": number,
+    "feedback": string
 }
 `;
 
     const response =
-      await client.chat.completions.create({
-        model: 'gpt-5-mini',
+    await client.responses.create({
 
-        messages: [
-          {
-            role: 'user',
-            content: gradingPrompt,
-          },
-        ],
-      });
+        model:"gpt-5.6-luna",
 
-const text =
-  response.choices?.[0]?.message?.content || '{}';
+        input: gradingPrompt,
 
-const result = JSON.parse(text);
+        text:{
+            format:{
+                type:"json_object"
+            }
+        }
+
+    })
+
+let result;
+
+try{
+
+    result = JSON.parse(
+        response.output_text
+    );
+
+}catch{
+
+    result = {
+
+        score:0,
+
+        feedback:
+        "채점 결과를 해석하지 못했습니다."
+
+    };
+
+}
 
 return NextResponse.json({
   success: true,
