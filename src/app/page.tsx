@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useRef, useState } from 'react';
+import AuthControls from '@/components/auth/AuthControls';
+import { createClient } from '@/lib/supabase/client';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 type PartId = 1 | 2 | 3 | 4;
 
@@ -202,18 +204,111 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
     duration: known?.duration ?? '준비 중',
     href: available ? `/workbook/ch${id}` : undefined,
     available,
-    progress: id === 1 ? 100 : id === 2 ? 65 : 0,
+    progress: 0,
   };
 });
 
 export default function WorkbookHome() {
   const [selectedPart, setSelectedPart] = useState<PartId>(1);
   const curriculumRef = useRef<HTMLElement | null>(null);
+  const [chapterProgress, setChapterProgress] = useState<Record<number, number>>({});
+  const [totalProblemsByChapter, setTotalProblemsByChapter] = useState<Record<number, number>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadProgress() {
+      const supabase = createClient();
+
+      // 서버에서 실제 Chapter 콘텐츠를 기준으로 전체 학습 문항 수를 계산한다.
+      const problemCountResponse = await fetch('/api/workbook/problem-counts', {
+        cache: 'no-store',
+      });
+
+      let problemCounts: Record<number, number> = {};
+
+      if (problemCountResponse.ok) {
+        const problemCountJson = await problemCountResponse.json();
+
+        problemCounts = Object.fromEntries(
+          Object.entries(problemCountJson.counts ?? {}).map(([key, value]) => [
+            Number(key),
+            Number(value),
+          ]),
+        );
+
+        if (!cancelled) {
+          setTotalProblemsByChapter(problemCounts);
+        }
+      } else {
+        console.error('전체 문항 수 조회 실패');
+      }
+
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (cancelled || !user) {
+        if (!cancelled) setChapterProgress({});
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('answers')
+        .select('chapter_id, problem_id')
+        .eq('user_id', user.id);
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error('학습 진행률 조회 실패:', error);
+        return;
+      }
+
+      const solvedByChapter = new Map<number, Set<string>>();
+
+      for (const row of data ?? []) {
+        const match = String(row.chapter_id ?? '').match(/^ch(\d+)$/i);
+        if (!match) continue;
+
+        const chapterId = Number(match[1]);
+        const solved = solvedByChapter.get(chapterId) ?? new Set<string>();
+        solved.add(String(row.problem_id));
+        solvedByChapter.set(chapterId, solved);
+      }
+
+      const nextProgress: Record<number, number> = {};
+
+      for (const [chapterIdText, total] of Object.entries(problemCounts)) {
+        const chapterId = Number(chapterIdText);
+        const solvedCount = solvedByChapter.get(chapterId)?.size ?? 0;
+
+        nextProgress[chapterId] =
+          total > 0
+            ? Math.min(100, Math.round((solvedCount / total) * 100))
+            : 0;
+      }
+
+      setChapterProgress(nextProgress);
+    }
+
+    loadProgress();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const selectedPartInfo = PARTS.find((part) => part.id === selectedPart) ?? PARTS[0];
   const visibleChapters = useMemo(
-    () => chapters.filter((chapter) => chapter.part === selectedPart),
-    [selectedPart],
+    () =>
+      chapters
+        .filter((chapter) => chapter.part === selectedPart)
+        .map((chapter) => ({
+          ...chapter,
+          progress: chapterProgress[chapter.id] ?? 0,
+        })),
+    [selectedPart, chapterProgress],
   );
 
   function moveToCurriculum(part: PartId = selectedPart) {
@@ -268,27 +363,55 @@ export default function WorkbookHome() {
             </div>
           </div>
 
-          <button
-            type="button"
-            onClick={() => moveToCurriculum(1)}
+          <div
+            className="home-header-actions"
             style={{
-              flex: '0 0 auto',
-              minWidth: 124,
-              maxWidth: '100%',
-              boxSizing: 'border-box',
-              whiteSpace: 'nowrap',
-              background: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
-              color: 'white',
-              border: 'none',
-              padding: '11px 18px',
-              borderRadius: 12,
-              cursor: 'pointer',
-              fontWeight: 800,
-              boxShadow: '0 10px 30px rgba(99,102,241,0.35)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'flex-end',
+              gap: 10,
+              flexWrap: 'wrap',
             }}
           >
-            학습 시작
-          </button>
+            <button
+              type="button"
+              onClick={() => moveToCurriculum(1)}
+              style={{
+                flex: '0 0 auto',
+                minWidth: 124,
+                maxWidth: '100%',
+                boxSizing: 'border-box',
+                whiteSpace: 'nowrap',
+                background: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+                color: 'white',
+                border: 'none',
+                padding: '11px 18px',
+                borderRadius: 12,
+                cursor: 'pointer',
+                fontWeight: 800,
+                boxShadow: '0 10px 30px rgba(99,102,241,0.35)',
+              }}
+            >
+              학습 시작
+            </button>
+            <Link
+              href="/history"
+              style={{
+                flex: '0 0 auto',
+                padding: '11px 16px',
+                borderRadius: 12,
+                textDecoration: 'none',
+                color: '#e0e7ff',
+                background: 'rgba(99,102,241,0.14)',
+                border: '1px solid rgba(129,140,248,0.24)',
+                fontWeight: 800,
+                whiteSpace: 'nowrap',
+              }}
+            >
+              내 학습 기록
+            </Link>
+            <AuthControls />
+          </div>
         </div>
       </header>
 
@@ -645,7 +768,12 @@ export default function WorkbookHome() {
                       marginBottom: 8,
                     }}
                   >
-                    <span style={{ opacity: 0.65 }}>학습 진행률</span>
+                    <span style={{ opacity: 0.65 }}>
+                      학습 진행률
+                      {chapter.available && totalProblemsByChapter[chapter.id]
+                        ? ` · 전체 ${totalProblemsByChapter[chapter.id]}문항`
+                        : ''}
+                    </span>
                     <span style={{ fontWeight: 700 }}>{chapter.progress}%</span>
                   </div>
                   <div
@@ -737,8 +865,13 @@ export default function WorkbookHome() {
             flex-direction: column !important;
             padding: 14px 18px !important;
           }
-          .home-header-inner > button {
+          .home-header-actions {
             width: 100% !important;
+            justify-content: stretch !important;
+          }
+          .home-header-actions > button,
+          .home-header-actions > a {
+            flex: 1 1 140px !important;
           }
           .hero-section {
             padding-left: 18px !important;

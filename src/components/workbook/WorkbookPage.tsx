@@ -5,6 +5,9 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import ProblemRenderer from "./ProblemRenderer";
 import { consoleAnswerToText } from "./ConsoleProblem";
+import { pythonAnswerToCode, pythonAnswerToText } from "./PythonProblem";
+import { saveAnswer } from "@/lib/answers/saveAnswer";
+import { loadAnswer } from "@/lib/answers/loadAnswer";
 
 import type { WorkbookChapter, WorkbookProblem } from "@/types/workbook";
 import { PROBLEM_TYPE_LABEL, resolveProblemType } from "@/types/workbook";
@@ -248,20 +251,20 @@ export default function WorkbookPage({
     return { flat: out, idToIndex: map };
   }, [data.sections]);
 
-  // URL 파라미터로 이동 (?p=ID)
+  // 외부 링크(/history 등)에서 ?p=문제ID로 들어온 경우 해당 문제로 이동
+  // URL을 읽는 역할만 담당하고, URL 쓰기는 moveToProblem()에서 처리한다.
   useEffect(() => {
     if (typeof window === "undefined") return;
 
     const params = new URLSearchParams(window.location.search);
+    const problemId = params.get("p");
 
-    const p = params.get("p");
+    if (!problemId) return;
 
-    if (!p) return;
+    const targetIdx = idToIndex[problemId];
 
-    const i = idToIndex[p];
-
-    if (i != null && i !== idx) {
-      setIdx(i);
+    if (targetIdx != null) {
+      setIdx(targetIdx);
       setShowAnswer(false);
       setGradeResult(null);
       setCodeOutput(null);
@@ -272,13 +275,15 @@ export default function WorkbookPage({
 
   const current = flat[idx];
 
-  // 로컬 저장 답안 로드
+  // 저장 답안 로드
+  // 로그인 상태에서는 Supabase를 먼저 확인하고,
+  // 저장된 DB 답안이 없으면 localStorage → starter code 순서로 fallback한다.
   useEffect(() => {
     if (!current) return;
-    try {
-      const raw = window.localStorage.getItem(storageKey);
-      const j = raw ? JSON.parse(raw) : {};
-      const savedValue = j[current.pb.id];
+
+    let cancelled = false;
+
+    async function restoreAnswer() {
       const fallback =
         resolveProblemType(current.pb) === "python"
           ? String(
@@ -289,36 +294,77 @@ export default function WorkbookPage({
                 "",
             )
           : "";
-      const v = savedValue ?? fallback;
 
-      setUserAnswer(typeof v === "string" ? v : JSON.stringify(v ?? ""));
-      setSaved(false);
-    } catch {
-      setUserAnswer("");
-      setSaved(false);
+      try {
+        const remote = await loadAnswer({
+          chapterId: chapterSlug,
+          problemId: current.pb.id,
+        });
+
+        if (cancelled) return;
+
+        if (remote.success && remote.answer) {
+          const restoredAnswer =
+            resolveProblemType(current.pb) === "python"
+              ? pythonAnswerToCode(remote.answer.answer ?? "")
+              : remote.answer.answer ?? "";
+
+          setUserAnswer(restoredAnswer);
+          setCodeOutput(remote.answer.execution_output ?? null);
+
+          if (
+            typeof remote.answer.score === "number" ||
+            remote.answer.feedback
+          ) {
+            setGradeResult({
+              score:
+                typeof remote.answer.score === "number"
+                  ? remote.answer.score
+                  : undefined,
+              feedback: remote.answer.feedback ?? undefined,
+            });
+          } else {
+            setGradeResult(null);
+          }
+
+          setSaved(false);
+          return;
+        }
+      } catch (error) {
+        console.error("Supabase 답안 불러오기 실패:", error);
+      }
+
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        const j = raw ? JSON.parse(raw) : {};
+        const savedValue = j[current.pb.id];
+        const v = savedValue ?? fallback;
+
+        if (!cancelled) {
+          setUserAnswer(
+            typeof v === "string" ? v : JSON.stringify(v ?? ""),
+          );
+          setGradeResult(null);
+          setCodeOutput(null);
+          setSaved(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setUserAnswer(fallback);
+          setGradeResult(null);
+          setCodeOutput(null);
+          setSaved(false);
+        }
+      }
     }
-  }, [idx, current?.pb?.id]);
 
-  const isFirst = useRef(true);
-  // URL 동기화
-  useEffect(() => {
-    if (!current?.pb?.id) return;
+    restoreAnswer();
 
-    if (isFirst.current) {
-      isFirst.current = false;
-      return;
-    }
+    return () => {
+      cancelled = true;
+    };
+  }, [chapterSlug, current?.pb?.id]);
 
-    if (typeof window === "undefined") return;
-
-    const params = new URLSearchParams(window.location.search);
-
-    const now = params.get("p");
-
-    if (now === current.pb.id) return;
-
-    router.replace(`${chapterPath}?p=${encodeURIComponent(current.pb.id)}`);
-  }, [chapterPath, idx, current?.pb?.id, router]);
 
   // KaTeX 렌더
   function renderMath() {
@@ -367,14 +413,61 @@ export default function WorkbookPage({
   const preparedAnswer = pickAnswer(current.pb);
   const currentProblemType = resolveProblemType(current.pb);
 
+  async function moveToProblem(targetIdx: number) {
+    const safeIdx = Math.max(0, Math.min(flat.length - 1, targetIdx));
+    const target = flat[safeIdx];
+
+    if (!target) return;
+
+    setIdx(safeIdx);
+    setShowAnswer(false);
+    setGradeResult(null);
+    setCodeOutput(null);
+    setPlotImage(null);
+    setSaved(false);
+
+    // 문제 이동과 URL 변경을 같은 함수에서 처리하여
+    // ?p=문제ID deep link가 첫 문제로 덮어써지는 race condition을 방지한다.
+    router.replace(
+      `${chapterPath}?p=${encodeURIComponent(target.pb.id)}`,
+    );
+
+    if (pyodide) {
+      try {
+        await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+      } catch {
+        // ignore
+      }
+    }
+  }
+
   function buildSubmissionText() {
     if (currentProblemType === "console" && current.pb.type === "console") {
       return consoleAnswerToText(current.pb, userAnswer);
     }
+
+    if (currentProblemType === "python") {
+      return pythonAnswerToText(userAnswer, codeOutput);
+    }
+
     return userAnswer;
   }
 
-  function saveMyAnswer() {
+  // DB에는 "다시 편집할 수 있는 원본 답안"을 저장한다.
+  // AI 채점용으로 가공한 문자열(buildSubmissionText)은 DB answer 컬럼에 넣지 않는다.
+  function buildStoredAnswerText() {
+    if (currentProblemType === "python") {
+      return pythonAnswerToCode(userAnswer);
+    }
+
+    return userAnswer;
+  }
+
+  async function saveMyAnswer() {
+    // 기존 localStorage 저장은 보조 저장소로 유지한다.
     try {
       const raw = window.localStorage.getItem(storageKey);
       const j = raw ? JSON.parse(raw) : {};
@@ -382,11 +475,28 @@ export default function WorkbookPage({
       j[current.pb.id] = userAnswer;
 
       window.localStorage.setItem(storageKey, JSON.stringify(j));
-      setSaved(true);
-      window.setTimeout(() => setSaved(false), 1200);
     } catch {
-      // ignore
+      // localStorage 저장 실패 시에도 Supabase 저장은 계속 시도한다.
     }
+
+    const result = await saveAnswer({
+      chapterId: chapterSlug,
+      problemId: current.pb.id,
+      problemTitle: current.pb.title,
+      answer: buildStoredAnswerText(),
+      executionOutput: codeOutput,
+      score:
+        typeof gradeResult?.score === "number" ? gradeResult.score : null,
+      feedback: gradeResult?.feedback ?? null,
+    });
+
+    if (!result.success && result.reason === "database_error") {
+      console.error("Supabase 답안 저장 실패:", result.message);
+      return;
+    }
+
+    setSaved(true);
+    window.setTimeout(() => setSaved(false), 1200);
   }
 
   async function gradeWithAI() {
@@ -402,10 +512,7 @@ export default function WorkbookPage({
           title: current.pb.title,
           prompt: sanitize(current.pb.prompt),
           referenceSolution: preparedAnswer,
-          userAnswer:
-            current.pb.type === "console"
-              ? consoleAnswerToText(current.pb, userAnswer)
-              : userAnswer,
+          userAnswer: buildSubmissionText(),
         }),
       });
 
@@ -440,10 +547,26 @@ export default function WorkbookPage({
         return;
       }
 
+      const normalizedScore = Math.max(0, Math.min(100, score));
+
       setGradeResult({
-        score: Math.max(0, Math.min(100, score)),
+        score: normalizedScore,
         feedback,
       });
+
+      const saveResult = await saveAnswer({
+        chapterId: chapterSlug,
+        problemId: current.pb.id,
+        problemTitle: current.pb.title,
+        answer: buildStoredAnswerText(),
+        executionOutput: codeOutput,
+        score: normalizedScore,
+        feedback,
+      });
+
+      if (!saveResult.success && saveResult.reason === "database_error") {
+        console.error("AI 채점 결과 DB 저장 실패:", saveResult.message);
+      }
     } catch (e: any) {
       setGradeResult({
         error: '채점 요청 중 오류가 발생했습니다.',
@@ -526,8 +649,9 @@ image_base64 = ""
 has_figure = False
 `);
 
-      // 사용자 코드 실행
-      await pyodide.runPythonAsync(userAnswer);
+      // Python 답안 데이터에서 실제 코드 부분만 실행한다.
+      const pythonCode = pythonAnswerToCode(userAnswer);
+      await pyodide.runPythonAsync(pythonCode);
 
       // figure 존재 여부 검사
       await pyodide.runPythonAsync(`
@@ -567,7 +691,7 @@ import matplotlib.pyplot as plt
 import io
 import base64
 
-${userAnswer}
+${pythonCode}
 
 buf = io.BytesIO()
 
@@ -689,23 +813,7 @@ image_base64
                   return (
                     <button
                       key={pb.id}
-                      onClick={async () => {
-                        setIdx(targetIdx);
-                        setShowAnswer(false);
-                        setGradeResult(null);
-
-                        setCodeOutput(null);
-                        setPlotImage(null);
-
-                        if (pyodide) {
-                          try {
-                            await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close('all')
-`);
-                          } catch {}
-                        }
-                      }}
+                      onClick={() => moveToProblem(targetIdx)}
                       style={{
                         textAlign: "left",
                         padding: "10px 12px",
@@ -800,47 +908,13 @@ plt.close('all')
               }}
             >
               <button
-                onClick={async () => {
-                  setIdx((v) => Math.max(0, v - 1));
-                  setShowAnswer(false);
-                  setGradeResult(null);
-                  // ✅ 실행 결과 초기화
-                  setCodeOutput(null);
-                  setPlotImage(null);
-
-                  // ✅ matplotlib figure 제거
-                  if (pyodide) {
-                    try {
-                      await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close('all')
-`);
-                    } catch {}
-                  }
-                }}
+                onClick={() => moveToProblem(idx - 1)}
               >
                 이전
               </button>
 
               <button
-                onClick={async () => {
-                  setIdx((v) => Math.min(flat.length - 1, v + 1));
-                  setShowAnswer(false);
-                  setGradeResult(null);
-                  // ✅ 실행 결과 초기화
-                  setCodeOutput(null);
-                  setPlotImage(null);
-
-                  // ✅ matplotlib figure 제거
-                  if (pyodide) {
-                    try {
-                      await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close('all')
-`);
-                    } catch {}
-                  }
-                }}
+                onClick={() => moveToProblem(idx + 1)}
               >
                 다음
               </button>

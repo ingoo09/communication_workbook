@@ -1,48 +1,293 @@
-"use client";
-import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
+'use client';
+
+import Link from 'next/link';
+import { FormEvent, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createClient } from '@/lib/supabase/client';
+
+type Mode = 'login' | 'signup';
 
 export default function LoginPage() {
-  const [email, setEmail] = useState("");
-  const [sent, setSent] = useState(false);
-  const [err, setErr] = useState<string | null>(null);
+  const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+  const [mode, setMode] = useState<Mode>('login');
+  const [email, setEmail] = useState('');
+  const [name, setName] = useState('');
+  const [studentNumber, setStudentNumber] = useState('');
+  const [password, setPassword] = useState('');
+  const [passwordConfirm, setPasswordConfirm] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [message, setMessage] = useState('');
+  const [isError, setIsError] = useState(false);
 
-  const sendMagicLink = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setErr(null);
-    const sb = supabaseBrowser();
-    const { error } = await sb.auth.signInWithOtp({
-      email,
-      options: {
-        emailRedirectTo:
-          typeof window !== "undefined"
-            ? `${window.location.origin}/`
-            : undefined,
-      },
-    });
-    if (error) setErr(error.message);
-    else setSent(true);
-  };
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setMessage('');
+    setIsError(false);
+
+    if (!email.trim() || !password) {
+      setIsError(true);
+      setMessage('이메일과 비밀번호를 입력해 주세요.');
+      return;
+    }
+
+    if (mode === 'signup' && (!name.trim() || !studentNumber.trim())) {
+      setIsError(true);
+      setMessage('이름과 학번을 입력해 주세요.');
+      return;
+    }
+
+    if (mode === 'signup' && password !== passwordConfirm) {
+      setIsError(true);
+      setMessage('비밀번호 확인이 일치하지 않습니다.');
+      return;
+    }
+
+    setLoading(true);
+    try {
+      if (mode === 'login') {
+        const { error } = await supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        });
+
+        if (error) throw error;
+
+        router.push('/');
+        router.refresh();
+        return;
+      }
+
+      const redirectTo = `${window.location.origin}/auth/callback`;
+      const { data, error } = await supabase.auth.signUp({
+        email: email.trim(),
+        password,
+        options: {
+          emailRedirectTo: redirectTo,
+          data: {
+            name: name.trim(),
+            student_number: studentNumber.trim(),
+          },
+        },
+      });
+
+      if (error) throw error;
+
+      if (data.session) {
+        router.push('/');
+        router.refresh();
+      } else {
+        setMessage('회원가입 요청이 완료되었습니다. 이메일 인증 링크를 확인해 주세요.');
+      }
+    } catch (error: any) {
+      setIsError(true);
+      setMessage(error?.message ?? '인증 처리 중 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
+  }
 
   return (
-    <main style={{ maxWidth: 420, margin: "48px auto", padding: 16 }}>
-      <h1>로그인</h1>
-      <p>이메일로 로그인 링크(매직 링크)를 보내드립니다.</p>
-      <form onSubmit={sendMagicLink} style={{ marginTop: 16 }}>
-        <input
-          type="email"
-          required
-          placeholder="you@example.com"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          style={{ width: "100%", padding: 10, marginBottom: 8 }}
-        />
-        <button type="submit" style={{ padding: "8px 12px" }}>
-          로그인 링크 보내기
-        </button>
-      </form>
-      {sent && <p style={{ marginTop: 12 }}>이메일을 확인하세요. (스팸함도 확인)</p>}
-      {err && <p style={{ marginTop: 12, color: "red" }}>{err}</p>}
+    <main
+      style={{
+        minHeight: '100vh',
+        display: 'grid',
+        placeItems: 'center',
+        padding: 24,
+        color: 'white',
+        background: 'linear-gradient(180deg, #081120 0%, #0f172a 100%)',
+        fontFamily: 'Inter, Pretendard, Arial, sans-serif',
+      }}
+    >
+      <section
+        style={{
+          width: '100%',
+          maxWidth: 460,
+          padding: 30,
+          borderRadius: 26,
+          border: '1px solid rgba(255,255,255,0.10)',
+          background: 'rgba(255,255,255,0.055)',
+          boxShadow: '0 30px 80px rgba(0,0,0,0.35)',
+          boxSizing: 'border-box',
+        }}
+      >
+        <Link href="/" style={{ color: '#c7d2fe', textDecoration: 'none', fontSize: 14 }}>
+          ← 교재 홈
+        </Link>
+
+        <div style={{ marginTop: 22 }}>
+          <div style={{ fontSize: 13, color: '#a5b4fc', fontWeight: 800 }}>
+            COMMUNICATION WORKBOOK
+          </div>
+          <h1 style={{ margin: '8px 0 0', fontSize: 32 }}>계정 {mode === 'login' ? '로그인' : '만들기'}</h1>
+          <p style={{ marginTop: 10, lineHeight: 1.65, color: 'rgba(255,255,255,0.68)' }}>
+            로그인하면 이후 답안, 채점 결과와 학습 History를 사용자 계정에 연결할 수 있습니다.
+          </p>
+        </div>
+
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: '1fr 1fr',
+            gap: 8,
+            padding: 5,
+            marginTop: 22,
+            borderRadius: 14,
+            background: 'rgba(255,255,255,0.055)',
+          }}
+        >
+          {(['login', 'signup'] as Mode[]).map((item) => {
+            const active = mode === item;
+            return (
+              <button
+                key={item}
+                type="button"
+                onClick={() => {
+                  setMode(item);
+                  setMessage('');
+                  setIsError(false);
+                }}
+                style={{
+                  padding: '10px 12px',
+                  border: 0,
+                  borderRadius: 10,
+                  cursor: 'pointer',
+                  fontWeight: 800,
+                  color: 'white',
+                  background: active
+                    ? 'linear-gradient(135deg,#4f46e5,#7c3aed)'
+                    : 'transparent',
+                }}
+              >
+                {item === 'login' ? '로그인' : '회원가입'}
+              </button>
+            );
+          })}
+        </div>
+
+        <form onSubmit={handleSubmit} style={{ marginTop: 22 }}>
+          {mode === 'signup' && (
+            <>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 800, marginBottom: 8 }}>
+                이름
+              </label>
+              <input
+                type="text"
+                autoComplete="name"
+                value={name}
+                onChange={(event) => setName(event.target.value)}
+                placeholder="홍길동"
+                style={inputStyle}
+              />
+
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 800, margin: '18px 0 8px' }}>
+                학번
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                value={studentNumber}
+                onChange={(event) => setStudentNumber(event.target.value)}
+                placeholder="20261234"
+                style={inputStyle}
+              />
+            </>
+          )}
+
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 800, margin: mode === 'signup' ? '18px 0 8px' : '0 0 8px' }}>
+            이메일
+          </label>
+          <input
+            type="email"
+            autoComplete="email"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            placeholder="student@example.com"
+            style={inputStyle}
+          />
+
+          <label style={{ display: 'block', fontSize: 14, fontWeight: 800, margin: '18px 0 8px' }}>
+            비밀번호
+          </label>
+          <input
+            type="password"
+            autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            placeholder="비밀번호"
+            style={inputStyle}
+          />
+
+          {mode === 'signup' && (
+            <>
+              <label style={{ display: 'block', fontSize: 14, fontWeight: 800, margin: '18px 0 8px' }}>
+                비밀번호 확인
+              </label>
+              <input
+                type="password"
+                autoComplete="new-password"
+                value={passwordConfirm}
+                onChange={(event) => setPasswordConfirm(event.target.value)}
+                placeholder="비밀번호를 한 번 더 입력"
+                style={inputStyle}
+              />
+            </>
+          )}
+
+          {message && (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 12,
+                borderRadius: 12,
+                lineHeight: 1.55,
+                fontSize: 14,
+                background: isError ? 'rgba(239,68,68,0.12)' : 'rgba(16,185,129,0.12)',
+                color: isError ? '#fecaca' : '#a7f3d0',
+                border: isError
+                  ? '1px solid rgba(248,113,113,0.25)'
+                  : '1px solid rgba(52,211,153,0.25)',
+              }}
+            >
+              {message}
+            </div>
+          )}
+
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
+              width: '100%',
+              minHeight: 52,
+              marginTop: 22,
+              border: 0,
+              borderRadius: 15,
+              cursor: loading ? 'wait' : 'pointer',
+              color: 'white',
+              fontSize: 16,
+              fontWeight: 900,
+              background: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
+              opacity: loading ? 0.65 : 1,
+            }}
+          >
+            {loading ? '처리 중...' : mode === 'login' ? '로그인' : '회원가입'}
+          </button>
+        </form>
+      </section>
     </main>
   );
 }
+
+const inputStyle = {
+  display: 'block',
+  width: '100%',
+  minHeight: 48,
+  padding: '11px 13px',
+  borderRadius: 12,
+  border: '1px solid rgba(255,255,255,0.13)',
+  outline: 'none',
+  color: 'white',
+  background: 'rgba(2,6,23,0.52)',
+  fontSize: 15,
+  boxSizing: 'border-box' as const,
+};

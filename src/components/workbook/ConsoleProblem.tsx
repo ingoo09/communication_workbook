@@ -4,6 +4,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import type { ConsoleProblem as ConsoleProblemData } from "@/types/workbook";
 
 type ConsoleItemAnswer = {
+  command?: string;
   output: string;
   explanation: string;
   executed: boolean;
@@ -59,8 +60,13 @@ export function consoleAnswerToText(
     .map((item, index) => {
       const saved = answer.items[item.id];
       return [
-        `${index + 1}. 명령: ${item.command}`,
-        `실행 결과: ${saved?.output || "(실행하지 않음)"}`,
+        `${index + 1}. 제시 명령: ${item.command}`,
+        `학생 입력 명령: ${saved?.command || "(입력하지 않음)"}`,
+        `실행 결과: ${
+          saved?.executed
+            ? saved.output || "(출력 없음)"
+            : "(실행하지 않음)"
+        }`,
         `동작의 의미: ${saved?.explanation || "(작성하지 않음)"}`,
       ].join("\n");
     })
@@ -77,6 +83,7 @@ export default function ConsoleProblem({
   const [currentIndex, setCurrentIndex] = useState(0);
   const [running, setRunning] = useState(false);
   const [history, setHistory] = useState<string[]>([]);
+  const [typedCommand, setTypedCommand] = useState("");
   const [figures, setFigures] = useState<string[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceItem[]>([]);
 
@@ -84,11 +91,12 @@ export default function ConsoleProblem({
   const currentItem = problem.items[currentIndex];
   const currentAnswer = currentItem
     ? (answer.items[currentItem.id] ?? {
+        command: "",
         output: "",
         explanation: "",
         executed: false,
       })
-    : { output: "", explanation: "", executed: false };
+    : { command: "", output: "", explanation: "", executed: false };
 
   function updateCurrent(patch: Partial<ConsoleItemAnswer>) {
     if (!currentItem) return;
@@ -118,6 +126,7 @@ exec(${JSON.stringify(setup)}, _workbook_console_ns, _workbook_console_ns)
   useEffect(() => {
     setCurrentIndex(0);
     setHistory([]);
+    setTypedCommand("");
     setFigures([]);
     setWorkspace([]);
     if (pyReady) {
@@ -126,8 +135,16 @@ exec(${JSON.stringify(setup)}, _workbook_console_ns, _workbook_console_ns)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problem.id, pyReady]);
 
-  async function runCurrentCommand() {
+  useEffect(() => {
+    if (!currentItem) return;
+    setTypedCommand(answer.items[currentItem.id]?.command ?? "");
+  }, [currentItem?.id]);
+
+  async function runTypedCommand() {
     if (!pyodide || !currentItem) return;
+
+    const source = typedCommand.trim();
+    if (!source) return;
 
     setRunning(true);
     try {
@@ -140,7 +157,7 @@ import json
 import traceback
 import types
 
-_source = ${JSON.stringify(currentItem.command)}
+_source = ${JSON.stringify(source)}
 _stdout = io.StringIO()
 _is_error = False
 
@@ -227,8 +244,8 @@ _console_result
       const parsed = JSON.parse(String(result));
       const output = String(parsed.output ?? "");
       const displayLine = output
-        ? `>>> ${currentItem.command}\n${output}`
-        : `>>> ${currentItem.command}`;
+        ? `>>> ${source}\n${output}`
+        : `>>> ${source}`;
 
       setHistory((previous) => [...previous, displayLine]);
       setFigures(
@@ -248,17 +265,25 @@ _console_result
       );
 
       updateCurrent({
+        command: source,
         output,
         executed: true,
         isError: Boolean(parsed.isError),
       });
+      setTypedCommand("");
     } catch (error: any) {
       const output = String(error?.message ?? error);
       setHistory((previous) => [
         ...previous,
-        `>>> ${currentItem.command}\n${output}`,
+        `>>> ${source}\n${output}`,
       ]);
-      updateCurrent({ output, executed: true, isError: true });
+      updateCurrent({
+        command: source,
+        output,
+        executed: true,
+        isError: true,
+      });
+      setTypedCommand("");
     } finally {
       setRunning(false);
     }
@@ -267,6 +292,7 @@ _console_result
   async function resetConsole() {
     await resetNamespace();
     setHistory([]);
+    setTypedCommand("");
     setFigures([]);
     setWorkspace([]);
     onChange(serializeAnswer({ kind: "console", items: {} }));
@@ -322,9 +348,10 @@ _console_result
         }}
       >
         <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>
-          현재 명령
+          직접 입력할 명령
         </div>
         <pre
+          onCopy={(event) => event.preventDefault()}
           style={{
             margin: 0,
             padding: 14,
@@ -333,6 +360,7 @@ _console_result
             color: "#f9fafb",
             fontSize: 15,
             whiteSpace: "pre-wrap",
+            userSelect: "none",
           }}
         >
           {currentItem.command}
@@ -342,25 +370,56 @@ _console_result
             {currentItem.prompt}
           </div>
         )}
-        <button
-          type="button"
-          onClick={runCurrentCommand}
-          disabled={!pyReady || running}
+        <div
           style={{
-            marginTop: 12,
-            padding: "10px 15px",
-            borderRadius: 10,
-            border: "none",
-            background: "#111827",
-            color: "#fff",
-            opacity: !pyReady || running ? 0.6 : 1,
+            marginTop: 10,
+            fontSize: 13,
+            color: "#6b7280",
+            lineHeight: 1.6,
           }}
         >
-          {!pyReady
-            ? "Python 준비 중..."
-            : running
-              ? "실행 중..."
-              : "현재 명령 실행"}
+          위 명령을 아래 Python Console의 <code>&gt;&gt;&gt;</code> 뒤에 직접
+          입력한 뒤 Enter 키를 누르세요.
+        </div>
+      </div>
+
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          gap: 10,
+          marginTop: 10,
+        }}
+      >
+        <button
+          type="button"
+          onClick={() =>
+            setCurrentIndex((index) => Math.max(0, index - 1))
+          }
+          disabled={currentIndex === 0}
+          style={{
+            padding: "9px 13px",
+            borderRadius: 9,
+            border: "1px solid #ddd",
+          }}
+        >
+          이전 명령
+        </button>
+        <button
+          type="button"
+          onClick={() =>
+            setCurrentIndex((index) =>
+              Math.min(problem.items.length - 1, index + 1),
+            )
+          }
+          disabled={currentIndex === problem.items.length - 1}
+          style={{
+            padding: "9px 13px",
+            borderRadius: 9,
+            border: "1px solid #ddd",
+          }}
+        >
+          다음 명령
         </button>
       </div>
 
@@ -402,11 +461,72 @@ _console_result
             </button>
           )}
         </div>
-        <pre style={{ margin: 0, whiteSpace: "pre-wrap", lineHeight: 1.55 }}>
-          {history.length
-            ? history.join("\n\n")
-            : "명령을 실행하면 결과가 여기에 표시됩니다."}
+        <pre
+          style={{
+            margin: 0,
+            whiteSpace: "pre-wrap",
+            lineHeight: 1.55,
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+          }}
+        >
+          {history.length ? history.join("\n\n") : ""}
         </pre>
+
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+            marginTop: history.length ? 12 : 0,
+            fontFamily:
+              'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
+          }}
+        >
+          <span style={{ flex: "0 0 auto", color: "#86efac" }}>&gt;&gt;&gt;</span>
+          <input
+            value={typedCommand}
+            onChange={(event) => setTypedCommand(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" && !event.shiftKey) {
+                event.preventDefault();
+                void runTypedCommand();
+              }
+            }}
+            disabled={!pyReady || running}
+            autoComplete="off"
+            autoCapitalize="off"
+            spellCheck={false}
+            aria-label="Python Console 명령 입력"
+            placeholder={
+              !pyReady
+                ? "Python 준비 중..."
+                : running
+                  ? "실행 중..."
+                  : "명령을 직접 입력하고 Enter"
+            }
+            style={{
+              flex: 1,
+              minWidth: 0,
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              color: "#d1fae5",
+              caretColor: "#d1fae5",
+              font: "inherit",
+              padding: "4px 0",
+            }}
+          />
+          <span
+            style={{
+              flex: "0 0 auto",
+              fontSize: 11,
+              color: "#6b7280",
+            }}
+          >
+            Enter 실행
+          </span>
+        </div>
       </div>
 
       <div
@@ -535,14 +655,14 @@ _console_result
 
       <div style={{ marginTop: 14 }}>
         <label style={{ display: "block", fontWeight: 800, marginBottom: 8 }}>
-          내 답안
+          이 명령의 동작과 결과의 의미
         </label>
         <textarea
           value={currentAnswer.explanation}
           onChange={(event) =>
             updateCurrent({ explanation: event.target.value })
           }
-          placeholder="여기에 답안을 입력하세요."
+          placeholder="여기에 답안을 작성하세요"
           style={{
             width: "100%",
             minHeight: 120,
@@ -555,43 +675,6 @@ _console_result
         />
       </div>
 
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 10,
-          marginTop: 14,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() => setCurrentIndex((index) => Math.max(0, index - 1))}
-          disabled={currentIndex === 0}
-          style={{
-            padding: "9px 13px",
-            borderRadius: 9,
-            border: "1px solid #ddd",
-          }}
-        >
-          이전 명령
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            setCurrentIndex((index) =>
-              Math.min(problem.items.length - 1, index + 1),
-            )
-          }
-          disabled={currentIndex === problem.items.length - 1}
-          style={{
-            padding: "9px 13px",
-            borderRadius: 9,
-            border: "1px solid #ddd",
-          }}
-        >
-          다음 명령
-        </button>
-      </div>
     </div>
   );
 }
