@@ -177,7 +177,7 @@ const knownChapters: Record<number, Pick<Chapter, 'title' | 'description' | 'dur
     description: '',
   },
   30: {
-    title: 'Near Ultrasonic wireless OFDM Modem Design',
+    title: 'Near Ultrasonic Wireless OFDM Modem Design',
     duration: '7h',
     description: '',
   }
@@ -193,7 +193,7 @@ function getPart(chapterId: number): PartId {
 const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
-  const available = id === 1 || id === 2;
+  const available = id === 1 || id === 2 || id === 14;
 
   return {
     id,

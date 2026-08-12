@@ -37,33 +37,13 @@ export const chapter = {
           "type": "python",
           "prompt": "다음 적분을 수치적분으로 구하는 `py` 스크립트 파일을 작성하고, `py` 스크립트 파일을 실행한 결과 값을 보이시오.  \n( `py` 스크립트 파일의 코드를 각 문항에 보일 것 )\n\n\\[\n\\int_{-1}^{5} x^2 e^{-2x}\\,dx\n\\]",
           "referenceAnswer": "\\[\n\\int_{-1}^{5} x^2 e^{-2x}\\,dx\n\\]\n\n### Python 예시(리만합)\n```python\nimport numpy as np\n\na, b = -1.0, 5.0\ndx = 1e-5  # 충분히 작게\n\nx = np.arange(a, b, dx)   # b는 제외(리만합)\ny = x**2 * np.exp(-2*x)\n\nS_num = np.sum(y) * dx\nprint(S_num)\n```\n\n- 예시 결과(참고): 약 **1.8466** (dx=1e-5 기준)\n\n---"
-        }
-      ]
-    },
-    {
-      "id": "2-1C",
-      "title": "1.C.",
-      "problems": [
+        },
         {
           "id": "2-1C",
           "title": "1.C.",
           "type": "python",
           "prompt": "다음 적분을 수치적분으로 구하는 `py` 스크립트 파일을 작성하고, `py` 스크립트 파일을 실행한 결과 값을 보이시오.  \n( `py` 스크립트 파일의 코드를 각 문항에 보일 것 )\n\n\\[\n\\int_{5}^{5.01} x^3 e^{-x}\\,dx\n\\]",
           "referenceAnswer": "\\[\n\\int_{5}^{5.01} x^3 e^{-x}\\,dx\n\\]\n\n```python\nimport numpy as np\n\na, b = 5.0, 5.01\ndx = 1e-6  # 구간이 매우 짧으므로 더 작게\n\nx = np.arange(a, b, dx)\ny = x**3 * np.exp(-x)\n\nS_num = np.sum(y) * dx\nprint(S_num)\n```\n\n- 예시 결과(참고): 약 **0.0084056** (dx=1e-6 기준)\n\n---"
-        }
-      ]
-    },
-    {
-      "id": "2-1D",
-      "title": "1.D.",
-      "problems": [
-        {
-          "id": "2-1D",
-          "title": "1.D.",
-          "type": "essay",
-          "prompt": "### (서문) SymPy로 적분하는 아주 간단한 예\n아래는 `sympy`를 이용해 적분을 계산하는 최소 예시이다. (예시이므로 그대로 복사/실행해도 무방)",
-          "starterCode": "import sympy as sp\nx = sp.Symbol('x', real=True)\n\nexpr = x**2\nI = sp.integrate(expr, (x, 0, 1))  # 기호적분\nprint(I)           # exact\nprint(I.evalf())   # numeric",
-          "referenceAnswer": "이 예시는 `sympy`로 **기호적 적분**과 **수치값 변환**을 어떻게 하는지 보여주는 최소 예제이다.\n\n```python\nimport sympy as sp\nx = sp.Symbol('x', real=True)\n\nexpr = x**2\nI = sp.integrate(expr, (x, 0, 1))\nprint(I)         # exact\nprint(I.evalf()) # numeric\n```\n\n이 코드는\n\n\\[\n\\int_0^1 x^2\\,dx\n\\]\n\n를 계산한다. 결과는\n\n- exact: \\(\\frac{1}{3}\\)\n- numeric: \\(0.3333333333\\cdots\\)\n\n이다.\n\n즉, `sp.integrate(...)`는 적분의 정확한 기호식을 구하고, `evalf()`는 그것을 소수 형태의 수치값으로 바꾸는 역할을 한다."
         },
         {
           "id": "2-1D1",
@@ -75,7 +55,7 @@ export const chapter = {
         {
           "id": "2-1D2",
           "title": "1.D2.",
-          "type": "python",
+          "type": "essay",
           "prompt": "수치적분으로 구한 결과와 `sympy` 모듈로 구한 결과를 비교하시오. (식 2.1)에 결과를 대입하여, 두 결과의 오차를 표로 정리하시오.\n\n\\[\n\\text{오차}[\\%] = \\frac{|\\,S_{\\text{sym}} - S_{\\text{num}}\\,|}{|\\,S_{\\text{sym}}\\,|}\\times 100 \\quad (\\text{식 2.1})\n\\]",
           "referenceAnswer": "문제의 식(2.1):\n\n\\[\n\\mathrm{error}[\\%] = \\frac{|S_{sym}-S_{num}|}{|S_{sym}|}\\times 100\n\\]\n\n예시 코드:\n```python\nimport numpy as np\nimport sympy as sp\n\n# sympy 결과 (D1에서 계산)\nx = sp.Symbol('x', real=True)\nS_B_sym = sp.N(sp.integrate(x**2*sp.exp(-2*x), (x, -1, 5)), 20)\nS_C_sym = sp.N(sp.integrate(x**3*sp.exp(-x), (x, 5, sp.Rational(501,100))), 20)\n\n# 수치적분 결과 (B,C에서 계산한 S_num을 여기에 넣거나 다시 계산)\nS_B_num = 1.846592771100248  # 예: dx=1e-4 리만합 결과\nS_C_num = 0.008406028860941671  # 예: dx=1e-6 리만합 결과\n\nerrB = abs(float(S_B_sym) - S_B_num) / abs(float(S_B_sym)) * 100\nerrC = abs(float(S_C_sym) - S_C_num) / abs(float(S_C_sym)) * 100\n\nprint(\"errorB[%] =\", errB)\nprint(\"errorC[%] =\", errC)\n```\n\n예시 표(위 숫자 기준):\n\n| 항목 | S_sym (SymPy) | S_num (수치적분) | error[%] |\n|---|---:|---:|---:|\n| 1.B | 1.846569… | 1.846593… | 약 0.0013% |\n| 1.C | 0.00840558… | 0.00840603… | 약 0.0053% |\n\n---"
         },
@@ -85,51 +65,32 @@ export const chapter = {
           "type": "python",
           "prompt": "오차가 **1%보다 크다면** 아래를 푸시오. 작다면 그냥 넘어갈 것.\n\n(a) 오차가 발생한 이유를 쓰시오.  \n(b) 제 **1.B, 1.C**의 자신의 수치적분 `py` 스크립트 파일을 수정하고 실행하여 결괏값과 오차를 다시 보이시오.",
           "referenceAnswer": "- 위 D2에서 **error[%] > 1%** 인 항목이 있으면:\n  1) 오차가 큰 이유를 설명  \n  2) 자신의 1.B/1.C 수치적분 스크립트를 수정하고, 새 결과와 error[%]를 다시 제시\n\n- **error[%] ≤ 1%** 라면: “정상적으로 일치한다” 정도로 간단히 언급하고 넘어가면 됨.\n\n---"
-        }
-      ]
-    },
-    {
-      "id": "2-1E",
-      "title": "1.E.",
-      "problems": [
+        },
         {
           "id": "2-1E",
           "title": "1.E.",
           "type": "python",
           "prompt": "\\(f(x)=2x\\), \\(g(x)=e^{-x}\\), \\(t=1\\) 이라고 하자. 다음 적분값을 **수치적분**으로 구하는 `py` 스크립트 파일을 작성하시오.\n\n\\[\n\\int_{0}^{t} f(\\tau)\\, g(t-\\tau)\\, d\\tau\n\\]\n\n- `py` 스크립트 파일의 코드를 문항에 보이고, 실행 결과 값을 보이시오.",
           "referenceAnswer": "\\[\ny(t) = \\int_{0}^{t} 2\\tau\\,e^{-(t-\\tau)}\\,d\\tau,\\quad t=1\n\\]\n\n```python\nimport numpy as np\n\nt = 1.0\ndt = 1e-5\ntau = np.arange(0.0, t, dt)\n\ny = 2*tau * np.exp(-(t - tau))\nS_num = np.sum(y) * dt\nprint(S_num)\n```\n\n- 예시 결과(참고): 약 **0.73575** (dt=1e-5 기준)\n\n---"
-        }
-      ]
-    },
-    {
-      "id": "2-1F",
-      "title": "1.F.",
-      "problems": [
+        },
         {
           "id": "2-1F",
           "title": "1.F.",
           "type": "python",
           "prompt": "ω = -1, 0, 2, 10^3 에 대하여 각각\n\n\\[\n\\int_{0}^{10} 2t\\,e^{j\\omega t}\\,dt\n\\]\n\n를 수치적분으로 구하는 py 스크립트 파일을 작성하시오.",
           "referenceAnswer": "\\[\n\\int_{0}^{10} 2t\\,e^{j\\omega t}\\,dt,\\quad \\omega\\in\\{-1,0,2,10^3\\}\n\\]\n\n```python\nimport numpy as np\n\ndt = 1e-4\nt = np.arange(0.0, 10.0, dt)  # 10은 제외(리만합)\nomegas = [-1.0, 0.0, 2.0, 1e3]\n\nfor w in omegas:\n    y = 2*t * np.exp(1j*w*t)\n    S = np.sum(y) * dt\n    print(f\"w={w:>7g}  integral ≈ {S}\")\n```\n\n- 예시 결과(참고, dt=1e-4):\n  - w=-1  ≈ ( -2.5029 - 30.5216j )\n  - w=0   ≈ 99.9990\n  - w=2   ≈ ( -29.4164 - 13.1751j )\n  - w=1e3 ≈ ( -0.0522 - 0.0501j )"
-        }
-      ]
-    },
-    {
-      "id": "2-1G",
-      "title": "1.G.",
-      "problems": [
-        {
+        },{
           "id": "2-1G",
           "title": "1.G.",
           "type": "python",
           "prompt": "sympy 모듈로 문제 1.E, 1.F의 적분을 구하고 수치적분 결과와 비교하시오.",
           "referenceAnswer": "아래는 **sympy**로 1.E와 1.F의 적분을 구한 뒤, 본인이 1.E/1.F에서 얻은 수치적분 값과 비교(오차[%])하는 예시이다.\n\n### (1) 1.E의 sympy 적분\n1.E에서 \\(t=1\\), \\(f(\\tau)=2\\tau\\), \\(g(t-\\tau)=e^{-(t-\\tau)}\\) 이므로\n\\[\nS_{sym,E}=\\int_{0}^{1} 2\\tau\\, e^{-(1-\\tau)}\\, d\\tau = \\frac{2}{e}.\n\\]\n\n### (2) 1.F의 sympy 적분\n1.F에서\n\\[\nS_{sym,F}(\\omega)=\\int_{0}^{10} 2t\\, e^{j\\omega t}\\, dt.\n\\]\nsympy로는 아래처럼 구할 수 있다. (단, \\(\\omega=0\\)이면 \\(S_{sym,F}(0)=\\int_0^{10}2t\\,dt=100\\).)\n\n### (3) Python(sympy) 예시 코드 + 오차[%] 계산\n> 아래 코드에서 `S_num_E`, `S_num_F`는 **본인이 1.E/1.F에서 수치적분으로 얻은 값**(출력값)을 그대로 넣으면 된다.\n\n```python\nimport sympy as sp\n\n# --- 1.E ---\ntau = sp.Symbol('tau', real=True)\nS_sym_E = sp.integrate(2*tau * sp.exp(-(1 - tau)), (tau, 0, 1))  # t=1\nS_sym_E = sp.N(S_sym_E)\n\n# --- 1.F ---\nt, w = sp.symbols('t w', real=True)\nj = sp.I\nS_sym_F = sp.integrate(2*t * sp.exp(j*w*t), (t, 0, 10))\n# w=0은 별도로 처리\nS_sym_F_w0 = sp.Integer(100)\n\n# ====== 여기에 본인 수치적분 결과를 입력 ======\nS_num_E = None  # 예: 0.7357...\n# 예: w_list = [-1, 0, 2, 1e3] 에 대한 수치적분 결과를 dict로 저장\nS_num_F = {\n    -1: None,\n     0: None,\n     2: None,\n  1e3: None,\n}\n\n# --- 오차[%] (식 2.1) ---\ndef err_percent(S_sym, S_num):\n    return abs(S_sym - S_num) / abs(S_sym) * 100\n\n# 1.E 오차\nif S_num_E is not None:\n    print(\"S_sym_E =\", S_sym_E)\n    print(\"error_E[%] =\", err_percent(complex(S_sym_E), complex(S_num_E)))\n\n# 1.F 오차\nfor ww, s_num in S_num_F.items():\n    if s_num is None:\n        continue\n    if ww == 0:\n        s_sym = complex(S_sym_F_w0)\n    else:\n        s_sym = complex(sp.N(S_sym_F.subs(w, ww)))\n    print(f\"w={ww}  S_sym={s_sym}  error[%]={err_percent(s_sym, complex(s_num))}\")\n```\n\n- 오차[%]가 매우 작으면: “수치적분 결과가 sympy 결과와 잘 일치한다.” 정도로 간단히 정리하면 된다.\n- 오차가 크게 나오면: 1.D3 지시사항에 따라 스크립트를 수정 후 재실행하여 다시 비교하면 된다."
-        }
+        },
       ]
     },
     {
       "id": "2-2A",
-      "title": "2.A.Orthogonal Expansion",
+      "title": "2. Orthogonal Expansion",
       "problems": [
         {
           "id": "2-2A",
@@ -197,22 +158,6 @@ export const chapter = {
           "prompt": "# Chapter 2 — 2.A4 (Problem)\n\n## 2.A4\nsympy 모듈을 이용하여 (**t를 벡터가 아닌 sympy 변수로 선언**) 적분 결과가 0임을 확인해 보자. 아래는 학번 끝 2자리가 ‘4’와 ‘7’인 경우의 py 스크립트 파일이다. 자신의 학번 끝 2자리에 맞게 신호를 선택하여 아래 py 스크립트 파일을 수정하여 보이고, 실행 결과도 보이시오. 그리고 실행 결과로 무엇을 확인할 수 있는지 쓰시오.\n\n> 아래 코드에서 `??`, `?` 부분을 채워 **완성**하시오.\n\n```python\n%reset -sf\n%clear\n\nimport numpy as np\nimport sympy as sp\n\nnp.random.randint(1,XXX) # XXX=학번 끝 3자리, 내용과 상관없으나 꼭 추가할 것\n\nT=8.XXX # XXX는 학번 끝 3자리\nt = sp.symbols('t')\nf1=1/(2*T) \n\ns5t=sp.sin(2*sp.pi*f1*5*t) #‘4’+1=>5\ns8t=??                         #‘7’+1=>8\n\nInnerProduct=sp.integrate(?*np.conjugate(?),(t,?,?))\nInnerProduct.evalf()\n```",
           "referenceAnswer": "# Chapter 2 — 2.A4 (Answer)\n\n## 정답\n\n### (1) ‘4’와 ‘7’인 경우(예시 그대로 채우기)\n```python\n%reset -sf\n%clear\n\nimport numpy as np\nimport sympy as sp\n\nnp.random.randint(1,XXX) # XXX=학번 끝 3자리, 내용과 상관없으나 꼭 추가할 것\n\nT=8.XXX # XXX는 학번 끝 3자리\nt = sp.symbols('t')\nf1=1/(2*T) \n\ns5t=sp.sin(2*sp.pi*f1*5*t)      # ‘4’+1 => 5\ns8t=sp.sin(2*sp.pi*f1*8*t)      # ‘7’+1 => 8\n\nInnerProduct=sp.integrate(s5t*np.conjugate(s8t),(t,0,T))\nInnerProduct.evalf()\n```\n\n### (2) 실행 결과로 무엇을 확인할 수 있는가?\n- `InnerProduct.evalf()` 값이 **0(또는 0에 해당하는 값)**으로 나오면, **sympy(기호적 적분)**로 계산한 두 신호의 내적이 0임을 확인하는 것이다.\n- 즉, 2.A3에서는 수치적분으로 “0에 가깝다”를 확인했고, 2.A4에서는 **기호적 적분으로 내적이 0임을 확인**한다.",
           "tags": []
-        }
-      ]
-    },
-    {
-      "id": "2-2B",
-      "title": "2.B",
-      "problems": [
-        {
-          "id": "2-2B",
-          "title": "2.B",
-          "type": "essay",
-          "prompt": "비 주기 오디오 신호를 직교 신호 집합(Orthogonal Set)의 원소들을 이용하여 근사화해보자.  \n아래 문제에서 오디오 신호를 재생해야 하므로, PC 오디오 출력에 스피커나 이어폰을 연결하여 PC 소리를 들을 수 있도록 하시오.",
-          "referenceAnswer": "",
-          "tags": [
-            "preface"
-          ]
         },
         {
           "id": "2-2B1",
@@ -223,6 +168,6 @@ export const chapter = {
           "tags": []
         }
       ]
-    }
+    },
   ]
 } as const;
