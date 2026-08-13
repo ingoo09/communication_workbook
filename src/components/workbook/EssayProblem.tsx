@@ -14,7 +14,7 @@ export default function EssayProblem({ value, onChange }: EssayProblemProps) {
       onChange={(event) => onChange(event.target.value)}
       placeholder="여기에 답안을 작성하세요."
       style={{
-        width: "100%",
+        width: "97.5%",
         minHeight: 160,
         padding: 12,
         borderRadius: 12,

@@ -5,7 +5,7 @@ import AuthControls from '@/components/auth/AuthControls';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-type PartId = 1 | 2 | 3 | 4;
+type PartId = 100 | 1 | 2 | 3 | 4;
 
 type Chapter = {
   id: number;
@@ -24,7 +24,8 @@ const PARTS: Array<{
   range: string;
   description: string;
 }> = [
-  { id: 1, label: 'Part Ⅰ', range: '1~8장', description: '신호와 시스템' },
+  { id: 100, label: 'Basic', range: '1장', description: '파이썬 기초' },
+  { id: 1, label: 'Part Ⅰ', range: '2~8장', description: '신호와 시스템' },
   { id: 2, label: 'Part Ⅱ', range: '9~13장', description: '통신시스템' },
   { id: 3, label: 'Part Ⅲ', range: '14~24장', description: '디지털통신' },
   { id: 4, label: 'Part Ⅳ', range: '25~30장', description: '고급 디지털통신' },
@@ -34,12 +35,12 @@ const knownChapters: Record<number, Pick<Chapter, 'title' | 'description' | 'dur
   1: {
     title: 'Python Basics',
     duration: '2h 30m',
-    description: 'Python과 NumPy의 기본 문법 및 배열 연산을 실습하며 학습합니다.',
+    description: '통신시스템과 디지털통신에 사용하는 파이썬의 기본 문법과 기능 기초를 학습합니다.',
   },
   2: {
     title: 'Numerical Integration & Orthogonal Expansion',
     duration: '4h 10m',
-    description: '수치적분법과 직교 함수 전개를 통해 통신 신호 해석의 기초를 학습합니다.',
+    description: '수치적분법과 직교 확장을 통해 통신 신호 해석의 기초를 학습합니다.',
   },
   3: {
     title: 'Fourier Series & Frequency Transfer Function',
@@ -49,17 +50,17 @@ const knownChapters: Record<number, Pick<Chapter, 'title' | 'description' | 'dur
   4: {
     title: 'Fourier Transform',
     duration: '6h',
-    description: '푸리에 변환과 스펙트럼 분석 개념을 학습합니다.',
+    description: '푸리에 변환과 스펙트럼 분석을 학습합니다.',
   },
   5: {
     title: 'Fourier Transform Properties & Convolution',
     duration: '5h 30m',
-    description: '푸리에 변환의 성질과 convolution 연산을 학습합니다.',
+    description: '푸리에 변환의 성질과 합성곱(컨볼루션) 연산을 학습합니다.',
   },
   6: {
     title: 'LPF and BPF Design',
     duration: '7h',
-    description: 'LPF와 BPF의 주파수 특성 및 임펄스 응답을 학습합니다.',
+    description: '저주파 필터와 대역필터의 주파수 특성 및 임펄스 응답을 학습합니다.',
   },
   7: {
     title: 'Sampling and Signal Reconstruction',
@@ -69,121 +70,122 @@ const knownChapters: Record<number, Pick<Chapter, 'title' | 'description' | 'dur
   8: {
     title: 'Correlation and Spectral Density',
     duration: '7h',
-    description: '상관함수와 spectral density의 관계를 학습합니다.',
+    description: '상관함수와 주파수 밀도 함수의 관계를 학습합니다.',
   },
   9: {
     title: 'AM Modulation',
     duration: '7h',
-    description: '',
+    description: 'DSB-SC 기반 진폭 변·복조 시스템 설계 방법을 학습합니다.',
   },
   10: {
     title: 'QM and FDM',
     duration: '7h',
-    description: '',
+    description: '직교 다중화된 진폭 변·복조 시스템과 주파수 분할 다중화 시스템 설계 방법을 학습합니다.',
   },
   11: {
     title: 'Hilbert Transform and SSB',
     duration: '7h',
-    description: '',
+    description: '힐버트 변환과 분석 신호을 이해하고, SSB 기반 진폭 변·복조 시스템 설계 방법을 학습합니다.',
   },
   12: {
     title: 'VCO and FM Modulation',
     duration: '7h',
-    description: '',
+    description: 'VCO의 동작을 이해하고, 주파수 변·복조 시스템 설계 방법을 학습합니다.',
   },
   13: {
     title: 'PLL and Synchronization',
     duration: '7h',
-    description: '',
+    description: '다양한 위상 및 주파수 오차 환경에서 동기화를 위해 사용하는 위상 고정 루프의 동작을 학습합니다.',
   },
   14: {
     title: 'Probability and Random Variables',
     duration: '7h',
-    description: '',
+    description: '확률과 랜덤 변수의 기본 지식 및 이론을 학습합니다.',
   },
   15: {
     title: 'Random Signals',
     duration: '7h',
-    description: '',
+    description: '랜덤 프로세스를 발생시키고, 자기상관함수 등 통계적인 분석을 학습합니다.',
   },
   16: {
     title: 'ML Detection for Binary Transmission',
     duration: '7h',
-    description: '',
+    description: '이진 데이터 전송 시스템에서 최대 우도 측정 방식을 학습합니다.',
   },
   17: {
     title: 'Signal Vector Space and ML Detection Ⅰ',
     duration: '7h',
-    description: '',
+    description: 'M진(M-ary) 심벌의 신호를 벡터 공간의 한 점으로 매핑하는 과정을 학습합니다.',
   },
   18: {
     title: 'Signal Vector Space and ML Detection Ⅱ',
     duration: '7h',
-    description: '',
+    description: '가산성 화이트 가우시안 환경(AWGN)에서 최대 우도 측정 검출 방법을 학습합니다.',
   },
   19: {
     title: 'Correlator-based ML Detection',
     duration: '7h',
-    description: '',
+    description: '상관기 기반의 최대 우도 측정 검출 기법을 학습합니다.',
   },
   20: {
     title: 'Pulse Shaping and Matched Filter',
     duration: '7h',
-    description: '',
+    description: '펄스 성형 수행 과정과 정합 필터를 통과시켜 신호를 복원하는 방법을 학습합니다.',
   },
   21: {
     title: 'BPSK BER Simulation (Waveform Level)',
     duration: '7h',
-    description: '',
+    description: '파형 수준에서 펄스 성형, 정합 필터를 수행하는 BPSK 시스템을 설계하고 BER을 실험하는 방법을 학습합니다.',
   },
   22: {
     title: 'QPSK and OQPSK',
     duration: '7h',
-    description: '',
+    description: 'QPSK와 Offset QPSK 신호의 특성을 학습합니다.',
   },
   23: {
     title: 'QAM',
     duration: '7h',
-    description: '',
+    description: 'QAM 송·수신기 설계 방법을 학습합니다.',
   },
   24: {
     title: 'Convolutional Coding',
     duration: '7h',
-    description: '',
+    description: '컨볼루션 부호의 부호화와 복호화 과정을 학습합니다.',
   },
   25: {
     title: 'Fading, Diversity and Combining',
     duration: '7h',
-    description: '',
+    description: '레일레이 페이딩 채널 환경에서의 BER, 다이버시티의 개념과 컴바이닝 기법을 학습합니다.',
   },
   26: {
     title: 'OFDM under AWGN Channel',
     duration: '7h',
-    description: '',
+    description: '직교 주파수 분할 다중화 신호 생성과 복조 과정을 학습합니다.',
   },
   27: {
     title: 'OFDM under Multipath Fading Channel',
     duration: '7h',
-    description: '',
+    description: '다중경로 채널 환경에서 CP가 추가된 OFDM 신호 생성과 복조 과정을 학습합니다.',
   },
   28: {
     title: 'MIMO System Ⅰ : Space Time Code',
     duration: '7h',
-    description: '',
+    description: '시공간 부호 중 하나인 Alamouti Code의 성질을 학습합니다.',
   },
   29: {
     title: 'MIMO System Ⅱ : Spatial Multiplexing',
     duration: '7h',
-    description: '',
+    description: 'SM MIMO 시스템 모델을 이해하고, 검출 기법을 학습합니다.',
   },
   30: {
     title: 'Near Ultrasonic Wireless OFDM Modem Design',
     duration: '7h',
-    description: '',
+    description: '비가척 대역 무선 OFDM 모뎀을 이용한 이미지 전송 및 수신 방법을 학습합니다.',
   }
 };
 
 function getPart(chapterId: number): PartId {
+  if (chapterId <= 1) return 100;
   if (chapterId <= 8) return 1;
   if (chapterId <= 13) return 2;
   if (chapterId <= 24) return 3;
@@ -209,7 +211,7 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
 });
 
 export default function WorkbookHome() {
-  const [selectedPart, setSelectedPart] = useState<PartId>(1);
+  const [selectedPart, setSelectedPart] = useState<PartId>(100);
   const curriculumRef = useRef<HTMLElement | null>(null);
   const [chapterProgress, setChapterProgress] = useState<Record<number, number>>({});
   const [totalProblemsByChapter, setTotalProblemsByChapter] = useState<Record<number, number>>({});
@@ -473,7 +475,7 @@ export default function WorkbookHome() {
             }}
           >
             Python 실습, AI 채점, 수학 시각화와 인터랙티브 문제 풀이를 결합한
-            온라인 통신공학 교재입니다.
+            온라인 통신공학 교재
           </p>
 
           <div style={{ marginTop: 36, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -578,7 +580,7 @@ export default function WorkbookHome() {
         <div style={{ marginBottom: 26 }}>
           <h2 style={{ fontSize: 40, fontWeight: 900, margin: 0 }}>Course Curriculum</h2>
           <p style={{ marginTop: 12, color: 'rgba(255,255,255,0.65)', fontSize: 18 }}>
-            Part를 선택하면 해당 범위의 Chapter만 표시됩니다.
+            Part를 선택하면 해당 범위의 Chapter가 표시됩니다.
           </p>
         </div>
 
@@ -587,7 +589,7 @@ export default function WorkbookHome() {
           aria-label="교재 Part 선택"
           style={{
             display: 'grid',
-            gridTemplateColumns: 'repeat(4, minmax(0, 1fr))',
+            gridTemplateColumns: 'repeat(5, minmax(0, 1fr))',
             gap: 12,
             marginBottom: 28,
           }}
@@ -655,7 +657,7 @@ export default function WorkbookHome() {
               fontSize: 13,
             }}
           >
-            현재 1~2장 학습 가능
+            1, 2, 14장 무료
           </div>
         </div>
 

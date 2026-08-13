@@ -33,6 +33,13 @@ type FlatItem = {
   preface?: WorkbookProblem;
 };
 
+type SidebarGroup = {
+  key: string;
+  parent?: WorkbookProblem;
+  children: WorkbookProblem[];
+  standalone: WorkbookProblem[];
+};
+
 function sanitize(s?: string) {
   return String(s ?? "")
     .replace(/\u200b/g, "")
@@ -83,9 +90,9 @@ function buildDisplayPrompt(
   if (preface) {
     const pt = sanitize(preface.prompt);
     const pc = sanitize(preface.code);
-    if (pt) parts.push(`**${preface.title} (사전 설명)**\n\n${pt}`);
+    if (pt) parts.push(`${pt}`);
     if (pc) parts.push(`\n\n\`\`\`python\n${pc}\n\`\`\``);
-    parts.push("\n\n---\n");
+    parts.push("\n--------------------\n");
   }
 
   const t = sanitize(pb.prompt);
@@ -209,38 +216,51 @@ export default function WorkbookPage({
 
     for (const sec of data.sections ?? []) {
       const problems = sec.problems ?? [];
+      const childGroups = new Set<string>();
+      const commonProblems: Record<string, WorkbookProblem> = {};
 
-      // groupKey별로 세부문항 존재 여부
-      const hasChild: Record<string, boolean> = {};
+      // 1.A1, 1.A2처럼 세부문항이 존재하는 그룹을 찾는다.
       for (const pb of problems) {
         const info = parseTitle(pb.title);
-        if (info && info.subIndex !== null) hasChild[info.groupKey] = true;
-      }
-
-      // “진짜 서문” 맵 (자식이 있을 때만 서문)
-      const prefaceLocal: Record<string, WorkbookProblem> = {};
-      for (const pb of problems) {
-        const info = parseTitle(pb.title);
-        if (!info) continue;
-        if (info.subIndex === null && hasChild[info.groupKey]) {
-          prefaceLocal[info.groupKey] = pb;
+        if (info?.subIndex != null) {
+          childGroups.add(info.groupKey);
         }
       }
 
-      // flatten: 서문은 제외, A1에만 서문 붙임
+      // 같은 그룹의 1.A 같은 상위 문항은 공통 문제로 보관한다.
       for (const pb of problems) {
         const info = parseTitle(pb.title);
-        const isRealPreface = !!(
+
+        if (
           info &&
           info.subIndex === null &&
-          hasChild[info.groupKey]
+          childGroups.has(info.groupKey)
+        ) {
+          commonProblems[info.groupKey] = pb;
+        }
+      }
+
+      // 공통 문제 자체는 학습 문항 목록에서 제외하고,
+      // 같은 그룹의 모든 세부문항(A1, A2, ...)에 공통 문제를 붙인다.
+      for (const pb of problems) {
+        const info = parseTitle(pb.title);
+
+        const isCommonProblem = Boolean(
+          info &&
+            info.subIndex === null &&
+            childGroups.has(info.groupKey),
         );
-        if (isRealPreface) continue;
 
-        const item: FlatItem = { secId: sec.id, secTitle: sec.title, pb };
+        if (isCommonProblem) continue;
 
-        if (info && info.subIndex === 1 && prefaceLocal[info.groupKey]) {
-          item.preface = prefaceLocal[info.groupKey];
+        const item: FlatItem = {
+          secId: sec.id,
+          secTitle: sec.title,
+          pb,
+        };
+
+        if (info?.subIndex != null) {
+          item.preface = commonProblems[info.groupKey];
         }
 
         map[pb.id] = out.length;
@@ -249,6 +269,54 @@ export default function WorkbookPage({
     }
 
     return { flat: out, idToIndex: map };
+  }, [data.sections]);
+
+  const sidebarBySection = useMemo(() => {
+    const result: Record<string, SidebarGroup[]> = {};
+
+    for (const sec of data.sections ?? []) {
+      const groups = new Map<string, SidebarGroup>();
+      const order: string[] = [];
+
+      for (const pb of sec.problems ?? []) {
+        const info = parseTitle(pb.title);
+
+        // 계층형 제목이 아닌 문제는 독립 항목으로 취급한다.
+        if (!info) {
+          const key = `standalone:${pb.id}`;
+          groups.set(key, {
+            key,
+            children: [],
+            standalone: [pb],
+          });
+          order.push(key);
+          continue;
+        }
+
+        if (!groups.has(info.groupKey)) {
+          groups.set(info.groupKey, {
+            key: info.groupKey,
+            children: [],
+            standalone: [],
+          });
+          order.push(info.groupKey);
+        }
+
+        const group = groups.get(info.groupKey)!;
+
+        if (info.subIndex == null) {
+          group.parent = pb;
+        } else {
+          group.children.push(pb);
+        }
+      }
+
+      result[sec.id] = order
+        .map((key) => groups.get(key))
+        .filter((group): group is SidebarGroup => Boolean(group));
+    }
+
+    return result;
   }, [data.sections]);
 
   // 외부 링크(/history 등)에서 ?p=문제ID로 들어온 경우 해당 문제로 이동
@@ -617,7 +685,7 @@ plt.close('all')
 
   async function runPythonCode() {
     const pyodide = pyodideRef.current;
-    setPlotImage(null);
+
     if (!pyodide) {
       setCodeOutput("Python 엔진 초기화 중입니다. 잠시만 기다려주세요.");
       return;
@@ -683,28 +751,7 @@ if has_figure:
         }
       }
 
-      const wrappedCode = `
-import matplotlib
-matplotlib.use("AGG")
 
-import matplotlib.pyplot as plt
-import io
-import base64
-
-${pythonCode}
-
-buf = io.BytesIO()
-
-plt.savefig(buf, format='png')
-
-buf.seek(0)
-
-image_base64 = base64.b64encode(
-    buf.read()
-).decode('utf-8')
-
-image_base64
-`;
 
       const imageBase64 = pyodide.globals.get("image_base64");
 
@@ -799,35 +846,145 @@ image_base64
                 style={{
                   display: "flex",
                   flexDirection: "column",
-                  gap: 6,
+                  gap: 8,
                 }}
               >
-                {sec.problems.map((pb) => {
-                  const targetIdx = idToIndex[pb.id];
+                {(sidebarBySection[sec.id] ?? []).map((group) => {
+                  // 제목 패턴에 맞지 않는 독립 문제
+                  if (group.standalone.length > 0) {
+                    return group.standalone.map((pb) => {
+                      const targetIdx = idToIndex[pb.id];
+                      if (targetIdx == null) return null;
 
-                  // 서문 제외
-                  if (targetIdx == null) return null;
+                      const active = current.pb.id === pb.id;
 
-                  const active = current.pb.id === pb.id;
+                      return (
+                        <button
+                          key={pb.id}
+                          onClick={() => moveToProblem(targetIdx)}
+                          style={{
+                            textAlign: "left",
+                            padding: "9px 10px",
+                            borderRadius: 9,
+                            border: "none",
+                            cursor: "pointer",
+                            background: active ? "#111827" : "transparent",
+                            color: active ? "#fff" : "#374151",
+                            fontSize: 14,
+                            transition: "0.15s",
+                          }}
+                        >
+                          {pb.title}
+                        </button>
+                      );
+                    });
+                  }
+
+                  const firstChild = group.children[0];
+                  const firstChildIdx = firstChild
+                    ? idToIndex[firstChild.id]
+                    : undefined;
+
+                  // 자식이 없는 1.A 형태는 일반 문제로 표시한다.
+                  if (group.children.length === 0 && group.parent) {
+                    const targetIdx = idToIndex[group.parent.id];
+                    if (targetIdx == null) return null;
+
+                    const active = current.pb.id === group.parent.id;
+
+                    return (
+                      <button
+                        key={group.key}
+                        onClick={() => moveToProblem(targetIdx)}
+                        style={{
+                          textAlign: "left",
+                          padding: "9px 10px 9px 18px",
+                          borderRadius: 9,
+                          border: "none",
+                          cursor: "pointer",
+                          background: active ? "#111827" : "transparent",
+                          color: active ? "#fff" : "#374151",
+                          fontSize: 14,
+                          transition: "0.15s",
+                        }}
+                      >
+                        ↳ {group.parent.title}
+                      </button>
+                    );
+                  }
 
                   return (
-                    <button
-                      key={pb.id}
-                      onClick={() => moveToProblem(targetIdx)}
-                      style={{
-                        textAlign: "left",
-                        padding: "10px 12px",
-                        borderRadius: 10,
-                        border: "none",
-                        cursor: "pointer",
-                        background: active ? "#111827" : "transparent",
-                        color: active ? "#fff" : "#374151",
-                        fontSize: 14,
-                        transition: "0.15s",
-                      }}
-                    >
-                      {pb.title}
-                    </button>
+                    <div key={group.key}>
+                      {group.parent && (
+                        <button
+                          onClick={() => {
+                            if (firstChildIdx != null) {
+                              moveToProblem(firstChildIdx);
+                            }
+                          }}
+                          disabled={firstChildIdx == null}
+                          title={
+                            firstChild
+                              ? `${firstChild.title}로 이동`
+                              : undefined
+                          }
+                          style={{
+                            width: "100%",
+                            textAlign: "left",
+                            padding: "8px 10px 8px 18px",
+                            borderRadius: 9,
+                            border: "none",
+                            cursor:
+                              firstChildIdx != null ? "pointer" : "default",
+                            background: "transparent",
+                            color: "#4b5563",
+                            fontSize: 14,
+                            fontWeight: 700,
+                            transition: "0.15s",
+                          }}
+                        >
+                          ↳ {group.parent.title}
+                        </button>
+                      )}
+
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          gap: 4,
+                          marginTop: group.parent ? 2 : 0,
+                        }}
+                      >
+                        {group.children.map((pb) => {
+                          const targetIdx = idToIndex[pb.id];
+                          if (targetIdx == null) return null;
+
+                          const active = current.pb.id === pb.id;
+
+                          return (
+                            <button
+                              key={pb.id}
+                              onClick={() => moveToProblem(targetIdx)}
+                              style={{
+                                textAlign: "left",
+                                padding: "8px 10px 8px 36px",
+                                borderRadius: 9,
+                                border: "none",
+                                cursor: "pointer",
+                                background: active
+                                  ? "#111827"
+                                  : "transparent",
+                                color: active ? "#fff" : "#6b7280",
+                                fontSize: 13.5,
+                                transition: "0.15s",
+                              }}
+                            >
+                              ↳ {pb.title}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
                   );
                 })}
               </div>
