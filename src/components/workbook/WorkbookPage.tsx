@@ -6,6 +6,11 @@ import { useRouter } from "next/navigation";
 import ProblemRenderer from "./ProblemRenderer";
 import { consoleAnswerToText } from "./ConsoleProblem";
 import { pythonAnswerToCode, pythonAnswerToText } from "./PythonProblem";
+import {
+  createPythonConsoleInitialValue,
+  isPythonConsoleProblem,
+  pythonConsoleAnswerToText,
+} from "./PythonConsoleProblem";
 import { saveAnswer } from "@/lib/answers/saveAnswer";
 import { loadAnswer } from "@/lib/answers/loadAnswer";
 
@@ -98,9 +103,9 @@ function buildDisplayPrompt(
   const t = sanitize(pb.prompt);
   if (t) parts.push(t);
 
-  const c = sanitize(
-    pb.code ?? (pb.type === "python" ? pb.starterCode : undefined),
-  );
+  // starterCode는 답안 에디터의 초기값으로만 사용하고,
+  // 문제 본문에는 pb.code가 명시된 경우에만 코드를 표시한다.
+  const c = sanitize(pb.code);
   if (c) parts.push(`\n\n\`\`\`python\n${c}\n\`\`\``);
 
   return parts.join("").trim();
@@ -352,8 +357,9 @@ export default function WorkbookPage({
     let cancelled = false;
 
     async function restoreAnswer() {
-      const fallback =
-        resolveProblemType(current.pb) === "python"
+      const fallback = isPythonConsoleProblem(current.pb)
+        ? createPythonConsoleInitialValue(current.pb)
+        : resolveProblemType(current.pb) === "python"
           ? String(
               (current.pb.type === "python"
                 ? current.pb.starterCode
@@ -372,8 +378,9 @@ export default function WorkbookPage({
         if (cancelled) return;
 
         if (remote.success && remote.answer) {
-          const restoredAnswer =
-            resolveProblemType(current.pb) === "python"
+          const restoredAnswer = isPythonConsoleProblem(current.pb)
+            ? (remote.answer.answer || createPythonConsoleInitialValue(current.pb))
+            : resolveProblemType(current.pb) === "python"
               ? pythonAnswerToCode(remote.answer.answer ?? "")
               : remote.answer.answer ?? "";
 
@@ -514,7 +521,11 @@ plt.close('all')
 
   function buildSubmissionText() {
     if (currentProblemType === "console" && current.pb.type === "console") {
-      return consoleAnswerToText(current.pb, userAnswer);
+      return consoleAnswerToText(userAnswer);
+    }
+
+    if (isPythonConsoleProblem(current.pb)) {
+      return pythonConsoleAnswerToText(userAnswer);
     }
 
     if (currentProblemType === "python") {
@@ -527,6 +538,11 @@ plt.close('all')
   // DB에는 "다시 편집할 수 있는 원본 답안"을 저장한다.
   // AI 채점용으로 가공한 문자열(buildSubmissionText)은 DB answer 컬럼에 넣지 않는다.
   function buildStoredAnswerText() {
+    // 결합형은 코드/Console 기록/서술 답안을 하나의 JSON으로 보존한다.
+    if (isPythonConsoleProblem(current.pb)) {
+      return userAnswer;
+    }
+
     if (currentProblemType === "python") {
       return pythonAnswerToCode(userAnswer);
     }
@@ -1154,14 +1170,17 @@ if has_figure:
               background: "#fff",
             }}
           >
-            <div
-              style={{
-                fontWeight: 900,
-                marginBottom: 8,
-              }}
-            >
-              내 답안
-            </div>
+            {currentProblemType !== "console" &&
+              !isPythonConsoleProblem(current.pb) && (
+              <div
+                style={{
+                  fontWeight: 900,
+                  marginBottom: 8,
+                }}
+              >
+                내 답안
+              </div>
+            )}
 
             <ProblemRenderer
               problem={current.pb}

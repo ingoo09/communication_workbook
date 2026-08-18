@@ -195,7 +195,7 @@ function getPart(chapterId: number): PartId {
 const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
-  const available = id === 1 || id === 2 || id === 14;
+  const available = id === 14 //|| id === 1 || id === 2 
 
   return {
     id,
@@ -211,7 +211,7 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
 });
 
 export default function WorkbookHome() {
-  const [selectedPart, setSelectedPart] = useState<PartId>(100);
+  const [selectedPart, setSelectedPart] = useState<PartId>(3);
   const curriculumRef = useRef<HTMLElement | null>(null);
   const [chapterProgress, setChapterProgress] = useState<Record<number, number>>({});
   const [totalProblemsByChapter, setTotalProblemsByChapter] = useState<Record<number, number>>({});

@@ -5,6 +5,7 @@ import { resolveProblemType } from "@/types/workbook";
 import ConsoleProblem from "./ConsoleProblem";
 import EssayProblem from "./EssayProblem";
 import PythonProblem from "./PythonProblem";
+import PythonConsoleProblem, { isPythonConsoleProblem } from "./PythonConsoleProblem";
 
 type ProblemRendererProps = {
   problem: WorkbookProblem;
@@ -30,6 +31,18 @@ export default function ProblemRenderer({
   onRunPython,
 }: ProblemRendererProps) {
   const type = resolveProblemType(problem);
+
+  if (isPythonConsoleProblem(problem)) {
+    return (
+      <PythonConsoleProblem
+        problem={problem}
+        value={value}
+        onChange={onChange}
+        pyodide={pyodide}
+        pyReady={pyReady}
+      />
+    );
+  }
 
   if (type === "python") {
     return (

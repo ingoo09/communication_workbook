@@ -37,6 +37,26 @@ function formatDate(value: string) {
   }
 }
 
+
+function formatStoredAnswer(value: string) {
+  if (!value) return "";
+
+  try {
+    const parsed = JSON.parse(value);
+
+    if (
+      (parsed?.kind === "console" || parsed?.kind === "python-console") &&
+      typeof parsed.answer === "string"
+    ) {
+      return parsed.answer;
+    }
+  } catch {
+    // 일반 essay/Python 답안은 JSON이 아니므로 그대로 표시한다.
+  }
+
+  return value;
+}
+
 export default function HistoryPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -429,7 +449,7 @@ export default function HistoryPage() {
                             overflowWrap: "anywhere",
                           }}
                         >
-                          {answer.answer || "(저장된 답안 없음)"}
+                          {formatStoredAnswer(answer.answer) || "(저장된 답안 없음)"}
                         </div>
 
                         {answer.execution_output && (

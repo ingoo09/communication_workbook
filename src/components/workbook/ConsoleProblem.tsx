@@ -3,17 +3,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import type { ConsoleProblem as ConsoleProblemData } from "@/types/workbook";
 
-type ConsoleItemAnswer = {
-  command?: string;
+type ConsoleHistoryItem = {
+  command: string;
   output: string;
-  explanation: string;
-  executed: boolean;
   isError?: boolean;
 };
 
 type ConsoleAnswer = {
   kind: "console";
-  items: Record<string, ConsoleItemAnswer>;
+  answer: string;
+  history: ConsoleHistoryItem[];
 };
 
 type WorkspaceItem = {
@@ -31,46 +30,101 @@ type ConsoleProblemProps = {
   pyReady: boolean;
 };
 
+function makeEmptyAnswer(): ConsoleAnswer {
+  return {
+    kind: "console",
+    answer: "",
+    history: [],
+  };
+}
+
 function parseAnswer(value: string): ConsoleAnswer {
+  if (!value) return makeEmptyAnswer();
+
   try {
     const parsed = JSON.parse(value);
+
+    if (
+      parsed?.kind === "console" &&
+      typeof parsed.answer === "string" &&
+      Array.isArray(parsed.history)
+    ) {
+      return {
+        kind: "console",
+        answer: parsed.answer,
+        history: parsed.history.map((item: any) => ({
+          command: String(item?.command ?? ""),
+          output: String(item?.output ?? ""),
+          isError: Boolean(item?.isError),
+        })),
+      };
+    }
+
+    // 기존 명령별 Console 답안 형식을 새 형식으로 자동 변환한다.
     if (
       parsed?.kind === "console" &&
       parsed.items &&
       typeof parsed.items === "object"
     ) {
-      return parsed;
+      const entries = Object.values(parsed.items) as any[];
+
+      const answerLines = entries
+        .map((item, index) => {
+          const explanation = String(item?.explanation ?? "").trim();
+          return explanation ? `${index + 1}. ${explanation}` : "";
+        })
+        .filter(Boolean);
+
+      const history = entries
+        .filter((item) => item?.executed && item?.command)
+        .map((item) => ({
+          command: String(item.command),
+          output: String(item?.output ?? ""),
+          isError: Boolean(item?.isError),
+        }));
+
+      return {
+        kind: "console",
+        answer: answerLines.join("\n"),
+        history,
+      };
     }
   } catch {
-    // 기존 문자열 답안 또는 비어 있는 값은 새 콘솔 답안으로 시작한다.
+    return {
+      kind: "console",
+      answer: value,
+      history: [],
+    };
   }
-  return { kind: "console", items: {} };
+
+  return makeEmptyAnswer();
 }
 
 function serializeAnswer(answer: ConsoleAnswer) {
   return JSON.stringify(answer);
 }
 
-export function consoleAnswerToText(
-  problem: ConsoleProblemData,
-  value: string,
-) {
+export function consoleAnswerToText(value: string) {
   const answer = parseAnswer(value);
-  return problem.items
-    .map((item, index) => {
-      const saved = answer.items[item.id];
-      return [
-        `${index + 1}. 제시 명령: ${item.command}`,
-        `학생 입력 명령: ${saved?.command || "(입력하지 않음)"}`,
-        `실행 결과: ${
-          saved?.executed
-            ? saved.output || "(출력 없음)"
-            : "(실행하지 않음)"
-        }`,
-        `동작의 의미: ${saved?.explanation || "(작성하지 않음)"}`,
-      ].join("\n");
-    })
-    .join("\n\n");
+
+  const historyText =
+    answer.history.length > 0
+      ? answer.history
+          .map((item) =>
+            item.output
+              ? `>>> ${item.command}\n${item.output}`
+              : `>>> ${item.command}`,
+          )
+          .join("\n\n")
+      : "(실행 기록 없음)";
+
+  return [
+    "[학생 답안]",
+    answer.answer.trim() || "(작성하지 않음)",
+    "",
+    "[Console 실행 기록]",
+    historyText,
+  ].join("\n");
 }
 
 export default function ConsoleProblem({
@@ -80,73 +134,62 @@ export default function ConsoleProblem({
   pyodide,
   pyReady,
 }: ConsoleProblemProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
   const [running, setRunning] = useState(false);
-  const [history, setHistory] = useState<string[]>([]);
   const [typedCommand, setTypedCommand] = useState("");
-  const [figures, setFigures] = useState<string[]>([]);
   const [workspace, setWorkspace] = useState<WorkspaceItem[]>([]);
+  const [figures, setFigures] = useState<string[]>([]);
 
   const answer = useMemo(() => parseAnswer(value), [value]);
-  const currentItem = problem.items[currentIndex];
-  const currentAnswer = currentItem
-    ? (answer.items[currentItem.id] ?? {
-        command: "",
-        output: "",
-        explanation: "",
-        executed: false,
-      })
-    : { command: "", output: "", explanation: "", executed: false };
 
-  function updateCurrent(patch: Partial<ConsoleItemAnswer>) {
-    if (!currentItem) return;
-    const next: ConsoleAnswer = {
-      kind: "console",
-      items: {
-        ...answer.items,
-        [currentItem.id]: {
-          ...currentAnswer,
-          ...patch,
-        },
-      },
-    };
-    onChange(serializeAnswer(next));
+  function updateAnswer(patch: Partial<ConsoleAnswer>) {
+    onChange(
+      serializeAnswer({
+        ...answer,
+        ...patch,
+      }),
+    );
   }
 
   async function resetNamespace() {
     if (!pyodide) return;
+
     const setup = problem.setupCode ?? "";
+
     await pyodide.runPythonAsync(`
 import builtins
-_workbook_console_ns = {"__builtins__": builtins.__dict__}
-exec(${JSON.stringify(setup)}, _workbook_console_ns, _workbook_console_ns)
+
+_workbook_console_ns = {
+    "__builtins__": builtins.__dict__
+}
+
+exec(
+    ${JSON.stringify(setup)},
+    _workbook_console_ns,
+    _workbook_console_ns
+)
 `);
   }
 
   useEffect(() => {
-    setCurrentIndex(0);
-    setHistory([]);
     setTypedCommand("");
-    setFigures([]);
     setWorkspace([]);
+    setFigures([]);
+
     if (pyReady) {
       resetNamespace().catch(() => undefined);
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problem.id, pyReady]);
 
-  useEffect(() => {
-    if (!currentItem) return;
-    setTypedCommand(answer.items[currentItem.id]?.command ?? "");
-  }, [currentItem?.id]);
-
   async function runTypedCommand() {
-    if (!pyodide || !currentItem) return;
+    if (!pyodide) return;
 
     const source = typedCommand.trim();
     if (!source) return;
 
     setRunning(true);
+
     try {
       const result = await pyodide.runPythonAsync(`
 import ast
@@ -163,13 +206,19 @@ _is_error = False
 
 try:
     _tree = ast.parse(_source, mode="exec")
+
     with contextlib.redirect_stdout(_stdout):
         if len(_tree.body) == 1 and isinstance(_tree.body[0], ast.Expr):
             _value = eval(
-                compile(ast.Expression(_tree.body[0].value), "<console>", "eval"),
+                compile(
+                    ast.Expression(_tree.body[0].value),
+                    "<console>",
+                    "eval",
+                ),
                 _workbook_console_ns,
                 _workbook_console_ns,
             )
+
             if _value is not None:
                 print(repr(_value))
         else:
@@ -178,12 +227,14 @@ try:
                 _workbook_console_ns,
                 _workbook_console_ns,
             )
+
 except Exception:
     _is_error = True
     _stdout.write(traceback.format_exc().rstrip())
 
-# 현재 matplotlib Figure를 PNG(Base64)로 변환한다.
+# 현재 matplotlib Figure 수집
 _figures = []
+
 try:
     import matplotlib
     matplotlib.use("AGG")
@@ -192,20 +243,30 @@ try:
     for _number in plt.get_fignums():
         _figure = plt.figure(_number)
         _buffer = io.BytesIO()
-        _figure.savefig(_buffer, format="png", bbox_inches="tight")
+        _figure.savefig(
+            _buffer,
+            format="png",
+            bbox_inches="tight",
+        )
         _buffer.seek(0)
-        _figures.append(base64.b64encode(_buffer.read()).decode("ascii"))
+
+        _figures.append(
+            base64.b64encode(
+                _buffer.read()
+            ).decode("ascii")
+        )
 except Exception:
-    # matplotlib을 사용하지 않은 명령에서는 Figure 목록을 비워 둔다.
     _figures = []
 
-# 학생이 만든 주요 변수를 Workspace용으로 정리한다.
+# Workspace용 주요 변수 수집
 _workspace = []
+
 for _name in sorted(_workbook_console_ns.keys()):
     if _name.startswith("_") or _name == "__builtins__":
         continue
 
     _object = _workbook_console_ns[_name]
+
     if isinstance(_object, types.ModuleType) or callable(_object):
         continue
 
@@ -218,6 +279,7 @@ for _name in sorted(_workbook_console_ns.keys()):
         _preview = _preview[:237] + "..."
 
     _shape = ""
+
     try:
         if hasattr(_object, "shape"):
             _shape = str(_object.shape)
@@ -242,19 +304,26 @@ _console_result
 `);
 
       const parsed = JSON.parse(String(result));
-      const output = String(parsed.output ?? "");
-      const displayLine = output
-        ? `>>> ${source}\n${output}`
-        : `>>> ${source}`;
 
-      setHistory((previous) => [...previous, displayLine]);
+      updateAnswer({
+        history: [
+          ...answer.history,
+          {
+            command: source,
+            output: String(parsed?.output ?? ""),
+            isError: Boolean(parsed?.isError),
+          },
+        ],
+      });
+
       setFigures(
-        Array.isArray(parsed.figures)
+        Array.isArray(parsed?.figures)
           ? parsed.figures.map((figure: unknown) => String(figure))
           : [],
       );
+
       setWorkspace(
-        Array.isArray(parsed.workspace)
+        Array.isArray(parsed?.workspace)
           ? parsed.workspace.map((item: any) => ({
               name: String(item?.name ?? ""),
               type: String(item?.type ?? ""),
@@ -264,25 +333,19 @@ _console_result
           : [],
       );
 
-      updateCurrent({
-        command: source,
-        output,
-        executed: true,
-        isError: Boolean(parsed.isError),
-      });
       setTypedCommand("");
     } catch (error: any) {
-      const output = String(error?.message ?? error);
-      setHistory((previous) => [
-        ...previous,
-        `>>> ${source}\n${output}`,
-      ]);
-      updateCurrent({
-        command: source,
-        output,
-        executed: true,
-        isError: true,
+      updateAnswer({
+        history: [
+          ...answer.history,
+          {
+            command: source,
+            output: String(error?.message ?? error),
+            isError: true,
+          },
+        ],
       });
+
       setTypedCommand("");
     } finally {
       setRunning(false);
@@ -291,143 +354,29 @@ _console_result
 
   async function resetConsole() {
     await resetNamespace();
-    setHistory([]);
+
+    updateAnswer({
+      history: [],
+    });
+
     setTypedCommand("");
-    setFigures([]);
     setWorkspace([]);
-    onChange(serializeAnswer({ kind: "console", items: {} }));
-    setCurrentIndex(0);
+    setFigures([]);
   }
 
-  if (!currentItem) {
-    return <div>Console 명령이 없습니다.</div>;
+  function clearOutputOnly() {
+    updateAnswer({
+      history: [],
+    });
   }
-
-  const completedCount = problem.items.filter(
-    (item) => answer.items[item.id]?.executed,
-  ).length;
 
   return (
     <div>
       <div
         style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          gap: 12,
-          marginBottom: 12,
-          flexWrap: "wrap",
-        }}
-      >
-        <div style={{ fontWeight: 800 }}>
-          명령 {currentIndex + 1} / {problem.items.length}
-          <span style={{ marginLeft: 10, fontWeight: 500, opacity: 0.65 }}>
-            실행 완료 {completedCount}개
-          </span>
-        </div>
-        <button
-          type="button"
-          onClick={resetConsole}
-          disabled={!pyReady || running}
-          style={{
-            padding: "8px 12px",
-            borderRadius: 9,
-            border: "1px solid #ddd",
-          }}
-        >
-          Console 전체 초기화
-        </button>
-      </div>
-
-      <div
-        style={{
-          padding: 16,
-          borderRadius: 14,
-          background: "#f8fafc",
-          border: "1px solid #e2e8f0",
-        }}
-      >
-        <div style={{ fontSize: 13, fontWeight: 800, marginBottom: 8 }}>
-          직접 입력할 명령
-        </div>
-        <pre
-          onCopy={(event) => event.preventDefault()}
-          style={{
-            margin: 0,
-            padding: 14,
-            borderRadius: 10,
-            background: "#111827",
-            color: "#f9fafb",
-            fontSize: 15,
-            whiteSpace: "pre-wrap",
-            userSelect: "none",
-          }}
-        >
-          {currentItem.command}
-        </pre>
-        {currentItem.prompt && (
-          <div style={{ marginTop: 10, lineHeight: 1.6 }}>
-            {currentItem.prompt}
-          </div>
-        )}
-        <div
-          style={{
-            marginTop: 10,
-            fontSize: 13,
-            color: "#6b7280",
-            lineHeight: 1.6,
-          }}
-        >
-          위 명령을 아래 Python Console의 <code>&gt;&gt;&gt;</code> 뒤에 직접
-          입력한 뒤 Enter 키를 누르세요.
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          gap: 10,
-          marginTop: 10,
-        }}
-      >
-        <button
-          type="button"
-          onClick={() =>
-            setCurrentIndex((index) => Math.max(0, index - 1))
-          }
-          disabled={currentIndex === 0}
-          style={{
-            padding: "9px 13px",
-            borderRadius: 9,
-            border: "1px solid #ddd",
-          }}
-        >
-          이전 명령
-        </button>
-        <button
-          type="button"
-          onClick={() =>
-            setCurrentIndex((index) =>
-              Math.min(problem.items.length - 1, index + 1),
-            )
-          }
-          disabled={currentIndex === problem.items.length - 1}
-          style={{
-            padding: "9px 13px",
-            borderRadius: 9,
-            border: "1px solid #ddd",
-          }}
-        >
-          다음 명령
-        </button>
-      </div>
-
-      <div
-        style={{
-          marginTop: 14,
+          marginTop: 4,
           padding: 14,
-          minHeight: 150,
+          minHeight: 180,
           borderRadius: 12,
           background: "#050816",
           color: "#d1fae5",
@@ -440,14 +389,41 @@ _console_result
             justifyContent: "space-between",
             gap: 10,
             alignItems: "center",
-            marginBottom: 8,
+            marginBottom: 10,
           }}
         >
-          <div style={{ fontWeight: 800 }}>Console</div>
-          {history.length > 0 && (
+          <div style={{ fontWeight: 800 }}>Python Console</div>
+
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+              justifyContent: "flex-end",
+            }}
+          >
+            {answer.history.length > 0 && (
+              <button
+                type="button"
+                onClick={clearOutputOnly}
+                disabled={running}
+                style={{
+                  padding: "5px 9px",
+                  borderRadius: 7,
+                  border: "1px solid #374151",
+                  background: "transparent",
+                  color: "#d1fae5",
+                  fontSize: 12,
+                }}
+              >
+                출력만 지우기
+              </button>
+            )}
+
             <button
               type="button"
-              onClick={() => setHistory([])}
+              onClick={resetConsole}
+              disabled={!pyReady || running}
               style={{
                 padding: "5px 9px",
                 borderRadius: 7,
@@ -455,12 +431,14 @@ _console_result
                 background: "transparent",
                 color: "#d1fae5",
                 fontSize: 12,
+                opacity: !pyReady || running ? 0.55 : 1,
               }}
             >
-              출력만 지우기
+              Console 초기화
             </button>
-          )}
+          </div>
         </div>
+
         <pre
           style={{
             margin: 0,
@@ -470,7 +448,13 @@ _console_result
               'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
           }}
         >
-          {history.length ? history.join("\n\n") : ""}
+          {answer.history
+            .map((item) =>
+              item.output
+                ? `>>> ${item.command}\n${item.output}`
+                : `>>> ${item.command}`,
+            )
+            .join("\n\n")}
         </pre>
 
         <div
@@ -478,12 +462,15 @@ _console_result
             display: "flex",
             alignItems: "center",
             gap: 8,
-            marginTop: history.length ? 12 : 0,
+            marginTop: answer.history.length ? 14 : 0,
             fontFamily:
               'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace',
           }}
         >
-          <span style={{ flex: "0 0 auto", color: "#86efac" }}>&gt;&gt;&gt;</span>
+          <span style={{ flex: "0 0 auto", color: "#86efac" }}>
+            &gt;&gt;&gt;
+          </span>
+
           <input
             value={typedCommand}
             onChange={(event) => setTypedCommand(event.target.value)}
@@ -503,7 +490,7 @@ _console_result
                 ? "Python 준비 중..."
                 : running
                   ? "실행 중..."
-                  : "명령을 직접 입력하고 Enter"
+                  : "명령을 입력하고 Enter"
             }
             style={{
               flex: 1,
@@ -517,6 +504,7 @@ _console_result
               padding: "4px 0",
             }}
           />
+
           <span
             style={{
               flex: "0 0 auto",
@@ -547,6 +535,7 @@ _console_result
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 10 }}>Workspace</div>
+
           {workspace.length === 0 ? (
             <div style={{ opacity: 0.6, fontSize: 14 }}>
               생성된 변수가 없습니다.
@@ -561,18 +550,39 @@ _console_result
                 }}
               >
                 <thead>
-                  <tr style={{ textAlign: "left", background: "#f8fafc" }}>
-                    <th style={{ padding: 8, borderBottom: "1px solid #e5e7eb" }}>
+                  <tr
+                    style={{
+                      textAlign: "left",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    <th
+                      style={{
+                        padding: 8,
+                        borderBottom: "1px solid #e5e7eb",
+                      }}
+                    >
                       변수
                     </th>
-                    <th style={{ padding: 8, borderBottom: "1px solid #e5e7eb" }}>
+                    <th
+                      style={{
+                        padding: 8,
+                        borderBottom: "1px solid #e5e7eb",
+                      }}
+                    >
                       자료형
                     </th>
-                    <th style={{ padding: 8, borderBottom: "1px solid #e5e7eb" }}>
+                    <th
+                      style={{
+                        padding: 8,
+                        borderBottom: "1px solid #e5e7eb",
+                      }}
+                    >
                       값
                     </th>
                   </tr>
                 </thead>
+
                 <tbody>
                   {workspace.map((item) => (
                     <tr key={item.name}>
@@ -586,6 +596,7 @@ _console_result
                       >
                         {item.name}
                       </td>
+
                       <td
                         style={{
                           padding: 8,
@@ -597,6 +608,7 @@ _console_result
                         {item.type}
                         {item.shape ? ` ${item.shape}` : ""}
                       </td>
+
                       <td
                         style={{
                           padding: 8,
@@ -604,7 +616,12 @@ _console_result
                           verticalAlign: "top",
                         }}
                       >
-                        <code style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                        <code
+                          style={{
+                            whiteSpace: "pre-wrap",
+                            wordBreak: "break-word",
+                          }}
+                        >
                           {item.preview}
                         </code>
                       </td>
@@ -626,12 +643,19 @@ _console_result
           }}
         >
           <div style={{ fontWeight: 800, marginBottom: 10 }}>Figure</div>
+
           {figures.length === 0 ? (
             <div style={{ opacity: 0.6, fontSize: 14 }}>
               Matplotlib 그래프가 생성되면 여기에 표시됩니다.
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
               {figures.map((figure, index) => (
                 <img
                   key={`${figure.slice(0, 24)}-${index}`}
@@ -653,28 +677,37 @@ _console_result
         </div>
       </div>
 
-      <div style={{ marginTop: 14 }}>
-        <label style={{ display: "block", fontWeight: 800, marginBottom: 8 }}>
-          이 명령의 동작과 결과의 의미
-        </label>
-        <textarea
-          value={currentAnswer.explanation}
-          onChange={(event) =>
-            updateCurrent({ explanation: event.target.value })
-          }
-          placeholder="여기에 답안을 작성하세요"
+      <div style={{ marginTop: 18 }}>
+        <label
           style={{
-            width: "100%",
-            minHeight: 120,
-            padding: 12,
+            display: "block",
+            fontWeight: 900,
+            marginBottom: 8,
+          }}
+        >
+          내 답안
+        </label>
+
+        <textarea
+          value={answer.answer}
+          onChange={(event) =>
+            updateAnswer({
+              answer: event.target.value,
+            })
+          }
+          placeholder="여기에 답안을 작성하세요."
+          style={{
+            width: "97.5%",
+            minHeight: 300,
+            padding: 14,
             borderRadius: 12,
-            border: "1px solid #ddd",
+            border: "1px solid #d1d5db",
             fontSize: 14,
-            lineHeight: 1.6,
+            lineHeight: 1.7,
+            resize: "vertical",
           }}
         />
       </div>
-
     </div>
   );
 }
