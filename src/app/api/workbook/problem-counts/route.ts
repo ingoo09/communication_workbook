@@ -4,8 +4,8 @@ import { chapter as chapter1 } from "@/app/workbook/ch1/ch1";
 import { chapter as chapter2 } from "@/app/workbook/ch2/ch2";
 
 import { chapter as chapter14 } from "@/app/workbook/ch14/ch14";
-import { chapter as chapter14 } from "@/app/workbook/ch15/ch15";
-import { chapter as chapter14 } from "@/app/workbook/ch16/ch16";
+import { chapter as chapter15 } from "@/app/workbook/ch15/ch15";
+import { chapter as chapter16 } from "@/app/workbook/ch16/ch16";
 
 import { countLearningProblems } from "@/lib/workbook/countLearningProblems";
 
