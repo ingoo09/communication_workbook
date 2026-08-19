@@ -1289,7 +1289,12 @@ if "matplotlib.pyplot" in sys.modules:
               border: "1px solid #eee",
               borderRadius: 14,
               background: "#fff",
+              userSelect: "none",
+              WebkitUserSelect: "none",
             }}
+            onCopy={(event) => event.preventDefault()}
+            onCut={(event) => event.preventDefault()}
+            onContextMenu={(event) => event.preventDefault()}
           >
             <div ref={promptRef}>
               {renderRichText(displayPrompt || "(문제 본문이 비어 있습니다)")}
