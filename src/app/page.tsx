@@ -166,8 +166,8 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
   const access: Chapter['access'] =
-    id === 14 ? 'sample' :
-    id === 15 ? 'locked' : 'preparing';
+    id === 1 || id === 2 || id === 14 ? 'sample' :
+    id === 15 || id === 16 ? 'locked' : 'preparing';
 
   const available = access !== 'preparing';
 

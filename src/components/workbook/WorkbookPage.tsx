@@ -171,6 +171,86 @@ function renderFencedText(s: string) {
   return nodes;
 }
 
+function renderRichText(s: string) {
+  const nodes: React.ReactNode[] = [];
+
+  // 문법:
+  // [[image:/images/ch16/figure16_1.png]]
+  // [[image:/images/ch16/figure16_1.png|그림 16.1 설명]]
+  const imageToken =
+    /\[\[image:([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
+
+  let last = 0;
+  let match: RegExpExecArray | null;
+  let key = 0;
+
+  while ((match = imageToken.exec(s)) !== null) {
+    const before = s.slice(last, match.index);
+
+    if (before) {
+      nodes.push(
+        <React.Fragment key={`rich-text-${key++}`}>
+          {renderFencedText(before)}
+        </React.Fragment>,
+      );
+    }
+
+    const imageSrc = String(match[1] ?? "").trim();
+    const caption = String(match[2] ?? "").trim();
+
+    nodes.push(
+      <figure
+        key={`rich-image-${key++}`}
+        style={{
+          margin: "22px 0",
+          textAlign: "center",
+        }}
+      >
+        <img
+          src={imageSrc}
+          alt={caption || "문제 그림"}
+          style={{
+            display: "block",
+            width: "auto",
+            maxWidth: "100%",
+            height: "auto",
+            margin: "0 auto",
+            borderRadius: 6,
+          }}
+        />
+
+        {caption && (
+          <figcaption
+            style={{
+              marginTop: 10,
+              fontSize: 13,
+              lineHeight: 1.5,
+              color: "#6b7280",
+            }}
+          >
+            {caption}
+          </figcaption>
+        )}
+      </figure>,
+    );
+
+    last = match.index + match[0].length;
+  }
+
+  const tail = s.slice(last);
+
+  if (tail) {
+    nodes.push(
+      <React.Fragment key={`rich-text-${key++}`}>
+        {renderFencedText(tail)}
+      </React.Fragment>,
+    );
+  }
+
+  return nodes;
+}
+
+
 export default function WorkbookPage({
   chapter,
   chapterSlug,
@@ -1212,7 +1292,7 @@ if "matplotlib.pyplot" in sys.modules:
             }}
           >
             <div ref={promptRef}>
-              {renderFencedText(displayPrompt || "(문제 본문이 비어 있습니다)")}
+              {renderRichText(displayPrompt || "(문제 본문이 비어 있습니다)")}
             </div>
           </div>
 
@@ -1513,7 +1593,7 @@ if "matplotlib.pyplot" in sys.modules:
 
               <div ref={answerRef}>
                 {preparedAnswer ? (
-                  renderFencedText(preparedAnswer)
+                  renderRichText(preparedAnswer)
                 ) : (
                   <div style={{ opacity: 0.7 }}>(사전 정답이 없습니다)</div>
                 )}
