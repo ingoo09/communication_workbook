@@ -15,8 +15,8 @@ const AVAILABLE_CHAPTERS = {
   1: chapter1,
   2: chapter2,
 
-  14: chapter14
-  15: chapter15
+  14: chapter14,
+  15: chapter15,
   16: chapter16
   
 } as const;
