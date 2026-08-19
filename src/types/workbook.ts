@@ -44,6 +44,7 @@ export type PythonProblem = BaseProblem & {
   type: "python";
   starterCode?: string;
   resultPrompt?: string;
+  consoleEnabled?: boolean;
 };
 
 export type ConsoleValidation =
@@ -62,7 +63,7 @@ export type ConsoleExerciseItem = {
 export type ConsoleProblem = BaseProblem & {
   type: "console";
   setupCode?: string;
-  items: ReadonlyArray<ConsoleExerciseItem>;
+  items?: ReadonlyArray<ConsoleExerciseItem>;
 };
 
 
