@@ -155,6 +155,11 @@ export default function ConsoleProblem({
 
     const setup = problem.setupCode ?? "";
 
+    // setupCode에 import가 있으면 필요한 패키지만 그때 로드한다.
+    if (setup.trim()) {
+      await pyodide.loadPackagesFromImports(setup);
+    }
+
     await pyodide.runPythonAsync(`
 import builtins
 
@@ -191,6 +196,9 @@ exec(
     setRunning(true);
 
     try {
+      // 사용자가 Console에서 새 패키지를 import하면 그 패키지만 필요 시점에 로드한다.
+      await pyodide.loadPackagesFromImports(source);
+
       const result = await pyodide.runPythonAsync(`
 import ast
 import base64
@@ -236,25 +244,26 @@ except Exception:
 _figures = []
 
 try:
-    import matplotlib
-    matplotlib.use("AGG")
-    import matplotlib.pyplot as plt
+    import sys
 
-    for _number in plt.get_fignums():
-        _figure = plt.figure(_number)
-        _buffer = io.BytesIO()
-        _figure.savefig(
-            _buffer,
-            format="png",
-            bbox_inches="tight",
-        )
-        _buffer.seek(0)
+    if "matplotlib.pyplot" in sys.modules:
+        import matplotlib.pyplot as plt
 
-        _figures.append(
-            base64.b64encode(
-                _buffer.read()
-            ).decode("ascii")
-        )
+        for _number in plt.get_fignums():
+            _figure = plt.figure(_number)
+            _buffer = io.BytesIO()
+            _figure.savefig(
+                _buffer,
+                format="png",
+                bbox_inches="tight",
+            )
+            _buffer.seek(0)
+
+            _figures.append(
+                base64.b64encode(
+                    _buffer.read()
+                ).decode("ascii")
+            )
 except Exception:
     _figures = []
 

@@ -208,24 +208,25 @@ import types
 _pc_figures = []
 
 try:
-    import matplotlib
-    matplotlib.use("AGG")
-    import matplotlib.pyplot as plt
+    import sys
 
-    for _pc_number in plt.get_fignums():
-        _pc_figure = plt.figure(_pc_number)
-        _pc_buffer = io.BytesIO()
-        _pc_figure.savefig(
-            _pc_buffer,
-            format="png",
-            bbox_inches="tight",
-        )
-        _pc_buffer.seek(0)
-        _pc_figures.append(
-            base64.b64encode(
-                _pc_buffer.read()
-            ).decode("ascii")
-        )
+    if "matplotlib.pyplot" in sys.modules:
+        import matplotlib.pyplot as plt
+
+        for _pc_number in plt.get_fignums():
+            _pc_figure = plt.figure(_pc_number)
+            _pc_buffer = io.BytesIO()
+            _pc_figure.savefig(
+                _pc_buffer,
+                format="png",
+                bbox_inches="tight",
+            )
+            _pc_buffer.seek(0)
+            _pc_figures.append(
+                base64.b64encode(
+                    _pc_buffer.read()
+                ).decode("ascii")
+            )
 except Exception:
     _pc_figures = []
 
@@ -305,16 +306,17 @@ json.dumps({
     setRunningScript(true);
 
     try {
-      await pyodide.loadPackage(["numpy", "matplotlib"]);
+      // Script에 실제로 import된 패키지만 필요 시점에 내려받는다.
+      await pyodide.loadPackagesFromImports(parsed.code);
       await ensureNamespace(true);
 
-      // Script를 다시 실행할 때는 이전 Figure를 지운다.
-await pyodide.runPythonAsync(`
-import matplotlib
-matplotlib.use("AGG")
+      // matplotlib이 이미 사용 중인 경우에만 이전 Figure를 지운다.
+      await pyodide.runPythonAsync(`
+import sys
 
-import matplotlib.pyplot as plt
-plt.close("all")
+if "matplotlib.pyplot" in sys.modules:
+    import matplotlib.pyplot as plt
+    plt.close("all")
 `);
 
       const result = await pyodide.runPythonAsync(`
@@ -378,6 +380,8 @@ json.dumps({
     setRunningConsole(true);
 
     try {
+      // Console에서 새 import가 입력된 경우 해당 패키지만 추가로 로드한다.
+      await pyodide.loadPackagesFromImports(source);
       await ensureNamespace(false);
 
       const result = await pyodide.runPythonAsync(`
@@ -475,8 +479,11 @@ json.dumps({
 
     try {
       await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close("all")
+import sys
+
+if "matplotlib.pyplot" in sys.modules:
+    import matplotlib.pyplot as plt
+    plt.close("all")
 `);
     } catch {
       // ignore

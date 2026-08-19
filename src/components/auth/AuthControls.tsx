@@ -92,9 +92,61 @@ export default function AuthControls() {
   }
 
   const userLabel = profile?.name?.trim() || user.email || '사용자';
+  const role = profile?.role ?? '';
+  const isProfessor = role === 'professor';
+  const isDeveloper = role === 'developer';
+  const isAdmin = role === 'admin';
+  const canAccessAdmin = isDeveloper || isAdmin;
 
   return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        gap: 8,
+        minWidth: 0,
+        flexWrap: 'wrap',
+        justifyContent: 'flex-end',
+      }}
+    >
+      {isProfessor && (
+        <Link
+          href="/professor"
+          style={{
+            padding: '7px 10px',
+            borderRadius: 999,
+            textDecoration: 'none',
+            color: '#ddd6fe',
+            background: 'rgba(139,92,246,0.16)',
+            border: '1px solid rgba(167,139,250,0.28)',
+            fontSize: 12,
+            fontWeight: 900,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          교수 · 교수 페이지
+        </Link>
+      )}
+
+      {canAccessAdmin && (
+        <Link
+          href="/admin"
+          style={{
+            padding: '7px 10px',
+            borderRadius: 999,
+            textDecoration: 'none',
+            color: '#bfdbfe',
+            background: 'rgba(59,130,246,0.16)',
+            border: '1px solid rgba(96,165,250,0.28)',
+            fontSize: 12,
+            fontWeight: 900,
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {isDeveloper ? '개발자 · Admin' : '관리자 · Admin'}
+        </Link>
+      )}
+
       <div
         title={user.email ?? ''}
         style={{
@@ -107,22 +159,9 @@ export default function AuthControls() {
         }}
       >
         {userLabel}
-        {profile?.student_number ? ` · ${profile.student_number}` : ''}
+        {!isProfessor && profile?.student_number ? ` · ${profile.student_number}` : ''}
       </div>
-      {profile?.role === 'developer' && (
-        <Link
-          href="/admin"
-          style={{
-            ...buttonStyle,
-            textDecoration: 'none',
-            color: '#c7d2fe',
-            border: '1px solid rgba(129,140,248,0.28)',
-            background: 'rgba(99,102,241,0.14)',
-          }}
-        >
-          관리자
-        </Link>
-      )}
+
       <button
         type="button"
         onClick={signOut}

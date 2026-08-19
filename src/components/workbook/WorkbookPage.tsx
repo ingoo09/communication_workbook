@@ -13,9 +13,12 @@ import {
 } from "./PythonConsoleProblem";
 import { saveAnswer } from "@/lib/answers/saveAnswer";
 import { loadAnswer } from "@/lib/answers/loadAnswer";
+import { createClient } from "@/lib/supabase/client";
 
 import type { WorkbookChapter, WorkbookProblem } from "@/types/workbook";
 import { PROBLEM_TYPE_LABEL, resolveProblemType } from "@/types/workbook";
+
+const ANSWER_UNLOCK_SCORE = 80; //AI 채점 오픈 기준
 
 type WorkbookPageProps = {
   chapter: WorkbookChapter;
@@ -181,12 +184,19 @@ export default function WorkbookPage({
   const chapterPath = `/workbook/${chapterSlug}`;
 
   const router = useRouter();
+  const supabase = useMemo(() => createClient(), []);
+
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [userRole, setUserRole] = useState<string | null>(null);
+  const [showAuthPrompt, setShowAuthPrompt] = useState(false);
+  const [authPromptAction, setAuthPromptAction] = useState("");
 
   const [idx, setIdx] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
 
   const [userAnswer, setUserAnswer] = useState("");
   const [saved, setSaved] = useState(false);
+  const [saveNotice, setSaveNotice] = useState("");
 
   const [plotImage, setPlotImage] = useState<string | null>(null);
 
@@ -323,6 +333,76 @@ export default function WorkbookPage({
 
     return result;
   }, [data.sections]);
+
+  // 로그인 상태와 역할 확인
+  // 학생은 AI 점수가 기준 이상일 때 정답을 볼 수 있고,
+  // 교수/developer/admin은 즉시 정답 확인이 가능하다.
+  useEffect(() => {
+    let mounted = true;
+
+    async function syncAuthState() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!mounted) return;
+
+      setIsAuthenticated(Boolean(user));
+
+      if (!user) {
+        setUserRole(null);
+        return;
+      }
+
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle();
+
+      if (!mounted) return;
+      setUserRole(profile?.role ?? null);
+    }
+
+    void syncAuthState();
+
+    const { data: listener } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (!mounted) return;
+
+      const user = session?.user ?? null;
+      setIsAuthenticated(Boolean(user));
+
+      if (!user) {
+        setUserRole(null);
+        return;
+      }
+
+      void supabase
+        .from("profiles")
+        .select("role")
+        .eq("id", user.id)
+        .maybeSingle()
+        .then(({ data: profile }) => {
+          if (!mounted) return;
+          setUserRole(profile?.role ?? null);
+        });
+    });
+
+    return () => {
+      mounted = false;
+      listener.subscription.unsubscribe();
+    };
+  }, [supabase]);
+
+  function requestAuthenticatedAction(actionLabel: string, action: () => void) {
+    if (isAuthenticated) {
+      action();
+      return;
+    }
+
+    setAuthPromptAction(actionLabel);
+    setShowAuthPrompt(true);
+  }
 
   // 외부 링크(/history 등)에서 ?p=문제ID로 들어온 경우 해당 문제로 이동
   // URL을 읽는 역할만 담당하고, URL 쓰기는 moveToProblem()에서 처리한다.
@@ -487,6 +567,33 @@ export default function WorkbookPage({
   const displayPrompt = buildDisplayPrompt(current.pb, current.preface);
   const preparedAnswer = pickAnswer(current.pb);
   const currentProblemType = resolveProblemType(current.pb);
+  const currentScore =
+    typeof gradeResult?.score === "number" ? gradeResult.score : null;
+
+  const privilegedRole =
+    userRole === "professor" ||
+    userRole === "developer" ||
+    userRole === "admin";
+
+  const canViewPreparedAnswer =
+    Boolean(isAuthenticated) &&
+    (privilegedRole ||
+      (userRole === "student" &&
+        currentScore != null &&
+        currentScore >= ANSWER_UNLOCK_SCORE));
+
+  function handleAnswerToggle() {
+    if (!isAuthenticated) {
+      requestAuthenticatedAction("정답 및 풀이 보기", () => undefined);
+      return;
+    }
+
+    if (!canViewPreparedAnswer) {
+      return;
+    }
+
+    setShowAnswer((value) => !value);
+  }
 
   async function moveToProblem(targetIdx: number) {
     const safeIdx = Math.max(0, Math.min(flat.length - 1, targetIdx));
@@ -500,6 +607,7 @@ export default function WorkbookPage({
     setCodeOutput(null);
     setPlotImage(null);
     setSaved(false);
+    setSaveNotice("");
 
     // 문제 이동과 URL 변경을 같은 함수에서 처리하여
     // ?p=문제ID deep link가 첫 문제로 덮어써지는 race condition을 방지한다.
@@ -551,7 +659,7 @@ plt.close('all')
   }
 
   async function saveMyAnswer() {
-    // 기존 localStorage 저장은 보조 저장소로 유지한다.
+    // localStorage는 비회원의 임시 저장소이자 회원의 보조 저장소로 사용한다.
     try {
       const raw = window.localStorage.getItem(storageKey);
       const j = raw ? JSON.parse(raw) : {};
@@ -560,7 +668,17 @@ plt.close('all')
 
       window.localStorage.setItem(storageKey, JSON.stringify(j));
     } catch {
-      // localStorage 저장 실패 시에도 Supabase 저장은 계속 시도한다.
+      // localStorage 저장 실패 시 회원은 Supabase 저장을 계속 시도한다.
+    }
+
+    // 비회원은 현재 브라우저에만 임시 저장한다.
+    if (!isAuthenticated) {
+      setSaved(true);
+      setSaveNotice(
+        "이 브라우저에 임시 저장되었습니다. 로그인하면 학습 기록을 계정에 저장할 수 있습니다.",
+      );
+      window.setTimeout(() => setSaved(false), 1200);
+      return;
     }
 
     const result = await saveAnswer({
@@ -576,10 +694,12 @@ plt.close('all')
 
     if (!result.success && result.reason === "database_error") {
       console.error("Supabase 답안 저장 실패:", result.message);
+      setSaveNotice("답안을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
       return;
     }
 
     setSaved(true);
+    setSaveNotice("계정에 저장되었습니다.");
     window.setTimeout(() => setSaved(false), 1200);
   }
 
@@ -683,12 +803,8 @@ plt.close('all')
       pyodideRef.current = pyodide;
       setPyodide(pyodide);
 
-      await pyodide.loadPackage("numpy");
-      await pyodide.loadPackage("scipy");
-      await pyodide.loadPackage("sympy");
-      await pyodide.loadPackage("pandas");
-      await pyodide.loadPackage("matplotlib");
-
+      // Pyodide 본체만 먼저 준비한다.
+      // 실제 Python 패키지는 코드 실행 시 import 문을 기준으로 필요한 것만 로드한다.
       setPyReady(true);
 
       setCodeOutput("Python 실행 준비 완료!");
@@ -712,11 +828,19 @@ plt.close('all')
     setPlotImage(null);
 
     try {
-      await pyodide.loadPackage(["numpy", "matplotlib"]);
+      // 학생 코드에 실제로 import된 Pyodide 패키지만 필요 시점에 내려받는다.
+      const pythonCode = pythonAnswerToCode(userAnswer);
 
+      setCodeOutput("필요한 Python 패키지를 확인하는 중입니다...");
+      await pyodide.loadPackagesFromImports(pythonCode);
+
+      // matplotlib이 이미 사용 중인 경우에만 이전 Figure를 정리한다.
       await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
-plt.close('all')
+import sys
+
+if "matplotlib.pyplot" in sys.modules:
+    import matplotlib.pyplot as plt
+    plt.close("all")
 `);
 
       let output = "";
@@ -734,27 +858,31 @@ has_figure = False
 `);
 
       // Python 답안 데이터에서 실제 코드 부분만 실행한다.
-      const pythonCode = pythonAnswerToCode(userAnswer);
       await pyodide.runPythonAsync(pythonCode);
 
       // figure 존재 여부 검사
       await pyodide.runPythonAsync(`
-import matplotlib.pyplot as plt
+import sys
 import io
 import base64
 
-has_figure = len(plt.get_fignums()) > 0
+has_figure = False
 
-if has_figure:
-    buf = io.BytesIO()
+if "matplotlib.pyplot" in sys.modules:
+    import matplotlib.pyplot as plt
 
-    plt.savefig(buf, format='png')
+    has_figure = len(plt.get_fignums()) > 0
 
-    buf.seek(0)
+    if has_figure:
+        buf = io.BytesIO()
 
-    image_base64 = base64.b64encode(
-        buf.read()
-    ).decode('utf-8')
+        plt.savefig(buf, format='png')
+
+        buf.seek(0)
+
+        image_base64 = base64.b64encode(
+            buf.read()
+        ).decode('utf-8')
 `);
 
       const hasFigure = pyodide.globals.get("has_figure");
@@ -1072,50 +1200,6 @@ if has_figure:
               </div>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                gap: 10,
-                flexWrap: "wrap",
-                justifyContent: "flex-end",
-              }}
-            >
-              <button
-                onClick={() => moveToProblem(idx - 1)}
-              >
-                이전
-              </button>
-
-              <button
-                onClick={() => moveToProblem(idx + 1)}
-              >
-                다음
-              </button>
-
-              <button
-                onClick={() => setShowAnswer((v) => !v)}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #ddd",
-                }}
-              >
-                정답 및 풀이 보기
-              </button>
-
-              <button
-                onClick={gradeWithAI}
-                disabled={grading}
-                style={{
-                  padding: "10px 14px",
-                  borderRadius: 10,
-                  border: "1px solid #ddd",
-                  opacity: grading ? 0.6 : 1,
-                }}
-              >
-                {grading ? "AI 채점 중..." : "AI 채점"}
-              </button>
-            </div>
           </div>
 
           <div
@@ -1132,34 +1216,6 @@ if has_figure:
             </div>
           </div>
 
-          {showAnswer && (
-            <div
-              style={{
-                marginTop: 14,
-                padding: 18,
-                border: "1px solid #ddd",
-                borderRadius: 14,
-                background: "#fafafa",
-              }}
-            >
-              <div
-                style={{
-                  fontWeight: 900,
-                  marginBottom: 10,
-                }}
-              >
-                정답 및 풀이
-              </div>
-
-              <div ref={answerRef}>
-                {preparedAnswer ? (
-                  renderFencedText(preparedAnswer)
-                ) : (
-                  <div style={{ opacity: 0.7 }}>(사전 정답이 없습니다)</div>
-                )}
-              </div>
-            </div>
-          )}
 
           <div
             style={{
@@ -1215,6 +1271,26 @@ if has_figure:
                 저장
               </button>
 
+              <button
+                type="button"
+                onClick={() =>
+                  requestAuthenticatedAction("내 답안 채점하기", gradeWithAI)
+                }
+                disabled={grading}
+                style={{
+                  padding: "10px 14px",
+                  borderRadius: 10,
+                  border: "1px solid #ddd",
+                  background: "#4f46e5",
+                  color: "#fff",
+                  fontWeight: 800,
+                  opacity: grading ? 0.6 : 1,
+                  cursor: grading ? "not-allowed" : "pointer",
+                }}
+              >
+                {grading ? "채점 중..." : "내 답안 채점하기"}
+              </button>
+
               {/* 저장 표시 */}
               {saved && (
                 <span
@@ -1225,6 +1301,26 @@ if has_figure:
                 >
                   저장됨
                 </span>
+              )}
+
+              {saveNotice && (
+                <div
+                  style={{
+                    width: '100%',
+                    marginTop: 4,
+                    padding: '10px 12px',
+                    borderRadius: 10,
+                    background: isAuthenticated ? '#eff6ff' : '#fffbeb',
+                    border: isAuthenticated
+                      ? '1px solid #dbeafe'
+                      : '1px solid #fde68a',
+                    color: isAuthenticated ? '#1e3a8a' : '#92400e',
+                    fontSize: 13,
+                    lineHeight: 1.55,
+                  }}
+                >
+                  {saveNotice}
+                </div>
               )}
 
               {/* AI 채점 결과 */}
@@ -1334,8 +1430,268 @@ if has_figure:
               )}
             </div>
           </div>
+
+          <div
+            style={{
+              marginTop: 16,
+              padding: 16,
+              borderRadius: 14,
+              border: "1px solid #e5e7eb",
+              background: "#fff",
+            }}
+          >
+            <button
+              type="button"
+              onClick={handleAnswerToggle}
+              disabled={
+                Boolean(isAuthenticated) &&
+                !canViewPreparedAnswer
+              }
+              style={{
+                width: "100%",
+                minHeight: 48,
+                padding: "11px 14px",
+                borderRadius: 11,
+                border: canViewPreparedAnswer
+                  ? "1px solid #c7d2fe"
+                  : "1px solid #e5e7eb",
+                background: canViewPreparedAnswer ? "#eef2ff" : "#f9fafb",
+                color: canViewPreparedAnswer ? "#3730a3" : "#6b7280",
+                fontWeight: 900,
+                cursor:
+                  Boolean(isAuthenticated) && !canViewPreparedAnswer
+                    ? "not-allowed"
+                    : "pointer",
+              }}
+            >
+              {!isAuthenticated
+                ? "정답 및 풀이 보기"
+                : canViewPreparedAnswer
+                  ? showAnswer
+                    ? "정답 및 풀이 숨기기"
+                    : "정답 및 풀이 보기"
+                  : `🔒 AI 채점 ${ANSWER_UNLOCK_SCORE}점 이상에서 공개`}
+            </button>
+
+            {isAuthenticated &&
+              userRole === "student" &&
+              !canViewPreparedAnswer && (
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 13,
+                    lineHeight: 1.6,
+                    color: "#6b7280",
+                    textAlign: "center",
+                  }}
+                >
+                  {currentScore == null
+                    ? `먼저 답안을 작성하고 AI 채점을 받아보세요. ${ANSWER_UNLOCK_SCORE}점 이상이면 정답 및 풀이가 열립니다.`
+                    : `현재 ${currentScore}점입니다. AI 피드백을 참고해 답안을 수정한 뒤 다시 채점해보세요.`}
+                </div>
+              )}
+          </div>
+
+          {showAnswer && canViewPreparedAnswer && (
+            <div
+              style={{
+                marginTop: 14,
+                padding: 18,
+                border: "1px solid #ddd",
+                borderRadius: 14,
+                background: "#fafafa",
+              }}
+            >
+              <div
+                style={{
+                  fontWeight: 900,
+                  marginBottom: 10,
+                }}
+              >
+                정답 및 풀이
+              </div>
+
+              <div ref={answerRef}>
+                {preparedAnswer ? (
+                  renderFencedText(preparedAnswer)
+                ) : (
+                  <div style={{ opacity: 0.7 }}>(사전 정답이 없습니다)</div>
+                )}
+              </div>
+            </div>
+          )}
+
+          <div
+            style={{
+              marginTop: 18,
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 12,
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => moveToProblem(idx - 1)}
+              disabled={idx <= 0}
+              style={{
+                minHeight: 48,
+                borderRadius: 11,
+                border: "1px solid #d1d5db",
+                background: "#fff",
+                fontWeight: 800,
+                cursor: idx <= 0 ? "not-allowed" : "pointer",
+                opacity: idx <= 0 ? 0.5 : 1,
+              }}
+            >
+              ← 이전 문제
+            </button>
+
+            <button
+              type="button"
+              onClick={() => moveToProblem(idx + 1)}
+              disabled={idx >= flat.length - 1}
+              style={{
+                minHeight: 48,
+                borderRadius: 11,
+                border: 0,
+                background: "#111827",
+                color: "#fff",
+                fontWeight: 800,
+                cursor: idx >= flat.length - 1 ? "not-allowed" : "pointer",
+                opacity: idx >= flat.length - 1 ? 0.5 : 1,
+              }}
+            >
+              다음 문제 →
+            </button>
+          </div>
         </div>
       </div>
+
+      {showAuthPrompt && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowAuthPrompt(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 9999,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            background: "rgba(15,23,42,0.55)",
+            backdropFilter: "blur(3px)",
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 430,
+              padding: 26,
+              borderRadius: 20,
+              background: "#fff",
+              boxShadow: "0 24px 70px rgba(15,23,42,0.28)",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 900,
+                color: "#4f46e5",
+              }}
+            >
+              무료 회원 기능
+            </div>
+
+            <h2
+              style={{
+                margin: "8px 0 0",
+                fontSize: 24,
+                fontWeight: 900,
+                color: "#111827",
+              }}
+            >
+              로그인 또는 무료 회원가입이 필요합니다
+            </h2>
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: "#6b7280",
+                lineHeight: 1.7,
+              }}
+            >
+              {authPromptAction || "이 기능"}을 사용하려면 계정이 필요합니다.
+              무료 회원가입 후 정답 및 풀이 확인, AI 채점, 학습 기록 저장 기능을 이용할 수 있습니다.
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+                marginTop: 22,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAuthPrompt(false);
+                  router.push("/login");
+                }}
+                style={{
+                  minHeight: 46,
+                  border: "1px solid #d1d5db",
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  background: "#fff",
+                  color: "#111827",
+                  fontWeight: 900,
+                }}
+              >
+                로그인
+              </button>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setShowAuthPrompt(false);
+                  router.push("/login");
+                }}
+                style={{
+                  minHeight: 46,
+                  border: 0,
+                  borderRadius: 12,
+                  cursor: "pointer",
+                  background: "#4f46e5",
+                  color: "#fff",
+                  fontWeight: 900,
+                }}
+              >
+                무료 회원가입
+              </button>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowAuthPrompt(false)}
+              style={{
+                width: "100%",
+                marginTop: 12,
+                padding: 8,
+                border: 0,
+                cursor: "pointer",
+                background: "transparent",
+                color: "#6b7280",
+                fontWeight: 700,
+              }}
+            >
+              계속 문제 풀기
+            </button>
+          </div>
+        </div>
+      )}
     </>
   );
 }

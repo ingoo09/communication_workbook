@@ -13,8 +13,8 @@ type Chapter = {
   title: string;
   href?: string;
   available: boolean;
+  access: 'sample' | 'locked' | 'unlocked' | 'preparing';
   progress: number;
-  duration: string;
   description: string;
 };
 
@@ -31,155 +31,125 @@ const PARTS: Array<{
   { id: 4, label: 'Part Ⅳ', range: '25~30장', description: '고급 디지털통신' },
 ];
 
-const knownChapters: Record<number, Pick<Chapter, 'title' | 'description' | 'duration'>> = {
+const knownChapters: Record<number, Pick<Chapter, 'title' | 'description'>> = {
   1: {
     title: 'Python Basics',
-    duration: '2h 30m',
     description: '통신시스템과 디지털통신에 사용하는 파이썬의 기본 문법과 기능 기초를 학습합니다.',
   },
   2: {
     title: 'Numerical Integration & Orthogonal Expansion',
-    duration: '4h 10m',
     description: '수치적분법과 직교 확장을 통해 통신 신호 해석의 기초를 학습합니다.',
   },
   3: {
     title: 'Fourier Series & Frequency Transfer Function',
-    duration: '5h 00m',
     description: '푸리에 급수와 선형 시스템의 주파수 전달 함수를 학습합니다.',
   },
   4: {
     title: 'Fourier Transform',
-    duration: '6h',
     description: '푸리에 변환과 스펙트럼 분석을 학습합니다.',
   },
   5: {
     title: 'Fourier Transform Properties & Convolution',
-    duration: '5h 30m',
     description: '푸리에 변환의 성질과 합성곱(컨볼루션) 연산을 학습합니다.',
   },
   6: {
     title: 'LPF and BPF Design',
-    duration: '7h',
     description: '저주파 필터와 대역필터의 주파수 특성 및 임펄스 응답을 학습합니다.',
   },
   7: {
     title: 'Sampling and Signal Reconstruction',
-    duration: '7h',
     description: '샘플링에 의한 스펙트럼 변화와 신호 복원 원리를 학습합니다.',
   },
   8: {
     title: 'Correlation and Spectral Density',
-    duration: '7h',
     description: '상관함수와 주파수 밀도 함수의 관계를 학습합니다.',
   },
   9: {
     title: 'AM Modulation',
-    duration: '7h',
     description: 'DSB-SC 기반 진폭 변·복조 시스템 설계 방법을 학습합니다.',
   },
   10: {
     title: 'QM and FDM',
-    duration: '7h',
     description: '직교 다중화된 진폭 변·복조 시스템과 주파수 분할 다중화 시스템 설계 방법을 학습합니다.',
   },
   11: {
     title: 'Hilbert Transform and SSB',
-    duration: '7h',
     description: '힐버트 변환과 분석 신호을 이해하고, SSB 기반 진폭 변·복조 시스템 설계 방법을 학습합니다.',
   },
   12: {
     title: 'VCO and FM Modulation',
-    duration: '7h',
     description: 'VCO의 동작을 이해하고, 주파수 변·복조 시스템 설계 방법을 학습합니다.',
   },
   13: {
     title: 'PLL and Synchronization',
-    duration: '7h',
     description: '다양한 위상 및 주파수 오차 환경에서 동기화를 위해 사용하는 위상 고정 루프의 동작을 학습합니다.',
   },
   14: {
     title: 'Probability and Random Variables',
-    duration: '7h',
     description: '확률과 랜덤 변수의 기본 지식 및 이론을 학습합니다.',
   },
   15: {
     title: 'Random Signals',
-    duration: '7h',
     description: '랜덤 프로세스를 발생시키고, 자기상관함수 등 통계적인 분석을 학습합니다.',
   },
   16: {
     title: 'ML Detection for Binary Transmission',
-    duration: '7h',
     description: '이진 데이터 전송 시스템에서 최대 우도 측정 방식을 학습합니다.',
   },
   17: {
     title: 'Signal Vector Space and ML Detection Ⅰ',
-    duration: '7h',
     description: 'M진(M-ary) 심벌의 신호를 벡터 공간의 한 점으로 매핑하는 과정을 학습합니다.',
   },
   18: {
     title: 'Signal Vector Space and ML Detection Ⅱ',
-    duration: '7h',
     description: '가산성 화이트 가우시안 환경(AWGN)에서 최대 우도 측정 검출 방법을 학습합니다.',
   },
   19: {
     title: 'Correlator-based ML Detection',
-    duration: '7h',
     description: '상관기 기반의 최대 우도 측정 검출 기법을 학습합니다.',
   },
   20: {
     title: 'Pulse Shaping and Matched Filter',
-    duration: '7h',
     description: '펄스 성형 수행 과정과 정합 필터를 통과시켜 신호를 복원하는 방법을 학습합니다.',
   },
   21: {
     title: 'BPSK BER Simulation (Waveform Level)',
-    duration: '7h',
     description: '파형 수준에서 펄스 성형, 정합 필터를 수행하는 BPSK 시스템을 설계하고 BER을 실험하는 방법을 학습합니다.',
   },
   22: {
     title: 'QPSK and OQPSK',
-    duration: '7h',
     description: 'QPSK와 Offset QPSK 신호의 특성을 학습합니다.',
   },
   23: {
     title: 'QAM',
-    duration: '7h',
     description: 'QAM 송·수신기 설계 방법을 학습합니다.',
   },
   24: {
     title: 'Convolutional Coding',
-    duration: '7h',
     description: '컨볼루션 부호의 부호화와 복호화 과정을 학습합니다.',
   },
   25: {
     title: 'Fading, Diversity and Combining',
-    duration: '7h',
     description: '레일레이 페이딩 채널 환경에서의 BER, 다이버시티의 개념과 컴바이닝 기법을 학습합니다.',
   },
   26: {
     title: 'OFDM under AWGN Channel',
-    duration: '7h',
     description: '직교 주파수 분할 다중화 신호 생성과 복조 과정을 학습합니다.',
   },
   27: {
     title: 'OFDM under Multipath Fading Channel',
-    duration: '7h',
     description: '다중경로 채널 환경에서 CP가 추가된 OFDM 신호 생성과 복조 과정을 학습합니다.',
   },
   28: {
     title: 'MIMO System Ⅰ : Space Time Code',
-    duration: '7h',
     description: '시공간 부호 중 하나인 Alamouti Code의 성질을 학습합니다.',
   },
   29: {
     title: 'MIMO System Ⅱ : Spatial Multiplexing',
-    duration: '7h',
     description: 'SM MIMO 시스템 모델을 이해하고, 검출 기법을 학습합니다.',
   },
   30: {
     title: 'Near Ultrasonic Wireless OFDM Modem Design',
-    duration: '7h',
     description: '비가척 대역 무선 OFDM 모뎀을 이용한 이미지 전송 및 수신 방법을 학습합니다.',
   }
 };
@@ -195,7 +165,11 @@ function getPart(chapterId: number): PartId {
 const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
-  const available = id === 14 //|| id === 1 || id === 2 
+  const access: Chapter['access'] =
+    id === 14 ? 'sample' :
+    id === 15 ? 'locked' : 'preparing';
+
+  const available = access !== 'preparing';
 
   return {
     id,
@@ -203,9 +177,9 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
     title: known?.title ?? `Chapter ${id}`,
     description:
       known?.description ?? '교재 원고와 실습 문제가 준비되는 대로 공개될 예정입니다.',
-    duration: known?.duration ?? '준비 중',
     href: available ? `/workbook/ch${id}` : undefined,
     available,
+    access,
     progress: 0,
   };
 });
@@ -215,12 +189,46 @@ export default function WorkbookHome() {
   const curriculumRef = useRef<HTMLElement | null>(null);
   const [chapterProgress, setChapterProgress] = useState<Record<number, number>>({});
   const [totalProblemsByChapter, setTotalProblemsByChapter] = useState<Record<number, number>>({});
+  const [creditBalance, setCreditBalance] = useState<number | null>(null);
+  const [unlockedChapterIds, setUnlockedChapterIds] = useState<Set<number>>(new Set());
+  const [chapterCosts, setChapterCosts] = useState<Record<number, number>>({});
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [showHistoryAuthPrompt, setShowHistoryAuthPrompt] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
 
     async function loadProgress() {
       const supabase = createClient();
+
+      // Chapter 가격은 Supabase chapter_products를 단일 기준으로 사용한다.
+      const { data: productData, error: productError } = await supabase
+        .from('chapter_products')
+        .select('chapter_id, credit_cost')
+        .eq('is_active', true);
+
+      if (!cancelled) {
+        if (productError) {
+          console.error('Chapter 가격 조회 실패:', productError);
+          setChapterCosts({});
+        } else {
+          const nextCosts: Record<number, number> = {};
+
+          for (const row of productData ?? []) {
+            const match = String(row.chapter_id ?? '').match(/^ch(\d+)$/i);
+            if (!match) continue;
+
+            const chapterId = Number(match[1]);
+            const cost = Number(row.credit_cost);
+
+            if (Number.isFinite(chapterId) && Number.isFinite(cost)) {
+              nextCosts[chapterId] = cost;
+            }
+          }
+
+          setChapterCosts(nextCosts);
+        }
+      }
 
       // 서버에서 실제 Chapter 콘텐츠를 기준으로 전체 학습 문항 수를 계산한다.
       const problemCountResponse = await fetch('/api/workbook/problem-counts', {
@@ -250,9 +258,46 @@ export default function WorkbookHome() {
         data: { user },
       } = await supabase.auth.getUser();
 
+      if (!cancelled) {
+        setIsAuthenticated(Boolean(user));
+      }
+
       if (cancelled || !user) {
-        if (!cancelled) setChapterProgress({});
+        if (!cancelled) {
+          setChapterProgress({});
+          setCreditBalance(null);
+          setUnlockedChapterIds(new Set());
+        }
         return;
+      }
+
+      const [creditResult, accessResult] = await Promise.all([
+        supabase
+          .from('user_credits')
+          .select('balance')
+          .eq('user_id', user.id)
+          .maybeSingle(),
+        supabase
+          .from('chapter_access')
+          .select('chapter_id')
+          .eq('user_id', user.id),
+      ]);
+
+      if (!cancelled) {
+        setCreditBalance(
+          typeof creditResult.data?.balance === 'number'
+            ? creditResult.data.balance
+            : 0,
+        );
+
+        const unlocked = new Set<number>();
+
+        for (const row of accessResult.data ?? []) {
+          const match = String(row.chapter_id ?? '').match(/^ch(\d+)$/i);
+          if (match) unlocked.add(Number(match[1]));
+        }
+
+        setUnlockedChapterIds(unlocked);
       }
 
       const { data, error } = await supabase
@@ -308,9 +353,13 @@ export default function WorkbookHome() {
         .filter((chapter) => chapter.part === selectedPart)
         .map((chapter) => ({
           ...chapter,
+          access:
+            chapter.access === 'locked' && unlockedChapterIds.has(chapter.id)
+              ? ('unlocked' as const)
+              : chapter.access,
           progress: chapterProgress[chapter.id] ?? 0,
         })),
-    [selectedPart, chapterProgress],
+    [selectedPart, chapterProgress, unlockedChapterIds],
   );
 
   function moveToCurriculum(part: PartId = selectedPart) {
@@ -396,22 +445,59 @@ export default function WorkbookHome() {
             >
               학습 시작
             </button>
-            <Link
-              href="/history"
-              style={{
-                flex: '0 0 auto',
-                padding: '11px 16px',
-                borderRadius: 12,
-                textDecoration: 'none',
-                color: '#e0e7ff',
-                background: 'rgba(99,102,241,0.14)',
-                border: '1px solid rgba(129,140,248,0.24)',
-                fontWeight: 800,
-                whiteSpace: 'nowrap',
-              }}
-            >
-              내 학습 기록
-            </Link>
+            {isAuthenticated ? (
+              <Link
+                href="/history"
+                style={{
+                  flex: '0 0 auto',
+                  padding: '11px 16px',
+                  borderRadius: 12,
+                  textDecoration: 'none',
+                  color: '#e0e7ff',
+                  background: 'rgba(99,102,241,0.14)',
+                  border: '1px solid rgba(129,140,248,0.24)',
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                내 학습 기록
+              </Link>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowHistoryAuthPrompt(true)}
+                style={{
+                  flex: '0 0 auto',
+                  padding: '11px 16px',
+                  borderRadius: 12,
+                  color: '#e0e7ff',
+                  background: 'rgba(99,102,241,0.14)',
+                  border: '1px solid rgba(129,140,248,0.24)',
+                  fontWeight: 800,
+                  whiteSpace: 'nowrap',
+                  cursor: 'pointer',
+                }}
+              >
+                내 학습 기록
+              </button>
+            )}
+            {creditBalance !== null && (
+              <div
+                style={{
+                  flex: '0 0 auto',
+                  padding: '10px 13px',
+                  borderRadius: 12,
+                  color: '#fef3c7',
+                  background: 'rgba(245,158,11,0.12)',
+                  border: '1px solid rgba(245,158,11,0.24)',
+                  fontSize: 13,
+                  fontWeight: 900,
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                Credit {creditBalance}
+              </div>
+            )}
             <AuthControls />
           </div>
         </div>
@@ -714,13 +800,31 @@ export default function WorkbookHome() {
                     borderRadius: 999,
                     fontSize: 12,
                     fontWeight: 800,
-                    background: chapter.available
-                      ? 'rgba(16,185,129,0.15)'
-                      : 'rgba(148,163,184,0.14)',
-                    color: chapter.available ? '#6ee7b7' : '#cbd5e1',
+                    background:
+                      chapter.access === 'sample'
+                        ? 'rgba(16,185,129,0.15)'
+                        : chapter.access === 'unlocked'
+                          ? 'rgba(59,130,246,0.15)'
+                          : chapter.access === 'locked'
+                            ? 'rgba(245,158,11,0.15)'
+                            : 'rgba(148,163,184,0.14)',
+                    color:
+                      chapter.access === 'sample'
+                        ? '#6ee7b7'
+                        : chapter.access === 'unlocked'
+                          ? '#93c5fd'
+                          : chapter.access === 'locked'
+                            ? '#fcd34d'
+                            : '#cbd5e1',
                   }}
                 >
-                  {chapter.available ? 'AVAILABLE' : 'PREPARING'}
+                  {chapter.access === 'sample'
+                    ? 'FREE SAMPLE'
+                    : chapter.access === 'unlocked'
+                      ? 'UNLOCKED'
+                      : chapter.access === 'locked'
+                        ? 'LOCKED'
+                        : 'PREPARING'}
                 </div>
               </div>
 
@@ -757,8 +861,6 @@ export default function WorkbookHome() {
                     marginBottom: 9,
                   }}
                 >
-                  <span style={{ opacity: 0.65 }}>예상 학습시간</span>
-                  <span style={{ fontWeight: 700 }}>{chapter.duration}</span>
                 </div>
 
                 <div style={{ marginBottom: 18 }}>
@@ -797,7 +899,7 @@ export default function WorkbookHome() {
                   </div>
                 </div>
 
-                {chapter.available && chapter.href ? (
+                {chapter.access === 'sample' && chapter.href ? (
                   <Link
                     href={chapter.href}
                     style={{
@@ -819,6 +921,54 @@ export default function WorkbookHome() {
                     }}
                   >
                     학습 시작 →
+                  </Link>
+                ) : chapter.access === 'unlocked' && chapter.href ? (
+                  <Link
+                    href={chapter.href}
+                    style={{
+                      display: 'flex',
+                      width: '100%',
+                      minHeight: 52,
+                      padding: '13px 18px',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxSizing: 'border-box',
+                      borderRadius: 16,
+                      textDecoration: 'none',
+                      background: 'linear-gradient(135deg,#2563eb,#4f46e5)',
+                      color: 'white',
+                      fontWeight: 800,
+                      fontSize: 16,
+                      boxShadow: '0 16px 34px rgba(37,99,235,0.22)',
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    학습 시작 →
+                  </Link>
+                ) : chapter.access === 'locked' && chapter.href ? (
+                  <Link
+                    href={chapter.href}
+                    style={{
+                      display: 'flex',
+                      width: '100%',
+                      minHeight: 52,
+                      padding: '13px 18px',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      boxSizing: 'border-box',
+                      borderRadius: 16,
+                      textDecoration: 'none',
+                      background: 'rgba(245,158,11,0.12)',
+                      color: '#fcd34d',
+                      border: '1px solid rgba(245,158,11,0.25)',
+                      fontWeight: 800,
+                      fontSize: 16,
+                      whiteSpace: 'nowrap',
+                    }}
+                  >
+                    🔒 {chapterCosts[chapter.id] != null
+                      ? `${chapterCosts[chapter.id]} Credit으로 해금`
+                      : '가격 확인 중...'}
                   </Link>
                 ) : (
                   <button
@@ -846,6 +996,117 @@ export default function WorkbookHome() {
           ))}
         </div>
       </section>
+
+      {showHistoryAuthPrompt && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowHistoryAuthPrompt(false)}
+          style={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: 9999,
+            display: 'grid',
+            placeItems: 'center',
+            padding: 20,
+            background: 'rgba(15,23,42,0.58)',
+            backdropFilter: 'blur(3px)',
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: '100%',
+              maxWidth: 430,
+              padding: 26,
+              borderRadius: 20,
+              background: '#fff',
+              color: '#111827',
+              boxShadow: '0 24px 70px rgba(15,23,42,0.30)',
+              boxSizing: 'border-box',
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 900, color: '#4f46e5' }}>
+              무료 회원 기능
+            </div>
+
+            <h2 style={{ margin: '8px 0 0', fontSize: 24, fontWeight: 900 }}>
+              학습 기록은 로그인 후 확인할 수 있습니다
+            </h2>
+
+            <p
+              style={{
+                margin: '12px 0 0',
+                color: '#6b7280',
+                lineHeight: 1.7,
+              }}
+            >
+              로그인하면 저장한 답안, 학습 진행률, AI 채점 결과를 계정에서 계속 확인할 수 있습니다.
+            </p>
+
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 1fr',
+                gap: 10,
+                marginTop: 22,
+              }}
+            >
+              <Link
+                href="/login"
+                style={{
+                  minHeight: 46,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  border: '1px solid #d1d5db',
+                  borderRadius: 12,
+                  textDecoration: 'none',
+                  background: '#fff',
+                  color: '#111827',
+                  fontWeight: 900,
+                }}
+              >
+                로그인
+              </Link>
+
+              <Link
+                href="/login"
+                style={{
+                  minHeight: 46,
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  borderRadius: 12,
+                  textDecoration: 'none',
+                  background: '#4f46e5',
+                  color: '#fff',
+                  fontWeight: 900,
+                }}
+              >
+                무료 회원가입
+              </Link>
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowHistoryAuthPrompt(false)}
+              style={{
+                width: '100%',
+                marginTop: 12,
+                padding: 8,
+                border: 0,
+                cursor: 'pointer',
+                background: 'transparent',
+                color: '#6b7280',
+                fontWeight: 700,
+              }}
+            >
+              닫기
+            </button>
+          </div>
+        </div>
+      )}
 
       <style jsx>{`
         @media (max-width: 900px) {
