@@ -1555,7 +1555,7 @@ if "matplotlib.pyplot" in sys.modules:
                   ? showAnswer
                     ? "정답 및 풀이 숨기기"
                     : "정답 및 풀이 보기"
-                  : `🔒 AI 채점 ${ANSWER_UNLOCK_SCORE}점 이상에서 공개`}
+                  : `🔒 채점 결과 ${ANSWER_UNLOCK_SCORE}점 이상에서 정답 및 풀이 확인 가능`}
             </button>
 
             {isAuthenticated &&
@@ -1571,8 +1571,8 @@ if "matplotlib.pyplot" in sys.modules:
                   }}
                 >
                   {currentScore == null
-                    ? `먼저 답안을 작성하고 AI 채점을 받아보세요. ${ANSWER_UNLOCK_SCORE}점 이상이면 정답 및 풀이가 열립니다.`
-                    : `현재 ${currentScore}점입니다. AI 피드백을 참고해 답안을 수정한 뒤 다시 채점해보세요.`}
+                    ? `먼저 답안을 작성하고 내 답안 채점을 받아보세요. ${ANSWER_UNLOCK_SCORE}점 이상이면 정답 및 풀이가 열립니다.`
+                    : `현재 ${currentScore}점입니다. 피드백을 참고해 답안을 수정한 뒤 다시 채점해보세요.`}
                 </div>
               )}
           </div>
