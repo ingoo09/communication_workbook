@@ -1518,8 +1518,19 @@ except Exception:
       <Script
         src="https://cdn.jsdelivr.net/pyodide/v0.27.2/full/pyodide.js"
         strategy="afterInteractive"
-        onLoad={() => {
-          initializePython();
+        // onLoad는 스크립트가 최초 다운로드될 때만 호출될 수 있어,
+        // Next.js 클라이언트 이동 후 WorkbookPage가 다시 마운트되면
+        // 이미 캐시된 Pyodide 스크립트에서는 초기화가 시작되지 않는 경우가 있다.
+        // onReady는 최초 로드뿐 아니라 컴포넌트가 다시 마운트될 때도 호출된다.
+        onReady={() => {
+          void initializePython();
+        }}
+        onError={(error) => {
+          console.error("Pyodide script load 실패:", error);
+          setPyReady(false);
+          setCodeOutput(
+            "Python 엔진 스크립트를 불러오지 못했습니다. 잠시 후 다시 시도해주세요.",
+          );
         }}
       />
 
