@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "@monaco-editor/react";
 import type { WorkbookProblem } from "@/types/workbook";
 
@@ -168,6 +168,9 @@ export default function PythonConsoleProblem({
   const [workspace, setWorkspace] = useState<WorkspaceItem[]>([]);
   const [figures, setFigures] = useState<string[]>([]);
 
+  // 같은 시점에 namespace 초기화가 중복 실행되지 않도록 공유한다.
+  const namespacePromiseRef = useRef<Promise<void> | null>(null);
+
   function updateAnswer(patch: Partial<PythonConsoleAnswer>) {
     onChange(
       JSON.stringify({
@@ -181,14 +184,33 @@ export default function PythonConsoleProblem({
   async function ensureNamespace(reset = false) {
     if (!pyodide) return;
 
-    await pyodide.runPythonAsync(`
+    // reset 요청은 기존 초기화가 진행 중이면 먼저 끝날 때까지 기다린 뒤 새로 만든다.
+    if (namespacePromiseRef.current) {
+      await namespacePromiseRef.current;
+
+      if (!reset) {
+        return;
+      }
+    }
+
+    namespacePromiseRef.current = pyodide.runPythonAsync(`
 import builtins
 
 if ${reset ? "True" : "False"} or "_workbook_python_console_ns" not in globals():
     _workbook_python_console_ns = {
         "__builtins__": builtins.__dict__
     }
-`);
+`).then(() => undefined);
+
+    try {
+      await namespacePromiseRef.current;
+    } finally {
+      namespacePromiseRef.current = null;
+    }
+  }
+
+  function hasImportStatement(source: string) {
+    return /^\s*(from|import)\s+/m.test(source);
   }
 
   async function collectState() {
@@ -291,6 +313,7 @@ json.dumps({
     setTypedCommand("");
     setWorkspace([]);
     setFigures([]);
+    namespacePromiseRef.current = null;
 
     // 새 문제로 이동했을 때 이전 결합형 문제의 변수가 섞이지 않도록 한다.
     if (pyReady && pyodide) {
@@ -306,8 +329,12 @@ json.dumps({
     setRunningScript(true);
 
     try {
-      // Script에 실제로 import된 패키지만 필요 시점에 내려받는다.
-      await pyodide.loadPackagesFromImports(parsed.code);
+      // 실제 import 문이 있을 때만 패키지 분석/로드를 수행한다.
+      // 단순 계산 코드에서 불필요한 loadPackagesFromImports 호출을 줄인다.
+      if (hasImportStatement(parsed.code)) {
+        await pyodide.loadPackagesFromImports(parsed.code);
+      }
+
       await ensureNamespace(true);
 
       // matplotlib이 이미 사용 중인 경우에만 이전 Figure를 지운다.
@@ -380,8 +407,11 @@ json.dumps({
     setRunningConsole(true);
 
     try {
-      // Console에서 새 import가 입력된 경우 해당 패키지만 추가로 로드한다.
-      await pyodide.loadPackagesFromImports(source);
+      // Console에서 실제 import 문이 입력된 경우에만 해당 패키지를 확인한다.
+      if (hasImportStatement(source)) {
+        await pyodide.loadPackagesFromImports(source);
+      }
+
       await ensureNamespace(false);
 
       const result = await pyodide.runPythonAsync(`

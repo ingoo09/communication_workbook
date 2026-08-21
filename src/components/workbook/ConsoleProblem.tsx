@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import type { ConsoleProblem as ConsoleProblemData } from "@/types/workbook";
 
 type ConsoleHistoryItem = {
@@ -138,6 +138,10 @@ export default function ConsoleProblem({
   const [typedCommand, setTypedCommand] = useState("");
   const [workspace, setWorkspace] = useState<WorkspaceItem[]>([]);
   const [figures, setFigures] = useState<string[]>([]);
+  const [consoleReady, setConsoleReady] = useState(false);
+
+  // 같은 문제/같은 Pyodide 인스턴스에서 namespace 초기화를 중복 실행하지 않는다.
+  const resetPromiseRef = useRef<Promise<void> | null>(null);
 
   const answer = useMemo(() => parseAnswer(value), [value]);
 
@@ -153,14 +157,21 @@ export default function ConsoleProblem({
   async function resetNamespace() {
     if (!pyodide) return;
 
-    const setup = problem.setupCode ?? "";
-
-    // setupCode에 import가 있으면 필요한 패키지만 그때 로드한다.
-    if (setup.trim()) {
-      await pyodide.loadPackagesFromImports(setup);
+    if (resetPromiseRef.current) {
+      return resetPromiseRef.current;
     }
 
-    await pyodide.runPythonAsync(`
+    const setup = problem.setupCode ?? "";
+
+    resetPromiseRef.current = (async () => {
+      setConsoleReady(false);
+
+      // import가 실제로 있을 때만 패키지 분석/로드를 수행한다.
+      if (/^\s*(from|import)\s+/m.test(setup)) {
+        await pyodide.loadPackagesFromImports(setup);
+      }
+
+      await pyodide.runPythonAsync(`
 import builtins
 
 _workbook_console_ns = {
@@ -173,15 +184,28 @@ exec(
     _workbook_console_ns
 )
 `);
+      setConsoleReady(true);
+    })();
+
+    try {
+      await resetPromiseRef.current;
+    } finally {
+      resetPromiseRef.current = null;
+    }
   }
 
   useEffect(() => {
     setTypedCommand("");
     setWorkspace([]);
     setFigures([]);
+    setConsoleReady(false);
+    resetPromiseRef.current = null;
 
-    if (pyReady) {
-      resetNamespace().catch(() => undefined);
+    if (pyReady && pyodide) {
+      resetNamespace().catch((error) => {
+        console.error("Console namespace 초기화 실패:", error);
+        setConsoleReady(false);
+      });
     }
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -196,8 +220,18 @@ exec(
     setRunning(true);
 
     try {
-      // 사용자가 Console에서 새 패키지를 import하면 그 패키지만 필요 시점에 로드한다.
-      await pyodide.loadPackagesFromImports(source);
+      // 문제 진입 직후 namespace 준비가 아직 끝나지 않았다면 여기서 기다린다.
+      if (!consoleReady) {
+        // 입력은 허용하되, 첫 Enter 시 필요한 Console namespace를 준비한 뒤
+        // 사용자가 입력한 명령을 자동으로 이어서 실행한다.
+        await resetNamespace();
+      }
+
+      // 실제 import 문이 있을 때만 패키지 분석/로드를 수행한다.
+      // 일반 산술/변수/배열 명령에서 불필요한 호출을 줄인다.
+      if (/^\s*(from|import)\s+/m.test(source)) {
+        await pyodide.loadPackagesFromImports(source);
+      }
 
       const result = await pyodide.runPythonAsync(`
 import ast
@@ -496,7 +530,7 @@ _console_result
             aria-label="Python Console 명령 입력"
             placeholder={
               !pyReady
-                ? "Python 준비 중..."
+                ? "Python 엔진 준비 중..."
                 : running
                   ? "실행 중..."
                   : "명령을 입력하고 Enter"

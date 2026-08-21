@@ -300,6 +300,14 @@ export default function WorkbookPage({
 
   const pyodideRef = useRef<any>(null);
 
+  // Pyodide 초기화가 중복 실행되지 않도록 Promise를 공유한다.
+  // 초기화 실패 시 null로 되돌려 이후 재시도가 가능하도록 한다.
+  const pyodideInitPromiseRef = useRef<Promise<any> | null>(null);
+
+  // Sound/File/Spectrum helper도 최초 필요 시점에 한 번만 설치한다.
+  const workbookHelpersPromiseRef = useRef<Promise<void> | null>(null);
+  const workbookHelpersReadyRef = useRef(false);
+
   const [pyodide, setPyodide] = useState<any>(null);
 
   const promptRef = useRef<HTMLDivElement | null>(null);
@@ -1260,58 +1268,109 @@ has_audio = False
 `);
   }
 
-  async function initializePython() {
-    try {
+  async function ensurePyodide() {
+    if (pyodideRef.current) {
+      return pyodideRef.current;
+    }
+
+    if (pyodideInitPromiseRef.current) {
+      return pyodideInitPromiseRef.current;
+    }
+
+    pyodideInitPromiseRef.current = (async () => {
       console.log("Pyodide 초기화 시작");
-
-      setCodeOutput("Python 로딩 중입니다...");
-
-      console.log("window.loadPyodide:", (window as any).loadPyodide);
+      setCodeOutput("Python 엔진을 준비하는 중입니다...");
 
       if (!(window as any).loadPyodide) {
-        setCodeOutput("loadPyodide가 없습니다.");
-        return;
+        throw new Error("loadPyodide가 아직 준비되지 않았습니다.");
       }
 
-      const pyodide = await (window as any).loadPyodide({
+      const instance = await (window as any).loadPyodide({
         indexURL: "https://cdn.jsdelivr.net/pyodide/v0.27.2/full/",
       });
 
       console.log("Pyodide 로딩 완료");
 
-      pyodideRef.current = pyodide;
-      setPyodide(pyodide);
+      pyodideRef.current = instance;
+      setPyodide(instance);
 
-      setCodeOutput("Workbook 공통 기능을 준비하는 중입니다...");
-      await installWorkbookSoundHelpers(pyodide);
-
-      // Pyodide 본체와 Workbook 공통 helper 준비가 끝난 뒤 실행 가능 상태로 전환한다.
+      // NumPy/SciPy/Sound helper까지 기다리지 않고,
+      // Pyodide 본체가 준비되는 즉시 Python 문제 실행을 허용한다.
       setPyReady(true);
-
       setCodeOutput("Python 실행 준비 완료!");
+
+      return instance;
+    })();
+
+    try {
+      return await pyodideInitPromiseRef.current;
+    } catch (e) {
+      // 다음 실행/재시도에서 초기화를 다시 시작할 수 있도록 한다.
+      pyodideInitPromiseRef.current = null;
+      pyodideRef.current = null;
+      setPyodide(null);
+      setPyReady(false);
+      throw e;
+    }
+  }
+
+  function codeUsesWorkbookHelpers(code: string) {
+    return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view)\s*\(/.test(
+      code,
+    );
+  }
+
+  async function ensureWorkbookSoundHelpers(instance: any) {
+    if (workbookHelpersReadyRef.current) {
+      return;
+    }
+
+    if (!workbookHelpersPromiseRef.current) {
+      workbookHelpersPromiseRef.current = (async () => {
+        setCodeOutput("Workbook 파일/사운드 기능을 준비하는 중입니다...");
+        await installWorkbookSoundHelpers(instance);
+        workbookHelpersReadyRef.current = true;
+      })();
+    }
+
+    try {
+      await workbookHelpersPromiseRef.current;
+    } catch (e) {
+      // helper 설치 실패도 다음 실행에서 다시 시도 가능하게 한다.
+      workbookHelpersPromiseRef.current = null;
+      workbookHelpersReadyRef.current = false;
+      throw e;
+    }
+  }
+
+  async function initializePython() {
+    try {
+      await ensurePyodide();
     } catch (e: any) {
       console.error(e);
-
-      setCodeOutput(`Python 초기화 실패:\n${String(e?.message ?? e)}`);
+      setCodeOutput(`Python 초기화 실패:\n${String(e?.message ?? e)}\n\nPython 문제에서 다시 실행하면 재시도합니다.`);
     }
   }
 
   async function runPythonCode() {
-    const pyodide = pyodideRef.current;
-
-    if (!pyodide) {
-      setCodeOutput("Python 엔진 초기화 중입니다. 잠시만 기다려주세요.");
-      return;
-    }
-
     setRunningCode(true);
     setCodeOutput(null);
     setPlotImage(null);
     setAudioSource(null);
 
     try {
+      // 초기화가 아직 끝나지 않았으면 여기서 기다리고,
+      // 실패했던 경우에는 새로고침 없이 다시 초기화를 시도한다.
+      const pyodide = await ensurePyodide();
+
       // 학생 코드에 실제로 import된 Pyodide 패키지만 필요 시점에 내려받는다.
       const rawPythonCode = pythonAnswerToCode(userAnswer);
+
+      // 파일/Sound/Spectrum helper는 실제 사용하는 문제에서만 최초 1회 설치한다.
+      // 따라서 일반 Python 문제의 최초 실행은 NumPy/SciPy helper 설치를 기다리지 않는다.
+      if (codeUsesWorkbookHelpers(rawPythonCode)) {
+        await ensureWorkbookSoundHelpers(pyodide);
+      }
 
       // 학생에게는 file_load("..."), sound_play("..."), sound_load("...")처럼 간단한 호출만 보이게 한다.
       // Pyodide에서는 파일 fetch가 비동기이므로 실행 직전에 await를 자동으로 붙인다.
@@ -1443,6 +1502,9 @@ except Exception:
 
   return (
     <>
+      <link rel="preconnect" href="https://cdn.jsdelivr.net" crossOrigin="anonymous" />
+      <link rel="dns-prefetch" href="//cdn.jsdelivr.net" />
+
       <link
         rel="stylesheet"
         href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css"
