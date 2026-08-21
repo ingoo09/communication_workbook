@@ -16,6 +16,7 @@ type ProblemRendererProps = {
   runningCode: boolean;
   codeOutput: string | null;
   plotImage: string | null;
+  audioSource: string | null;
   onRunPython: () => void;
 };
 
@@ -28,6 +29,7 @@ export default function ProblemRenderer({
   runningCode,
   codeOutput,
   plotImage,
+  audioSource,
   onRunPython,
 }: ProblemRendererProps) {
   const type = resolveProblemType(problem);
@@ -52,6 +54,7 @@ export default function ProblemRenderer({
         runningCode={runningCode}
         codeOutput={codeOutput}
         plotImage={plotImage}
+        audioSource={audioSource}
         onRunPython={onRunPython}
       />
     );

@@ -279,6 +279,7 @@ export default function WorkbookPage({
   const [saveNotice, setSaveNotice] = useState("");
 
   const [plotImage, setPlotImage] = useState<string | null>(null);
+  const [audioSource, setAudioSource] = useState<string | null>(null);
 
   // ✅ AI 채점 결과
   const [grading, setGrading] = useState(false);
@@ -502,6 +503,7 @@ export default function WorkbookPage({
       setGradeResult(null);
       setCodeOutput(null);
       setPlotImage(null);
+      setAudioSource(null);
       setSaved(false);
     }
   }, [idToIndex]);
@@ -686,6 +688,7 @@ export default function WorkbookPage({
     setGradeResult(null);
     setCodeOutput(null);
     setPlotImage(null);
+    setAudioSource(null);
     setSaved(false);
     setSaveNotice("");
 
@@ -861,6 +864,402 @@ plt.close('all')
     }
   }
 
+
+  async function installWorkbookSoundHelpers(pyodide: any) {
+    // Workbook 공통 파일/Sound/Spectrum helper.
+    // 학생 코드는 file_load(...), sound_load(...), sound_play(...), signal_play(...), spectrum_view(...)만 사용하고
+    // WAV/Base64 변환 등 내부 구현은 숨긴다.
+    await pyodide.loadPackage(["numpy", "scipy"]);
+
+    await pyodide.runPythonAsync(`
+from pyodide.http import pyfetch
+from scipy.io import loadmat, wavfile
+from scipy.signal import windows
+
+import io
+import base64
+import os
+import numpy as np
+
+async def _workbook_fetch_binary(url, local_path):
+    response = await pyfetch(url)
+
+    if not response.ok:
+        raise FileNotFoundError(
+            f"Sound resource를 불러오지 못했습니다: {url} "
+            f"(HTTP {response.status})"
+        )
+
+    payload = await response.bytes()
+
+    with open(local_path, "wb") as f:
+        f.write(payload)
+
+    return local_path
+
+
+async def file_load(path):
+    """
+    public/static/data 아래의 파일을 Pyodide 작업 폴더(/home/pyodide)로 복사한다.
+
+    사용 예:
+        file_load("ch2/song.mat")
+        data = loadmat("song.mat")
+
+        filename = file_load("ch2/song.mat")
+        data = loadmat(filename)
+
+    반환값:
+        Pyodide 내부에서 사용할 로컬 파일명(str)
+    """
+    path = str(path).strip()
+
+    if not path:
+        raise ValueError("파일 경로가 비어 있습니다.")
+
+    normalized = path.lstrip("/")
+
+    if normalized.startswith("static/data/"):
+        normalized = normalized[len("static/data/"):]
+
+    url = f"/static/data/{normalized}"
+
+    filename = normalized.split("/")[-1]
+    if not filename:
+        raise ValueError("유효한 파일명이 없습니다.")
+
+    local_path = f"/home/pyodide/{filename}"
+
+    await _workbook_fetch_binary(url, local_path)
+
+    print(f"File loaded: {normalized} -> {filename}")
+
+    return filename
+
+
+def _workbook_signal_to_audio_base64(signal, fs):
+    global audio_base64, has_audio
+
+    x = np.asarray(signal, dtype=np.float64).squeeze()
+
+    if x.ndim != 1:
+        raise ValueError("재생할 신호는 1차원 배열이어야 합니다.")
+
+    if x.size == 0:
+        raise ValueError("재생할 신호가 비어 있습니다.")
+
+    fs = int(round(float(fs)))
+
+    if fs <= 0:
+        raise ValueError("Sampling frequency는 양수여야 합니다.")
+
+    peak = np.max(np.abs(x))
+
+    if np.isfinite(peak) and peak > 0:
+        x = x / peak
+
+    # NaN/Inf가 들어오더라도 WAV 변환에서 깨지지 않도록 정리한다.
+    x = np.nan_to_num(x, nan=0.0, posinf=1.0, neginf=-1.0)
+    x = np.clip(x, -1.0, 1.0)
+
+    x_pcm = np.int16(x * 32767)
+
+    buffer = io.BytesIO()
+    wavfile.write(buffer, fs, x_pcm)
+    buffer.seek(0)
+
+    audio_base64 = base64.b64encode(
+        buffer.read()
+    ).decode("utf-8")
+
+    has_audio = True
+
+    print(
+        f"Sound ready | "
+        f"fs = {fs} Hz | "
+        f"duration = {float(x.size / fs):.3f} s"
+    )
+
+    return {
+        "samples": int(x.size),
+        "fs": fs,
+        "duration": float(x.size / fs),
+    }
+
+
+def signal_play(signal, fs):
+    """
+    메모리에 있는 1차원 signal을 재생한다.
+
+    사용 예:
+        signal_play(y, fs)
+    """
+    return _workbook_signal_to_audio_base64(signal, fs)
+
+
+def spectrum_view(
+    signal,
+    fs,
+    window_length=1024,
+    averages=200,
+    overlap_percent=6.25,
+    ymin=-40,
+    ymax=25,
+    reference_load=1.0,
+):
+    """
+    교수님 MATLAB Spectrum Analyzer 기본 설정을 기준으로
+    centered Power spectrum을 dBm 단위로 표시한다.
+
+    기본 설정:
+      - Buffer / Window length: 1024 samples
+      - Spectral averages: 200
+      - Frequency range: [-Fs/2, Fs/2]
+      - Overlap: 6.25 %
+      - Type: Power
+      - Units: dBm
+      - Y limits: -40 ~ 25 dBm
+      - Reference load: 1 ohm
+
+    사용 예:
+        spectrum_view(x, fs)
+    """
+    import matplotlib.pyplot as plt
+
+    x = np.asarray(signal, dtype=np.float64).squeeze()
+
+    if x.ndim != 1:
+        raise ValueError("Spectrum Viewer 입력 신호는 1차원 배열이어야 합니다.")
+
+    if x.size == 0:
+        raise ValueError("Spectrum Viewer 입력 신호가 비어 있습니다.")
+
+    fs = float(fs)
+    if not np.isfinite(fs) or fs <= 0:
+        raise ValueError("Sampling frequency는 양수여야 합니다.")
+
+    window_length = int(window_length)
+    averages = int(averages)
+    overlap_percent = float(overlap_percent)
+    reference_load = float(reference_load)
+
+    if window_length <= 1:
+        raise ValueError("window_length는 2 이상이어야 합니다.")
+
+    if averages <= 0:
+        raise ValueError("averages는 1 이상이어야 합니다.")
+
+    if not (0 <= overlap_percent < 100):
+        raise ValueError("overlap_percent는 0 이상 100 미만이어야 합니다.")
+
+    if reference_load <= 0:
+        raise ValueError("reference_load는 양수여야 합니다.")
+
+    overlap_samples = int(round(window_length * overlap_percent / 100.0))
+    hop = window_length - overlap_samples
+
+    # MATLAB Spectrum Analyzer와 유사한 주기형 Hann window 사용.
+    win = windows.hann(window_length, sym=False)
+
+    # 데이터가 한 window보다 짧으면 0-padding하여 한 프레임을 만든다.
+    if x.size < window_length:
+        padded = np.zeros(window_length, dtype=np.float64)
+        padded[:x.size] = x
+        x_for_frames = padded
+    else:
+        x_for_frames = x
+
+    starts = list(range(0, x_for_frames.size - window_length + 1, hop))
+
+    if not starts:
+        starts = [0]
+
+    # 정적 Workbook 데이터에서는 앞에서부터 최대 averages개의 frame을 평균한다.
+    starts = starts[:averages]
+
+    psd_sum = np.zeros(window_length, dtype=np.float64)
+    window_energy = float(np.sum(win ** 2))
+
+    for start in starts:
+        frame = x_for_frames[start:start + window_length]
+
+        if frame.size < window_length:
+            temp = np.zeros(window_length, dtype=np.float64)
+            temp[:frame.size] = frame
+            frame = temp
+
+        spectrum = np.fft.fft(frame * win, n=window_length)
+
+        # Two-sided modified periodogram [signal^2 / Hz]
+        psd = (np.abs(spectrum) ** 2) / (fs * window_energy)
+        psd_sum += psd
+
+    psd_avg = psd_sum / len(starts)
+
+    # MATLAB Spectrum Analyzer의 Power 표시를 근사:
+    # Power = PSD * RBW, Hann window의 equivalent noise bandwidth 사용.
+    coherent_sum = float(np.sum(win))
+    rbw = fs * window_energy / (coherent_sum ** 2)
+
+    power_watts = (psd_avg * rbw) / reference_load
+    power_dbm = 10.0 * np.log10(
+        np.maximum(power_watts, np.finfo(np.float64).tiny) / 1e-3
+    )
+
+    freq = np.fft.fftfreq(window_length, d=1.0 / fs)
+    freq = np.fft.fftshift(freq)
+    power_dbm = np.fft.fftshift(power_dbm)
+
+    plt.figure(figsize=(9, 4.8))
+    plt.plot(freq, power_dbm)
+    plt.xlim(-fs / 2.0, fs / 2.0)
+    plt.ylim(float(ymin), float(ymax))
+    plt.xlabel("Frequency (Hz)")
+    plt.ylabel("Power (dBm)")
+    plt.title("Spectrum Analyzer")
+    plt.grid(True)
+    plt.tight_layout()
+
+    print(
+        "Spectrum Viewer | "
+        f"Fs = {fs:g} Hz | "
+        f"window = {window_length} | "
+        f"overlap = {overlap_percent:g}% ({overlap_samples} samples) | "
+        f"averages = {len(starts)}/{averages} | "
+        f"RBW ≈ {rbw:.3f} Hz"
+    )
+
+    return {
+        "frequency": freq,
+        "power_dbm": power_dbm,
+        "rbw": rbw,
+        "frames_averaged": len(starts),
+    }
+
+
+async def sound_load(path):
+    """
+    public/static/data 아래의 .mat Sound 자료를 불러와
+    (signal, fs)를 반환한다.
+
+    사용 예:
+        x, fs = await sound_load("ch1/sound.mat")
+    """
+    path = str(path).strip()
+
+    if not path:
+        raise ValueError("Sound 파일 경로가 비어 있습니다.")
+
+    normalized = path.lstrip("/")
+
+    if normalized.startswith("static/data/"):
+        normalized = normalized[len("static/data/"):]
+
+    url = f"/static/data/{normalized}"
+
+    safe_name = normalized.replace("/", "_").replace("\\\\", "_")
+    local_path = f"/home/pyodide/_workbook_{safe_name}"
+
+    await _workbook_fetch_binary(url, local_path)
+
+    mat = loadmat(local_path)
+
+    signal = None
+    fs = None
+
+    # 교수님 MATLAB 자료에서 사용 중인 data 구조 우선 지원
+    if "data" in mat:
+        data = np.asarray(mat["data"])
+
+        if data.ndim == 2 and data.shape[0] == 2:
+            t = np.asarray(data[0, :], dtype=np.float64).squeeze()
+            signal = np.asarray(data[1, :], dtype=np.float64).squeeze()
+
+            if t.size >= 2:
+                dt = float(np.mean(np.diff(t)))
+                if dt > 0:
+                    fs = int(round(1.0 / dt))
+
+        elif data.ndim == 2 and data.shape[1] == 2:
+            t = np.asarray(data[:, 0], dtype=np.float64).squeeze()
+            signal = np.asarray(data[:, 1], dtype=np.float64).squeeze()
+
+            if t.size >= 2:
+                dt = float(np.mean(np.diff(t)))
+                if dt > 0:
+                    fs = int(round(1.0 / dt))
+
+        else:
+            squeezed = np.asarray(data).squeeze()
+            if squeezed.ndim == 1:
+                signal = squeezed
+
+    # 일반적인 변수명 지원
+    if signal is None:
+        for key in ("sound", "signal", "x", "y"):
+            if key in mat:
+                candidate = np.asarray(mat[key]).squeeze()
+                if candidate.ndim == 1:
+                    signal = candidate
+                    break
+
+    if fs is None:
+        for key in ("fs", "Fs", "FS"):
+            if key in mat:
+                candidate = np.asarray(mat[key]).squeeze()
+                if candidate.size == 1:
+                    fs = int(round(float(candidate)))
+                    break
+
+    if signal is None:
+        raise ValueError(
+            "지원되는 음성 신호를 찾지 못했습니다. "
+            "data, sound, signal, x, y 변수 중 하나를 확인하세요."
+        )
+
+    if fs is None:
+        raise ValueError(
+            "Sampling frequency를 결정하지 못했습니다. "
+            "2xN time/signal data 또는 fs/Fs 변수가 필요합니다."
+        )
+
+    signal = np.asarray(signal, dtype=np.float64).squeeze()
+
+    print(
+        f"Sound data loaded: {normalized} | "
+        f"fs = {fs} Hz | "
+        f"samples = {signal.size}"
+    )
+
+    return signal, fs
+
+
+async def sound_play(path):
+    """
+    .mat Sound 자료를 바로 재생한다.
+
+    사용 예:
+        await sound_play("ch1/sound.mat")
+    """
+    signal, fs = await sound_load(path)
+
+    info = _workbook_signal_to_audio_base64(signal, fs)
+
+    print(
+        f"Sound ready | "
+        f"fs = {info['fs']} Hz | "
+        f"duration = {info['duration']:.3f} s"
+    )
+
+    return info
+
+
+# 각 실행 전에 WorkbookPage.tsx가 이 두 값을 다시 초기화한다.
+audio_base64 = ""
+has_audio = False
+`);
+  }
+
   async function initializePython() {
     try {
       console.log("Pyodide 초기화 시작");
@@ -883,8 +1282,10 @@ plt.close('all')
       pyodideRef.current = pyodide;
       setPyodide(pyodide);
 
-      // Pyodide 본체만 먼저 준비한다.
-      // 실제 Python 패키지는 코드 실행 시 import 문을 기준으로 필요한 것만 로드한다.
+      setCodeOutput("Workbook 공통 기능을 준비하는 중입니다...");
+      await installWorkbookSoundHelpers(pyodide);
+
+      // Pyodide 본체와 Workbook 공통 helper 준비가 끝난 뒤 실행 가능 상태로 전환한다.
       setPyReady(true);
 
       setCodeOutput("Python 실행 준비 완료!");
@@ -906,10 +1307,35 @@ plt.close('all')
     setRunningCode(true);
     setCodeOutput(null);
     setPlotImage(null);
+    setAudioSource(null);
 
     try {
       // 학생 코드에 실제로 import된 Pyodide 패키지만 필요 시점에 내려받는다.
-      const pythonCode = pythonAnswerToCode(userAnswer);
+      const rawPythonCode = pythonAnswerToCode(userAnswer);
+
+      // 학생에게는 file_load("..."), sound_play("..."), sound_load("...")처럼 간단한 호출만 보이게 한다.
+      // Pyodide에서는 파일 fetch가 비동기이므로 실행 직전에 await를 자동으로 붙인다.
+      const pythonCode = rawPythonCode
+        .replace(
+          /(^|\n)([ \t]*)sound_play\s*\(/g,
+          '$1$2await sound_play(',
+        )
+        .replace(
+          /(^|\n)([ \t]*)([^#\n]*?=\s*)sound_load\s*\(/g,
+          '$1$2$3await sound_load(',
+        )
+        .replace(
+          /(^|\n)([ \t]*)sound_load\s*\(/g,
+          '$1$2await sound_load(',
+        )
+        .replace(
+          /(^|\n)([ \t]*)([^#\n]*?=\s*)file_load\s*\(/g,
+          '$1$2$3await file_load(',
+        )
+        .replace(
+          /(^|\n)([ \t]*)file_load\s*\(/g,
+          '$1$2await file_load(',
+        );
 
       setCodeOutput("필요한 Python 패키지를 확인하는 중입니다...");
       await pyodide.loadPackagesFromImports(pythonCode);
@@ -935,6 +1361,9 @@ if "matplotlib.pyplot" in sys.modules:
       await pyodide.runPythonAsync(`
 image_base64 = ""
 has_figure = False
+
+audio_base64 = ""
+has_audio = False
 `);
 
       // Python 답안 데이터에서 실제 코드 부분만 실행한다.
@@ -963,6 +1392,15 @@ if "matplotlib.pyplot" in sys.modules:
         image_base64 = base64.b64encode(
             buf.read()
         ).decode('utf-8')
+
+has_audio = False
+
+try:
+    if "audio_base64" in globals():
+        if isinstance(audio_base64, str) and audio_base64.strip() != "":
+            has_audio = True
+except Exception:
+    has_audio = False        
 `);
 
       const hasFigure = pyodide.globals.get("has_figure");
@@ -975,7 +1413,15 @@ if "matplotlib.pyplot" in sys.modules:
         }
       }
 
+      const hasAudio = pyodide.globals.get("has_audio");
 
+      if (hasAudio) {
+        const audioBase64 = pyodide.globals.get("audio_base64");
+
+        if (audioBase64 && String(audioBase64).trim() !== "") {
+          setAudioSource(`data:audio/wav;base64,${audioBase64}`);
+        }
+      }
 
       const imageBase64 = pyodide.globals.get("image_base64");
 
@@ -1332,6 +1778,7 @@ if "matplotlib.pyplot" in sys.modules:
               runningCode={runningCode}
               codeOutput={codeOutput}
               plotImage={plotImage}
+              audioSource={audioSource}
               onRunPython={runPythonCode}
             />
 

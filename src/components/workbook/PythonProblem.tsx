@@ -9,6 +9,7 @@ type PythonProblemProps = {
   runningCode: boolean;
   codeOutput: string | null;
   plotImage: string | null;
+  audioSource: string | null;
   onRunPython: () => void;
 };
 
@@ -74,6 +75,7 @@ export default function PythonProblem({
   runningCode,
   codeOutput,
   plotImage,
+  audioSource,
   onRunPython,
 }: PythonProblemProps) {
   const code = pythonAnswerToCode(value);
@@ -153,6 +155,18 @@ export default function PythonProblem({
                 padding: 10,
               }}
             />
+          )}
+
+          {audioSource && (
+            <div style={{ marginTop: 16 }}>
+              <audio
+                controls
+                src={audioSource}
+                style={{
+                  width: "100%",
+                }}
+              />
+            </div>
           )}
         </div>
       )}

@@ -574,6 +574,74 @@ $$
 참고로, 문제 2.A3에서는 유한한 간격의 샘플을 이용한 수치적분으로 직교성을 확인한 반면, 문제 2.A5에서는 SymPy를 이용해 연속시간 적분식을 직접 계산하여 같은 결과를 확인하였다.
 `,          
         },
+        { //문제 2.B
+          "id": "2-2B",
+          "title": "2.B",
+          "prompt": `비주기 오디오 신호를 직교 신호 집합 (orthogonal set)의 원소들을 이용하여 근사화해보자. 이 문제에서는 오디오 신호를 재생해야하므로, PC 오디오 출력에 스피커나 이어폰을 연결하여 PC 사운드를 들을 수 있도록 하시오
+
+아래는 이번 실습에 사용할 'ch2/song.mat'을 불러오는 py 스크립트이다. 이 파일에 저장된 변수는 오디오 신호를 1/44100초 간격으로 약 16초간 샘플링한 값을 가진 벡터이다. 'data'의 0행에는 샘플링 시간이 저장되어 있고, 'data'의 1행에는 각 샘플링 시간의 샘플 값이 저장되어 있다.
+\`\`\`python
+from scipy.io import loadmat
+
+file_load("ch2/song.mat"); mat = loadmat("song.mat"); data = mat['data']
+signal_play(data[1], 44100)
+\`\`\`
+`,
+        },
+        {
+          "id": "2-2B1",
+          "title": "2.B1",
+          "type": "python",
+          "starterCode": `from scipy.io import loadmat
+
+file_load("ch2/song.mat"); mat = loadmat("song.mat"); data = mat['data']
+signal_play(data[1], 44100)`,
+          "prompt": `py 스크립트를 실행하고, 오디오를 재생하시오.`,
+          "referenceAnswer": `오디오 플레이어가 정상적으로 표시되고 신호가 재생되면 올바르게 실행된 것이다.`
+        },
+        {
+          "id": "2-2B2",
+          "title": "2.B2",
+          "type": "essay",
+          "prompt": `문제 2.B1의 소리를 들은 결과, 어떤 소리가 들렸는지 쓰시오.`,
+          "referenceAnswer": `노래 또는 음악 소리가 들린다. 시간에 따라 소리의 높이와 크기가 계속 변하는 복잡한 오디오 신호임을 확인할 수 있다.`          
+        },
+        {
+          "id": "2-2B3",
+          "title": "2.B3",
+          "type": "python",
+          "starterCode": `import numpy as np
+import matplotlib.pyplot as plt
+from scipy.io import loadmat
+
+N=5;
+file_load("ch2/song.mat"); mat = loadmat("song.mat"); data = mat['data']
+t_step=1/44100
+sample_num=50
+T=t_step*sample_num; # T= 50개 샘플동안의 시간
+t=np.arange(0,T-t_step,t_step)
+interval=np.arange(1,sample_num)+sample_num*X #f(t)의 구간, X는 학번 끝 한자리
+ft=data[1,interval] # 음성신호 f(t)의 interval 구간의 샘플 벡터
+f1=1/(2*T)
+plt.figure(figsize=(5,10))
+plt.subplot(N+1,1,1)
+plt.plot(t, ft)
+plt.grid()
+for n in range(1,N+1):
+    snt=np.sin(2*np.pi*n*f1*t);  
+    plt.subplot(N+1,1,n+1);
+    plt.plot(t, snt, 'r')
+    plt.grid()`,
+          "prompt": `아래 py 스크립트에서 11번째 라인의 'X'를 자신의 학번 끝 한자리로 바꾼 후, 실행하고 결과 그래프를 확인하시오.`,
+          "referenceAnswer": `자신의 학번 끝 한자리를 X에 대입하여 py 스크립트를 실행하면, 맨 위에는 song.mat에서 선택한 50개 샘플 구간의 오디오 신호 f(t)가 표시되고, 그 아래에는 서로 다른 주파수를 갖는 5개의 정현파가 표시된다. 빨간색 정현파들은 sin(2πnf₁t),  n = 1, 2, ..., 5 형태이며, n이 증가할수록 주파수가 증가하는 것을 그래프에서 확인할 수 있다.`
+        },
+        {
+          "id": "2-2B4",
+          "title": "2.B4",
+          "type": "essay",
+          "prompt": `문제 2.B3에서 확인한 그래프의 맨 위 파형(파란색)은 문제 2.B1에서 들은 소리에서 임의의 일부분을 잘라온 것이다. 이제, 아래 파형들(빨간색)에 각각 어떤 수를 곱한 후에 다 더하여 파란색 파형과 일치하는(또는 매우 근접한) 파형을 만들려고 한다. 이것이 가능할 것 같은지 아닌지를, 이론 지식과 상관없이 자신의 직관으로 판단해 쓰시오.`,
+          "referenceAnswer": `예시) 가능할 것 같다. 각 빨간색 정현파에 서로 다른 크기의 수를 곱한 뒤 모두 더하면, 여러 정현파가 합성되어 더 복잡한 파형을 만들 수 있다. 따라서 적절한 계수를 선택한다면 맨 위의 파란색 파형과 비슷한 형태의 파형을 만들 수 있을 것으로 생각한다. 다만 현재는 5개의 정현파만 사용하므로 완전히 일치하기보다는 근사된 파형이 만들어질 것으로 예상할 수 있다.`
+        },
       ]
     },
   ]

@@ -1693,5 +1693,100 @@ SymPy는 기본적으로 정확한 기호식 형태로 결과를 유지하므로
         },
       ]
     },
+    { //문제 5
+      id: '1-5',
+      title: '5. 사운드 모듈, 스펙트럼 모듈 사용하기',
+      problems: [
+        {
+          id: '1-5A',
+          title: '5.A.',
+          prompt: `Python으로 py 스크립트를 작성할 때마다 매번 비슷한 함수를 작성한다면 보기에도 복잡할 뿐 아니라 코드도 길어지고 중복되는 부분이 생겨 불편한 점이 많다. 이런 경우에는 중복되는 부분을 빼내서 모듈로 만들면, py 스크립트를 작성할 때 코드를 다시 작성하지 않고 모듈만 가져와서 사용할 수 있으므로 더욱 편리하다.
+          
+이 온라인 워크북에는 실습에 사용할 파일 로드를 위한 'file_load()' 모듈, 신호의 스펙트럼 관찰을 위한 'spectrum_view()' 모듈, 그리고 신호 재생을 위한 'signal_play()' 모듈을 제공한다.
+`,
+        },
+        {
+          id: '1-5A1',
+          title: '5.A1.',
+          "type": "python",
+          prompt: `실습에 사용할 파일 로드를 위한 'file_load()' 활용법을 익혀보자. 아래 py 스크립트는 실습에 사용할 'ch1/sound.mat'을 불러온다. 여기에 저장된 변수 'data'의 0행에는 샘플링 시간이 저장되어 있고, 1행에는 각 샘플링 시간의 샘플 값이 저장되어 있다. 그리고, 불러온 변수 'data'의 시간 축에서의 파형을 그린다.
+\`\`\`python
+from scipy.io import loadmat
+import matplotlib.pyplot as plt
+
+file_load("ch1/sound.mat"); mat = loadmat("sound.mat"); data = mat['data']
+print(data[0])
+print(data[1])
+plt.plot(data[0],data[1])
+\`\`\`
+py 스크립트를 실행하고, 파일 로드가 제대로 이뤄졌는지, 시간 축 그래프가 제대로 그려졌는지 확인하시오.
+`,
+          "starterCode": `from scipy.io import loadmat
+import matplotlib.pyplot as plt
+
+file_load("ch1/sound.mat"); mat = loadmat("sound.mat"); data = mat['data']
+print(data[0])
+print(data[1])
+plt.plot(data[0],data[1])`,
+          referenceAnswer: `파일 로드가 정상적으로 이루어지면 'data' 변수에 2행의 데이터가 저장된다. 0행에는 샘플링 시간이, 1행에는 각 샘플링 시간에 대응하는 신호 샘플 값이 저장되어 있다.
+
+또한, plt.plot(data[0], data[1]) 실행 결과 시간에 따른 신호 파형이 정상적으로 표시되면 파일 로드와 시간축 파형 확인이 올바르게 수행된 것이다.`
+        },
+        {
+          id: '1-5A2',
+          title: '5.A2.',
+          "type": "python",
+          prompt: `신호의 스펙트럼 관찰을 위한 'spectrum_view()' 활용법을 익혀보자. 'spectrum_view()'의 첫 번째 인수에는 관찰할 신호 벡터를, 두 번째 인수에는 샘플링 주파수를 입력한다.
+
+아래 py 스크립트는 실습에 사용할 'ch1/sound.mat'을 불러오고, 불러온 변수 'data'의 주파수 축에서의 스펙트럼을 그린다.
+\`\`\`python
+from scipy.io import loadmat
+import matplotlib.pyplot as plt
+
+file_load("ch1/sound.mat"); mat = loadmat("sound.mat"); data = mat['data']
+fs=1/(data[0][1]-data[0][0]); print("샘플링 주파수: {} [Hz]".format(fs))
+spectrum_view(data[1],fs)
+\`\`\`
+py 스크립트를 실행하고, 신호의 스펙트럼을 확인하시오.
+`,
+          "starterCode": `from scipy.io import loadmat
+import matplotlib.pyplot as plt
+
+file_load("ch1/sound.mat"); mat = loadmat("sound.mat"); data = mat['data']
+fs=1/(data[0][1]-data[0][0]); print("샘플링 주파수: {} [Hz]".format(fs))
+spectrum_view(data[1],fs)`,
+          referenceAnswer: `샘플링 주파수는 fs = 1 / (data[0][1] - data[0][0])으로 계산할 수 있다. 'sound.mat'의 경우 샘플링 간격은 약 0.00012207 s이므로 샘플링 주파수는 약 8192 Hz이다.
+
+spectrum_view(data[1], fs)를 실행하면 신호의 주파수 성분이 스펙트럼 형태로 표시된다. 주파수축 범위는 -fs/2부터 fs/2까지이며, 신호에 포함된 주요 주파수 성분의 크기를 확인할 수 있다.`
+        },
+        {
+          id: '1-5A3',
+          title: '5.A3.',
+          "type": "python",
+          prompt: `신호 재생을 위한 'signal_play()' 활용법을 익혀보자. 'signal_play()'의 첫 번째 인수에는 재생할 신호 벡터를, 두 번째 인수에는 샘플링 주파수를 입력한다.
+
+아래 py 스크립트는 실습에 사용할 'ch1/sound.mat'을 불러오고, 여기에 저장된 변수 'data'의 1행을 재생한다.
+\`\`\`python
+from scipy.io import loadmat
+import matplotlib.pyplot as plt
+
+file_load("ch1/sound.mat"); mat = loadmat("sound.mat"); data = mat['data']
+fs=1/(data[0][1]-data[0][0]); print("샘플링 주파수: {} [Hz]".format(fs))
+signal_play(data[1],fs)
+\`\`\`
+py 스크립트를 실행하고, 신호가 제대로 재생되는지 확인하시오.
+`,
+          "starterCode": `from scipy.io import loadmat
+import matplotlib.pyplot as plt
+
+file_load("ch1/sound.mat"); mat = loadmat("sound.mat"); data = mat['data']
+fs=1/(data[0][1]-data[0][0]); print("샘플링 주파수: {} [Hz]".format(fs))
+signal_play(data[1],fs)`,
+          referenceAnswer: `샘플링 주파수는 fs = 1 / (data[0][1] - data[0][0])으로 계산하며, 'sound.mat'의 경우 약 8192 Hz이다. signal_play(data[1], fs)를 실행하면 data의 1행에 저장된 신호가 해당 샘플링 주파수로 재생된다.
+
+오디오 플레이어가 정상적으로 표시되고 신호를 들을 수 있다면 신호 재생 기능이 올바르게 동작한 것이다.`
+        },
+      ],
+    },
   ],
 } as const satisfies WorkbookChapter;
