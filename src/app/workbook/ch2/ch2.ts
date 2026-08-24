@@ -159,7 +159,7 @@ S_num=np.sum(y)*xstep; print(S_num)
           "id": "2-1B2",
           "title": "1.B2.",
           "type": "python",
-          "prompt": `1장의 문제 4를 참고하여, 위 적분식의 값을 sympy 모듈을 사용하여 구하는 py 스크립트를 작성하고, 실행하여 결과를 확인하시오.`,
+          "prompt": `[[link:/workbook/ch1?p=1-4A|1장의 문제 4]]를 참고하여, 위 적분식의 값을 sympy 모듈을 사용하여 구하는 py 스크립트를 작성하고, 실행하여 결과를 확인하시오.`,
           "referenceAnswer":  `
 예시 코드는 다음과 같다.
 \`\`\`python
