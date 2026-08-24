@@ -165,9 +165,10 @@ function getPart(chapterId: number): PartId {
 const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
-  const access: Chapter['access'] =
-    id === 1 || id === 2 || id === 14 ? 'sample' :
-    id === 15 || id === 16 ? 'locked' : 'preparing';
+  const access: Chapter['access'] = id === 1 || id === 2 || id === 14 ? 'sample' : 'preparing';
+    //id === 1 || id === 2 || id === 14 ? 'sample' :
+    //id === 15 || id === 16 ? 'locked' : 'preparing';
+
 
   const available = access !== 'preparing';
 
@@ -498,6 +499,30 @@ export default function WorkbookHome() {
                 Credit {creditBalance}
               </div>
             )}
+            {isAuthenticated && (
+              <Link
+                href="/account"
+                style={{
+                  flex: '0 0 auto',
+                  minHeight: 42,
+                  padding: '10px 14px',
+                  borderRadius: 12,
+                  border: '1px solid rgba(255,255,255,0.12)',
+                  color: 'white',
+                  background: 'rgba(255,255,255,0.07)',
+                  fontWeight: 700,
+                  fontSize: 13,
+                  boxSizing: 'border-box',
+                  whiteSpace: 'nowrap',
+                  textDecoration: 'none',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                회원정보 수정
+              </Link>
+            )}
             <AuthControls />
           </div>
         </div>
@@ -627,8 +652,8 @@ export default function WorkbookHome() {
             {[
               { value: '30', label: 'Total Chapters' },
               { value: '4', label: 'Curriculum Parts' },
-              { value: 'AI', label: 'Auto Grading' },
               { value: 'Python', label: 'Interactive Coding' },
+              { value: 'Feedback', label: 'Instant Grading' },
             ].map((item) => (
               <div
                 key={item.label}
@@ -819,7 +844,7 @@ export default function WorkbookHome() {
                   }}
                 >
                   {chapter.access === 'sample'
-                    ? 'FREE SAMPLE'
+                    ? 'FREE'
                     : chapter.access === 'unlocked'
                       ? 'UNLOCKED'
                       : chapter.access === 'locked'

@@ -64,6 +64,10 @@ export default function HistoryPage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [email, setEmail] = useState("");
   const [error, setError] = useState("");
+  const [chapterFilter, setChapterFilter] = useState("all");
+  const [gradingFilter, setGradingFilter] = useState<"all" | "graded" | "ungraded">("all");
+  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "score-desc" | "score-asc">("recent");
+  const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
     let cancelled = false;
@@ -122,10 +126,61 @@ export default function HistoryPage() {
     };
   }, [router]);
 
+  const chapterOptions = useMemo(
+    () =>
+      Array.from(new Set(answers.map((answer) => answer.chapter_id))).sort(
+        (a, b) => a.localeCompare(b, undefined, { numeric: true }),
+      ),
+    [answers],
+  );
+
+  const filteredSortedAnswers = useMemo(() => {
+    const query = searchTerm.trim().toLowerCase();
+
+    const rows = answers.filter((answer) => {
+      if (chapterFilter !== "all" && answer.chapter_id !== chapterFilter) {
+        return false;
+      }
+
+      if (gradingFilter === "graded" && typeof answer.score !== "number") {
+        return false;
+      }
+
+      if (gradingFilter === "ungraded" && typeof answer.score === "number") {
+        return false;
+      }
+
+      if (query) {
+        const haystack = `${answer.problem_id} ${answer.problem_title ?? ""}`.toLowerCase();
+        if (!haystack.includes(query)) return false;
+      }
+
+      return true;
+    });
+
+    return [...rows].sort((a, b) => {
+      if (sortMode === "oldest") {
+        return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      }
+
+      if (sortMode === "score-desc") {
+        return (b.score ?? -1) - (a.score ?? -1);
+      }
+
+      if (sortMode === "score-asc") {
+        const aScore = typeof a.score === "number" ? a.score : Number.POSITIVE_INFINITY;
+        const bScore = typeof b.score === "number" ? b.score : Number.POSITIVE_INFINITY;
+        return aScore - bScore;
+      }
+
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
+  }, [answers, chapterFilter, gradingFilter, searchTerm, sortMode]);
+
   const chapterGroups = useMemo(() => {
     const groups = new Map<string, AnswerRow[]>();
 
-    for (const answer of answers) {
+    for (const answer of filteredSortedAnswers) {
       const list = groups.get(answer.chapter_id) ?? [];
       list.push(answer);
       groups.set(answer.chapter_id, list);
@@ -134,7 +189,7 @@ export default function HistoryPage() {
     return Array.from(groups.entries()).sort(([a], [b]) =>
       a.localeCompare(b, undefined, { numeric: true }),
     );
-  }, [answers]);
+  }, [filteredSortedAnswers]);
 
   const gradedCount = answers.filter(
     (answer) => typeof answer.score === "number",
@@ -226,7 +281,7 @@ export default function HistoryPage() {
         >
           {[
             { label: "저장한 문제", value: `${answers.length}개` },
-            { label: "AI 채점 완료", value: `${gradedCount}개` },
+            { label: "채점 완료", value: `${gradedCount}개` },
             {
               label: "평균 점수",
               value: averageScore == null ? "-" : `${averageScore}점`,
@@ -283,8 +338,101 @@ export default function HistoryPage() {
               color: "#6b7280",
             }}
           >
-            아직 저장된 답안이 없습니다. 문제에서 답안을 저장하거나 AI 채점을
+            아직 저장된 답안이 없습니다. 문제에서 답안을 저장하거나 채점을
             완료하면 여기에 기록됩니다.
+          </div>
+        )}
+
+        {!error && answers.length > 0 && (
+          <section
+            style={{
+              marginTop: 28,
+              padding: 18,
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              borderRadius: 18,
+            }}
+          >
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
+                gap: 10,
+              }}
+            >
+              <select
+                value={chapterFilter}
+                onChange={(event) => setChapterFilter(event.target.value)}
+                style={filterControlStyle}
+                aria-label="Chapter 필터"
+              >
+                <option value="all">전체 Chapter</option>
+                {chapterOptions.map((chapterId) => (
+                  <option key={chapterId} value={chapterId}>
+                    Chapter {chapterId.replace(/^ch/i, "")}
+                  </option>
+                ))}
+              </select>
+
+              <select
+                value={gradingFilter}
+                onChange={(event) =>
+                  setGradingFilter(event.target.value as "all" | "graded" | "ungraded")
+                }
+                style={filterControlStyle}
+                aria-label="채점 상태 필터"
+              >
+                <option value="all">전체 답안</option>
+                <option value="graded">채점 완료</option>
+                <option value="ungraded">미채점</option>
+              </select>
+
+              <select
+                value={sortMode}
+                onChange={(event) =>
+                  setSortMode(
+                    event.target.value as
+                      | "recent"
+                      | "oldest"
+                      | "score-desc"
+                      | "score-asc",
+                  )
+                }
+                style={filterControlStyle}
+                aria-label="정렬"
+              >
+                <option value="recent">최근 저장순</option>
+                <option value="oldest">오래된 저장순</option>
+                <option value="score-desc">점수 높은순</option>
+                <option value="score-asc">점수 낮은순</option>
+              </select>
+
+              <input
+                value={searchTerm}
+                onChange={(event) => setSearchTerm(event.target.value)}
+                placeholder="문제 번호 또는 제목 검색"
+                style={filterControlStyle}
+              />
+            </div>
+
+            <div style={{ marginTop: 10, color: "#6b7280", fontSize: 13 }}>
+              조건에 맞는 답안 {filteredSortedAnswers.length}개
+            </div>
+          </section>
+        )}
+
+        {!error && answers.length > 0 && filteredSortedAnswers.length === 0 && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: 24,
+              borderRadius: 16,
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              color: "#6b7280",
+            }}
+          >
+            선택한 조건에 맞는 답안이 없습니다.
           </div>
         )}
 
@@ -488,7 +636,7 @@ export default function HistoryPage() {
                                 fontSize: 14,
                               }}
                             >
-                              AI 피드백
+                              채점 피드백
                             </div>
                             <div
                               style={{
@@ -516,3 +664,16 @@ export default function HistoryPage() {
     </main>
   );
 }
+
+
+const filterControlStyle = {
+  width: "100%",
+  minHeight: 44,
+  padding: "9px 11px",
+  borderRadius: 11,
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  color: "#111827",
+  fontSize: 14,
+  boxSizing: "border-box" as const,
+};

@@ -24,9 +24,9 @@ for n in range(0,Nsim):
     count[0]=count[0]+1
   elif x==2:
     count[1]=count[1]+1
-  ...
+  # ... 미완성된 부분을 마저 채워 완성할 것
 
-Px=count/?
+Px=count/? #채워넣을 부분
 plt.stem([1,2,3,4,5,6],Px)
 \`\`\`
 `,
@@ -69,9 +69,9 @@ for n in range(0,Nsim):
     count[0]=count[0]+1
   elif x==2:
     count[1]=count[1]+1
-  ...
+  # ... 미완성된 부분을 마저 채워 완성할 것
 
-Px=count/?
+Px=count/? #채워넣을 부분
 plt.stem([1,2,3,4,5,6],Px)`,
           "referenceAnswer": `
 \`\`\`python          
@@ -127,7 +127,7 @@ plt.stem([1,2,3,4,5,6],Px)
           "id": "14-1B1",
           "title": "1.B1.",
           "type": "python",
-          "prompt": `py 스크립트를 수정하여 완성하고, '코드 실행'을 여러 번 클릭하여 결과 그래프를 확인하시오.`,
+          "prompt": `문제 1.A의 py 스크립트를 복사하여 여기에 붙여넣은 후, py 스크립트를 수정하여 완성하고, '코드 실행'을 여러 번 클릭하여 결과 그래프를 확인하시오.`,
           "referenceAnswer": `
 \`\`\`python
 import numpy as np
@@ -192,7 +192,7 @@ x_step=0.01
 x=np.arange(-5,5,x_step)
 mu=0
 sigma=np.sqrt(1)
-Px=(1/np.sqrt(?))*np.exp(-(x-?)**2/?)
+Px=(1/np.sqrt(?))*np.exp(-(x-?)**2/?) #문제 2.A1
 plt.plot(x,Px)
 \`\`\`
 `
@@ -217,7 +217,7 @@ plt.plot(x,Px)
           "id": "14-2A2",
           "title": "2.A2.",
           "type": "python",
-          "prompt": `문제 2.A1에서 답한 수식을 통해 'Px' 생성 라인을 완성하고, 결과 그래프를 확인하시오.`,
+          "prompt": `문제 2.A1의 답을 8번째 라인의 'Px' 생성 라인을 완성하고, 결과 그래프를 확인하시오.`,
           "starterCode": `import numpy as np
 import matplotlib.pyplot as plt
 
@@ -225,7 +225,7 @@ x_step=0.01
 x=np.arange(-5,5,x_step)
 mu=0
 sigma=np.sqrt(1)
-Px=(1/np.sqrt(?))*np.exp(-(x-?)**2/?)
+Px=(1/np.sqrt(?))*np.exp(-(x-?)**2/?) #문제 2.A1
 plt.plot(x,Px)`,
           "referenceAnswer": `\`\`\`python
 import numpy as np
@@ -837,7 +837,7 @@ $$
 >>> import numpy as np
 >>> N=1XXX #XXX=자신의 학번 끝 3자리
 >>> X=np.random.randn(N)
->>> m=sum(?)/?; print(m)
+>>> m=sum(?)/?; print(m) #완성해야 할 부분
 \`\`\`
 실험을 통해 계산한 $m$이 함수' np.random.randn()'의 이론적인 평균과 거의 일치하는가? 만약, 일치하지 않았다면, 'N'의 값을 현재 값에서 10배 증가시키고, 코드를 다시 수행하여 $m$을 다시 계산하시오.
 `,
@@ -871,8 +871,8 @@ $$
 >>> import numpy as np
 >>> N=1XXX #XXX=자신의 학번 끝 3자리
 >>> X=np.random.randn(N)
->>> m=sum(?)/?; print(m)
->>> v=?/N-m**2; print(v)
+>>> m=sum(?)/?; print(m) #완성해야 할 부분 (1)
+>>> v=?/N-m**2; print(v) #완성해야 할 부분 (2)
 \`\`\`
 실험을 통해 계산한 $v$가 함수' np.random.randn()'의 이론적인 분산과 거의 일치하는가? 만약, 일치하지 않았다면, 'N'의 값을 현재 값에서 10배 증가시키고, 코드를 다시 수행하여 $v$를 다시 계산하시오.
 `,
@@ -922,7 +922,7 @@ print(v)
           "id": "14-6A",
           "title": "6.A.",
           "type": "python",
-          "prompt": `문제 2.A2에서, 평균이 0이고 분산이 1인 가우시안 랜덤 변수 $X$의 PDF $f_X(x)$의 샘플 벡터 'Px'를 생성하였다. 이 문제에서는 수치적분을 이용하여 평균과 분산을 계산해보자.
+          "prompt": `문제 2.A2에서, 평균이 0이고 분산이 1인 가우시안 랜덤 변수 $X$의 PDF $f_X(x)$의 샘플 벡터 'Px'를 생성하였다. 이 문제에서는 [[link:/workbook/ch2?p=2-1A1|수치적분(2장의 문제 1 참고)]]을 이용하여 평균과 분산을 계산해보자.
           
 평균의 정의인 (식 14.3)에 따라 수치적분으로 'x'의 평균을 구할 수 있다.
 $$
@@ -955,7 +955,7 @@ $$
 $$
 문제 6.A의 py 스크립트를 그대로 복사해서 붙여넣은 후, 아래 코드를 완성해서 추가하고 실행하시오.
 \`\`\`python
-#문제 6.A의 py 스크립트에 아래를 추가.
+#문제 6.A의 py 스크립트에 아래를 완성해서 추가.
 v=sum(?*Px)*x_step; print(v)
 \`\`\`
 수치적분으로 구한 분산의 값을 확인하고, 이론적인 값과 거의 일치하는지 확인하시오.
@@ -1034,7 +1034,7 @@ $$`
           "prompt": `(식 14.5)에 따라 수치적분으로 'x'의 분산을 구할 수 있다.
 문제 6.B의 py 스크립트를 그대로 복사해서 붙여넣은 후, 아래 코드를 완성해서 추가하고 실행하시오.
 \`\`\`python
-#문제 6.B의 py 스크립트에 아래를 추가.
+#문제 6.B의 py 스크립트에 아래를 완성해서 추가.
 v=sum(?)*x_step-m_x**2; print(v)
 \`\`\`
 수치적분으로 구한 분산의 값을 확인하고, 이론적인 값과 거의 일치하는지 확인하시오.`,
@@ -1389,5 +1389,46 @@ sigma²=3에서는 sigma²=1일 때보다 Rayleigh 분포가 더 넓게 퍼진�
         },
       ],
     },
+    { // 설문조사
+  "id": "14-8",
+  "title": "8. 온라인 Workbook 베타 버전 설문조사",
+  "problems": [
+    {
+      "id": "14-8A",
+      "title": "8.A.",
+      "type": "essay",
+      "prompt": `온라인 Workbook을 이용하면서 전체적으로 편리했다고 느낀 점과 불편했다고 느낀 점을 자유롭게 작성해주세요.`,
+      "referenceAnswer": `자유 응답 문항이므로 정해진 정답은 없습니다.`
+    },
+    {
+      "id": "14-8B",
+      "title": "8.B.",
+      "type": "essay",
+      "prompt": `문제 풀이, 코드 실행, 채점 결과 확인, 정답 및 풀이 확인 과정에서 이해하기 어렵거나 불편했던 부분이 있다면 작성해주세요.`,
+      "referenceAnswer": `자유 응답 문항이므로 정해진 정답은 없습니다.`
+    },
+    {
+      "id": "14-8C",
+      "title": "8.C.",
+      "type": "essay",
+      "prompt": `Python 코드 실행 속도와 온라인 Workbook의 전체적인 반응 속도에 대해 느낀 점을 작성해주세요.`,
+      "referenceAnswer": `자유 응답 문항이므로 정해진 정답은 없습니다.`
+    },
+    {
+      "id": "14-8D",
+      "title": "8.D.",
+      "type": "essay",
+      "prompt": `채점 결과와 피드백이 문제를 이해하거나 답안을 수정하는 데 도움이 되었는지 작성해주세요.`,
+      "referenceAnswer": `자유 응답 문항이므로 정해진 정답은 없습니다.`
+    },
+    {
+      "id": "14-8E",
+      "title": "8.E.",
+      "type": "essay",
+      "prompt": `온라인 Workbook에 추가되었으면 하는 기능이나 개선되었으면 하는 부분이 있다면 자유롭게 작성해주세요.`,
+      "referenceAnswer": `자유 응답 문항이므로 정해진 정답은 없습니다.`
+    },
+  ]
+}
   ]
 } as const;

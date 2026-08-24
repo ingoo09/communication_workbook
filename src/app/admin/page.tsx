@@ -69,6 +69,10 @@ export default function AdminPage() {
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [answers, setAnswers] = useState<AnswerRow[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
+  const [studentSearch, setStudentSearch] = useState("");
+  const [chapterFilter, setChapterFilter] = useState("all");
+  const [gradingFilter, setGradingFilter] = useState<"all" | "graded" | "ungraded">("all");
+  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "score-desc" | "score-asc">("recent");
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +156,17 @@ export default function AdminPage() {
     [profiles],
   );
 
+  const visibleStudents = useMemo(() => {
+    const query = studentSearch.trim().toLowerCase();
+    if (!query) return students;
+
+    return students.filter((student) =>
+      `${student.name ?? ""} ${student.student_number ?? ""}`
+        .toLowerCase()
+        .includes(query),
+    );
+  }, [students, studentSearch]);
+
   const answersByUser = useMemo(() => {
     const map = new Map<string, AnswerRow[]>();
 
@@ -164,12 +179,56 @@ export default function AdminPage() {
     return map;
   }, [answers]);
 
+  useEffect(() => {
+    setChapterFilter("all");
+    setGradingFilter("all");
+    setSortMode("recent");
+  }, [selectedStudentId]);
+
   const selectedStudent =
     students.find((student) => student.id === selectedStudentId) ?? null;
 
   const selectedAnswers = selectedStudentId
     ? answersByUser.get(selectedStudentId) ?? []
     : [];
+
+  const chapterOptions = useMemo(
+    () =>
+      Array.from(new Set(selectedAnswers.map((answer) => answer.chapter_id))).sort(
+        (a, b) => a.localeCompare(b, undefined, { numeric: true }),
+      ),
+    [selectedAnswers],
+  );
+
+  const visibleAnswers = useMemo(() => {
+    const rows = selectedAnswers.filter((answer) => {
+      if (chapterFilter !== "all" && answer.chapter_id !== chapterFilter) {
+        return false;
+      }
+      if (gradingFilter === "graded" && typeof answer.score !== "number") {
+        return false;
+      }
+      if (gradingFilter === "ungraded" && typeof answer.score === "number") {
+        return false;
+      }
+      return true;
+    });
+
+    return [...rows].sort((a, b) => {
+      if (sortMode === "oldest") {
+        return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
+      }
+      if (sortMode === "score-desc") {
+        return (b.score ?? -1) - (a.score ?? -1);
+      }
+      if (sortMode === "score-asc") {
+        const aScore = typeof a.score === "number" ? a.score : Number.POSITIVE_INFINITY;
+        const bScore = typeof b.score === "number" ? b.score : Number.POSITIVE_INFINITY;
+        return aScore - bScore;
+      }
+      return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
+    });
+  }, [selectedAnswers, chapterFilter, gradingFilter, sortMode]);
 
   const gradedAnswers = selectedAnswers.filter(
     (answer) => typeof answer.score === "number",
@@ -244,7 +303,7 @@ export default function AdminPage() {
                 lineHeight: 1.7,
               }}
             >
-              학생별 저장 답안, AI 채점 결과와 최근 학습 기록을 확인합니다.
+              학생별 저장 답안, 채점 결과와 최근 학습 기록을 확인합니다.
             </p>
           </div>
 
@@ -343,14 +402,18 @@ export default function AdminPage() {
                   style={{
                     padding: "18px 20px",
                     borderBottom: "1px solid #e5e7eb",
-                    fontWeight: 900,
-                    fontSize: 18,
                   }}
                 >
-                  학생 목록
+                  <div style={{ fontWeight: 900, fontSize: 18 }}>학생 목록</div>
+                  <input
+                    value={studentSearch}
+                    onChange={(event) => setStudentSearch(event.target.value)}
+                    placeholder="이름 또는 학번 검색"
+                    style={{ ...filterControlStyle, marginTop: 12 }}
+                  />
                 </div>
 
-                {students.length === 0 ? (
+                {visibleStudents.length === 0 ? (
                   <div
                     style={{
                       padding: 20,
@@ -360,7 +423,7 @@ export default function AdminPage() {
                     등록된 학생이 없습니다.
                   </div>
                 ) : (
-                  students.map((student) => {
+                  visibleStudents.map((student) => {
                     const studentAnswers = answersByUser.get(student.id) ?? [];
                     const active = selectedStudentId === student.id;
 
@@ -487,12 +550,81 @@ export default function AdminPage() {
                       </div>
                     </div>
 
+                    {selectedAnswers.length > 0 && (
+                      <div
+                        style={{
+                          padding: 16,
+                          borderBottom: "1px solid #e5e7eb",
+                          background: "#f9fafb",
+                        }}
+                      >
+                        <div
+                          style={{
+                            display: "grid",
+                            gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+                            gap: 9,
+                          }}
+                        >
+                          <select
+                            value={chapterFilter}
+                            onChange={(event) => setChapterFilter(event.target.value)}
+                            style={filterControlStyle}
+                          >
+                            <option value="all">전체 Chapter</option>
+                            {chapterOptions.map((chapterId) => (
+                              <option key={chapterId} value={chapterId}>
+                                Chapter {chapterId.replace(/^ch/i, "")}
+                              </option>
+                            ))}
+                          </select>
+                          <select
+                            value={gradingFilter}
+                            onChange={(event) =>
+                              setGradingFilter(event.target.value as "all" | "graded" | "ungraded")
+                            }
+                            style={filterControlStyle}
+                          >
+                            <option value="all">전체 답안</option>
+                            <option value="graded">채점 완료</option>
+                            <option value="ungraded">미채점</option>
+                          </select>
+                          <select
+                            value={sortMode}
+                            onChange={(event) =>
+                              setSortMode(
+                                event.target.value as
+                                  | "recent"
+                                  | "oldest"
+                                  | "score-desc"
+                                  | "score-asc",
+                              )
+                            }
+                            style={filterControlStyle}
+                          >
+                            <option value="recent">최근 저장순</option>
+                            <option value="oldest">오래된 저장순</option>
+                            <option value="score-desc">점수 높은순</option>
+                            <option value="score-asc">점수 낮은순</option>
+                          </select>
+                        </div>
+                        <div style={{ marginTop: 9, color: "#6b7280", fontSize: 13 }}>
+                          표시 중 {visibleAnswers.length}개
+                        </div>
+                      </div>
+                    )}
+
+                    {selectedAnswers.length > 0 && visibleAnswers.length === 0 && (
+                      <div style={{ padding: 24, color: "#6b7280" }}>
+                        선택한 조건에 맞는 답안이 없습니다.
+                      </div>
+                    )}
+
                     {selectedAnswers.length === 0 ? (
                       <div style={{ padding: 28, color: "#6b7280" }}>
                         아직 저장된 답안이 없습니다.
                       </div>
                     ) : (
-                      selectedAnswers.map((answer, index) => (
+                      visibleAnswers.map((answer, index) => (
                         <article
                           key={answer.id}
                           style={{
@@ -573,7 +705,7 @@ export default function AdminPage() {
                                 color: "#4b5563",
                               }}
                             >
-                              답안 및 AI 피드백 보기
+                              답안 및 채점 피드백 보기
                             </summary>
 
                             <div
@@ -617,7 +749,7 @@ export default function AdminPage() {
                                   lineHeight: 1.7,
                                 }}
                               >
-                                <strong>AI 피드백</strong>
+                                <strong>채점 피드백</strong>
                                 <div style={{ marginTop: 7 }}>
                                   {answer.feedback}
                                 </div>
@@ -645,3 +777,16 @@ export default function AdminPage() {
     </main>
   );
 }
+
+
+const filterControlStyle = {
+  width: "100%",
+  minHeight: 42,
+  padding: "9px 10px",
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  color: "#111827",
+  fontSize: 14,
+  boxSizing: "border-box" as const,
+};

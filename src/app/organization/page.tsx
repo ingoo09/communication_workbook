@@ -207,7 +207,7 @@ export default function OrganizationPage() {
                 type="text"
                 value={organizationName}
                 onChange={(event) => setOrganizationName(event.target.value)}
-                placeholder="예: 영남대학교 정보통신공학과"
+                placeholder="예: OO대학교 OO학부 OO전공"
                 style={{
                   minHeight: 46,
                   padding: '10px 12px',

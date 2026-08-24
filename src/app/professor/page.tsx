@@ -209,7 +209,7 @@ export default function ProfessorPage() {
               학생 답안 보기
             </div>
             <div style={{ marginTop: 8, color: '#6b7280', lineHeight: 1.6 }}>
-              내 소속으로 가입한 학생들의 답안과 AI 채점 결과를 확인합니다.
+              내 소속으로 가입한 학생들의 답안과 채점 결과를 확인합니다.
             </div>
           </Link>
 

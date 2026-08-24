@@ -54,7 +54,7 @@ $$
           "title": "1.A1.",
           "type": "essay",
           "prompt": `$X$는 $X \\sim N(0, \\sigma^2)$를 따르는 독립 가우시안 확률 변수이고, $Y=aX+b$라면, $Y \\sim N(?, ?)$를 따른다. ?를 채우시오.
-(Hint. 14장의 문제 4.A를 참고)`,
+(Hint. [[link:/workbook/ch14?p=14-4A|14장 문제 4.A]]를 참고)`,
           "referenceAnswer": `$X \\sim N(0,\\sigma^2)$이고 $Y=aX+b$이므로, 가우시안 확률 변수의 선형변환 성질에 의해
 $$
 E[Y]=aE[X]+b=b

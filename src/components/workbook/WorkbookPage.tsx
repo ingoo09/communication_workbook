@@ -125,12 +125,12 @@ function renderFencedText(s: string) {
     const before = s.slice(last, m.index);
     if (before.length) {
       nodes.push(
-        <div
+        <span
           key={`t-${k++}`}
           style={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}
         >
           {before}
-        </div>,
+        </span>,
       );
     }
 
@@ -142,14 +142,28 @@ function renderFencedText(s: string) {
         style={{
           marginTop: 12,
           marginBottom: 12,
-          padding: 14,
-          background: "#0b1020",
-          color: "#e6edf3",
-          borderRadius: 12,
+          padding: 16,
+          background: "#1e1e1e",
+          color: "#d4d4d4",
+          borderRadius: 8,
           overflowX: "auto",
+          fontSize: 15,
+          lineHeight: 1.5,
+          fontFamily:
+            'Consolas, "Courier New", monospace',
+          fontWeight: 400,
+          tabSize: 4,
         }}
       >
-        <code className={lang ? `language-${lang}` : undefined}>{code}</code>
+        <code
+          className={lang ? `language-${lang}` : undefined}
+          style={{
+            font: "inherit",
+            color: "inherit",
+          }}
+        >
+          {code}
+        </code>
       </pre>,
     );
 
@@ -159,12 +173,12 @@ function renderFencedText(s: string) {
   const tail = s.slice(last);
   if (tail.length) {
     nodes.push(
-      <div
+      <span
         key={`t-${k++}`}
         style={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}
       >
         {tail}
-      </div>,
+      </span>,
     );
   }
 
@@ -174,17 +188,20 @@ function renderFencedText(s: string) {
 function renderRichText(s: string) {
   const nodes: React.ReactNode[] = [];
 
-  // 문법:
+  // 지원 문법:
   // [[image:/images/ch16/figure16_1.png]]
   // [[image:/images/ch16/figure16_1.png|그림 16.1 설명]]
-  const imageToken =
-    /\[\[image:([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
+  //
+  // [[link:/workbook/ch2?p=2-1A1|수치적분(2장 문제 1.A1 참고)]]
+
+  const tokenRegex =
+    /\[\[(image|link):([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
 
   let last = 0;
   let match: RegExpExecArray | null;
   let key = 0;
 
-  while ((match = imageToken.exec(s)) !== null) {
+  while ((match = tokenRegex.exec(s)) !== null) {
     const before = s.slice(last, match.index);
 
     if (before) {
@@ -195,44 +212,65 @@ function renderRichText(s: string) {
       );
     }
 
-    const imageSrc = String(match[1] ?? "").trim();
-    const caption = String(match[2] ?? "").trim();
+    const type = String(match[1] ?? "").trim();
+    const target = String(match[2] ?? "").trim();
+    const label = String(match[3] ?? "").trim();
 
-    nodes.push(
-      <figure
-        key={`rich-image-${key++}`}
-        style={{
-          margin: "22px 0",
-          textAlign: "center",
-        }}
-      >
-        <img
-          src={imageSrc}
-          alt={caption || "문제 그림"}
+    if (type === "image") {
+      nodes.push(
+        <figure
+          key={`rich-image-${key++}`}
           style={{
-            display: "block",
-            width: "auto",
-            maxWidth: "100%",
-            height: "auto",
-            margin: "0 auto",
-            borderRadius: 6,
+            margin: "22px 0",
+            textAlign: "center",
           }}
-        />
-
-        {caption && (
-          <figcaption
+        >
+          <img
+            src={target}
+            alt={label || "문제 그림"}
             style={{
-              marginTop: 10,
-              fontSize: 13,
-              lineHeight: 1.5,
-              color: "#6b7280",
+              display: "block",
+              width: "auto",
+              maxWidth: "100%",
+              height: "auto",
+              margin: "0 auto",
+              borderRadius: 6,
             }}
-          >
-            {caption}
-          </figcaption>
-        )}
-      </figure>,
-    );
+          />
+
+          {label && (
+            <figcaption
+              style={{
+                marginTop: 10,
+                fontSize: 13,
+                lineHeight: 1.5,
+                color: "#6b7280",
+              }}
+            >
+              {label}
+            </figcaption>
+          )}
+        </figure>,
+      );
+    }
+
+    if (type === "link") {
+      nodes.push(
+        <a
+          key={`rich-link-${key++}`}
+          href={target}
+          style={{
+            color: "#4f46e5",
+            fontWeight: 700,
+            textDecoration: "underline",
+            textUnderlineOffset: 3,
+            cursor: "pointer",
+          }}
+        >
+          {label || target}
+        </a>,
+      );
+    }
 
     last = match.index + match[0].length;
   }
@@ -277,6 +315,19 @@ export default function WorkbookPage({
   const [userAnswer, setUserAnswer] = useState("");
   const [saved, setSaved] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
+
+  // 현재 문제에서 마지막으로 저장/불러온 답안을 기준으로 변경 여부를 판단한다.
+  const savedAnswerRef = useRef<{
+    problemId: string | null;
+    answer: string;
+  }>({
+    problemId: null,
+    answer: "",
+  });
+
+  // 저장되지 않은 답안이 있는 상태에서 문제 이동을 요청한 경우 사용한다.
+  const [pendingMoveIdx, setPendingMoveIdx] = useState<number | null>(null);
+  const [savingBeforeMove, setSavingBeforeMove] = useState(false);
 
   const [plotImage, setPlotImage] = useState<string | null>(null);
   const [audioSource, setAudioSource] = useState<string | null>(null);
@@ -555,6 +606,10 @@ export default function WorkbookPage({
               : remote.answer.answer ?? "";
 
           setUserAnswer(restoredAnswer);
+          savedAnswerRef.current = {
+            problemId: current.pb.id,
+            answer: restoredAnswer,
+          };
           setCodeOutput(remote.answer.execution_output ?? null);
 
           if (
@@ -586,9 +641,14 @@ export default function WorkbookPage({
         const v = savedValue ?? fallback;
 
         if (!cancelled) {
-          setUserAnswer(
-            typeof v === "string" ? v : JSON.stringify(v ?? ""),
-          );
+          const restoredValue =
+            typeof v === "string" ? v : JSON.stringify(v ?? "");
+
+          setUserAnswer(restoredValue);
+          savedAnswerRef.current = {
+            problemId: current.pb.id,
+            answer: restoredValue,
+          };
           setGradeResult(null);
           setCodeOutput(null);
           setSaved(false);
@@ -596,6 +656,10 @@ export default function WorkbookPage({
       } catch {
         if (!cancelled) {
           setUserAnswer(fallback);
+          savedAnswerRef.current = {
+            problemId: current.pb.id,
+            answer: fallback,
+          };
           setGradeResult(null);
           setCodeOutput(null);
           setSaved(false);
@@ -685,7 +749,14 @@ export default function WorkbookPage({
     setShowAnswer((value) => !value);
   }
 
-  async function moveToProblem(targetIdx: number) {
+  function hasUnsavedAnswer() {
+    return (
+      savedAnswerRef.current.problemId === current.pb.id &&
+      userAnswer !== savedAnswerRef.current.answer
+    );
+  }
+
+  async function moveToProblemDirect(targetIdx: number) {
     const safeIdx = Math.max(0, Math.min(flat.length - 1, targetIdx));
     const target = flat[safeIdx];
 
@@ -699,6 +770,12 @@ export default function WorkbookPage({
     setAudioSource(null);
     setSaved(false);
     setSaveNotice("");
+
+    // 새 문제 답안이 restore되기 전에는 이전 문제의 저장 기준을 사용하지 않는다.
+    savedAnswerRef.current = {
+      problemId: null,
+      answer: "",
+    };
 
     // 문제 이동과 URL 변경을 같은 함수에서 처리하여
     // ?p=문제ID deep link가 첫 문제로 덮어써지는 race condition을 방지한다.
@@ -716,6 +793,19 @@ plt.close('all')
         // ignore
       }
     }
+  }
+
+  async function moveToProblem(targetIdx: number) {
+    const safeIdx = Math.max(0, Math.min(flat.length - 1, targetIdx));
+
+    if (safeIdx === idx) return;
+
+    if (hasUnsavedAnswer()) {
+      setPendingMoveIdx(safeIdx);
+      return;
+    }
+
+    await moveToProblemDirect(safeIdx);
   }
 
   function buildSubmissionText() {
@@ -749,7 +839,7 @@ plt.close('all')
     return userAnswer;
   }
 
-  async function saveMyAnswer() {
+  async function saveMyAnswer(): Promise<boolean> {
     // localStorage는 비회원의 임시 저장소이자 회원의 보조 저장소로 사용한다.
     try {
       const raw = window.localStorage.getItem(storageKey);
@@ -764,12 +854,17 @@ plt.close('all')
 
     // 비회원은 현재 브라우저에만 임시 저장한다.
     if (!isAuthenticated) {
+      savedAnswerRef.current = {
+        problemId: current.pb.id,
+        answer: userAnswer,
+      };
+
       setSaved(true);
       setSaveNotice(
         "이 브라우저에 임시 저장되었습니다. 로그인하면 학습 기록을 계정에 저장할 수 있습니다.",
       );
       window.setTimeout(() => setSaved(false), 1200);
-      return;
+      return true;
     }
 
     const result = await saveAnswer({
@@ -786,12 +881,18 @@ plt.close('all')
     if (!result.success && result.reason === "database_error") {
       console.error("Supabase 답안 저장 실패:", result.message);
       setSaveNotice("답안을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
-      return;
+      return false;
     }
+
+    savedAnswerRef.current = {
+      problemId: current.pb.id,
+      answer: userAnswer,
+    };
 
     setSaved(true);
     setSaveNotice("계정에 저장되었습니다.");
     window.setTimeout(() => setSaved(false), 1200);
+    return true;
   }
 
   async function gradeWithAI() {
@@ -860,7 +961,13 @@ plt.close('all')
       });
 
       if (!saveResult.success && saveResult.reason === "database_error") {
-        console.error("AI 채점 결과 DB 저장 실패:", saveResult.message);
+        console.error("채점 결과 DB 저장 실패:", saveResult.message);
+      } else {
+        // 채점 시에도 현재 답안이 DB에 함께 저장되므로 변경 상태를 해제한다.
+        savedAnswerRef.current = {
+          problemId: current.pb.id,
+          answer: userAnswer,
+        };
       }
     } catch (e: any) {
       setGradeResult({
@@ -1952,7 +2059,7 @@ except Exception:
                     }}
                   >
                     <div style={{ fontWeight: 900, fontSize: 17 }}>
-                      AI 채점 결과
+                      채점 결과
                     </div>
 
                     {typeof gradeResult.score === 'number' && (
@@ -2171,6 +2278,139 @@ except Exception:
           </div>
         </div>
       </div>
+
+      {pendingMoveIdx != null && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 10000,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            background: "rgba(15,23,42,0.55)",
+            backdropFilter: "blur(3px)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 460,
+              padding: 26,
+              borderRadius: 20,
+              background: "#fff",
+              boxShadow: "0 24px 70px rgba(15,23,42,0.28)",
+            }}
+          >
+            <h2
+              style={{
+                margin: 0,
+                fontSize: 22,
+                fontWeight: 900,
+                color: "#111827",
+              }}
+            >
+              변경된 답안이 있습니다
+            </h2>
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: "#6b7280",
+                lineHeight: 1.7,
+              }}
+            >
+              현재 답안을 저장하시겠습니까?
+            </p>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 10,
+                marginTop: 22,
+              }}
+            >
+              <button
+                type="button"
+                disabled={savingBeforeMove}
+                onClick={async () => {
+                  const targetIdx = pendingMoveIdx;
+                  if (targetIdx == null) return;
+
+                  setSavingBeforeMove(true);
+
+                  try {
+                    const success = await saveMyAnswer();
+
+                    if (!success) return;
+
+                    setPendingMoveIdx(null);
+                    await moveToProblemDirect(targetIdx);
+                  } finally {
+                    setSavingBeforeMove(false);
+                  }
+                }}
+                style={{
+                  minHeight: 46,
+                  border: 0,
+                  borderRadius: 12,
+                  cursor: savingBeforeMove ? "not-allowed" : "pointer",
+                  background: "#4f46e5",
+                  color: "#fff",
+                  fontWeight: 900,
+                  opacity: savingBeforeMove ? 0.65 : 1,
+                }}
+              >
+                {savingBeforeMove ? "저장 중..." : "저장하고 이동"}
+              </button>
+
+              <button
+                type="button"
+                disabled={savingBeforeMove}
+                onClick={async () => {
+                  const targetIdx = pendingMoveIdx;
+                  if (targetIdx == null) return;
+
+                  setPendingMoveIdx(null);
+                  await moveToProblemDirect(targetIdx);
+                }}
+                style={{
+                  minHeight: 46,
+                  border: "1px solid #d1d5db",
+                  borderRadius: 12,
+                  cursor: savingBeforeMove ? "not-allowed" : "pointer",
+                  background: "#fff",
+                  color: "#111827",
+                  fontWeight: 900,
+                }}
+              >
+                저장하지 않고 이동
+              </button>
+            </div>
+
+            <button
+              type="button"
+              disabled={savingBeforeMove}
+              onClick={() => setPendingMoveIdx(null)}
+              style={{
+                width: "100%",
+                marginTop: 12,
+                padding: 8,
+                border: 0,
+                cursor: savingBeforeMove ? "not-allowed" : "pointer",
+                background: "transparent",
+                color: "#6b7280",
+                fontWeight: 700,
+              }}
+            >
+              취소
+            </button>
+          </div>
+        </div>
+      )}
 
       {showAuthPrompt && (
         <div
