@@ -343,6 +343,10 @@ export default function WorkbookPage({
 
   const [gradeResult, setGradeResult] = useState<GradeResult | null>(null);
 
+  // 문제를 이동했다가 다시 돌아왔을 때 이미 확인한 채점 결과를 즉시 복원한다.
+  // DB에서 다시 불러오기 전에도 같은 세션 안에서는 점수/피드백이 사라지지 않는다.
+  const gradeResultByProblemRef = useRef<Record<string, GradeResult | null>>({});
+
   const [runningCode, setRunningCode] = useState(false);
 
   const [codeOutput, setCodeOutput] = useState<string | null>(null);
@@ -616,14 +620,19 @@ export default function WorkbookPage({
             typeof remote.answer.score === "number" ||
             remote.answer.feedback
           ) {
-            setGradeResult({
+            const restoredGradeResult: GradeResult = {
               score:
                 typeof remote.answer.score === "number"
                   ? remote.answer.score
                   : undefined,
               feedback: remote.answer.feedback ?? undefined,
-            });
+            };
+
+            gradeResultByProblemRef.current[current.pb.id] =
+              restoredGradeResult;
+            setGradeResult(restoredGradeResult);
           } else {
+            gradeResultByProblemRef.current[current.pb.id] = null;
             setGradeResult(null);
           }
 
@@ -649,7 +658,9 @@ export default function WorkbookPage({
             problemId: current.pb.id,
             answer: restoredValue,
           };
-          setGradeResult(null);
+          setGradeResult(
+            gradeResultByProblemRef.current[current.pb.id] ?? null,
+          );
           setCodeOutput(null);
           setSaved(false);
         }
@@ -660,7 +671,9 @@ export default function WorkbookPage({
             problemId: current.pb.id,
             answer: fallback,
           };
-          setGradeResult(null);
+          setGradeResult(
+            gradeResultByProblemRef.current[current.pb.id] ?? null,
+          );
           setCodeOutput(null);
           setSaved(false);
         }
@@ -672,7 +685,7 @@ export default function WorkbookPage({
     return () => {
       cancelled = true;
     };
-  }, [chapterSlug, current?.pb?.id]);
+  }, [chapterSlug, current?.pb?.id, isAuthenticated]);
 
 
   // KaTeX 렌더
@@ -764,7 +777,9 @@ export default function WorkbookPage({
 
     setIdx(safeIdx);
     setShowAnswer(false);
-    setGradeResult(null);
+    setGradeResult(
+      gradeResultByProblemRef.current[target.pb.id] ?? null,
+    );
     setCodeOutput(null);
     setPlotImage(null);
     setAudioSource(null);
@@ -945,10 +960,13 @@ plt.close('all')
 
       const normalizedScore = Math.max(0, Math.min(100, score));
 
-      setGradeResult({
+      const nextGradeResult: GradeResult = {
         score: normalizedScore,
         feedback,
-      });
+      };
+
+      gradeResultByProblemRef.current[current.pb.id] = nextGradeResult;
+      setGradeResult(nextGradeResult);
 
       const saveResult = await saveAnswer({
         chapterId: chapterSlug,
