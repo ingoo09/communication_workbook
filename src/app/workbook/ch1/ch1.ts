@@ -15,19 +15,19 @@ export const chapter = {
           prompt:
             `스칼라(실수, 복소수) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.
 \`\`\`python
-1. A=12; print(A)\t\t\t\t\t17. j
-2. B; print(B)\t\t\t\t\t\t18. 1j
-3. B=A*3; print(B)\t\t\t\t\t19. X=1+3j; print(X)
-4. B*6\t\t\t\t\t\t\t20. Y=-2+1j; print(Y)
-5. B/5\t\t\t\t\t\t\t21. Z=X+Y; print(Z)
-6. B//5\t\t\t\t\t\t\t22. Z=X*Y; print(Z)
-7. B%5\t\t\t\t\t\t\t23. np.real(Z)
-8. A*B-A*3-B\t\t\t\t\t\t24. np.imag(Z)
-9. A=B^2; print(A)\t\t\t\t\t25. np.conjugate(Z)
-10. A=B**2; print(A)\t\t\t\t\t26. abs(Z)
-11. import numpy as np\t\t\t\t\t27. T=np.angle(1+1j); print(T)
-12. A=np.power(B,2); print(A)\t\t\t\t28. (180/pi)*T
-13. C=np.sqrt(B); print(C)\t\t\t\t29. (180/np.pi)*T
+1. A=12; print(A)\t\t\t\t\t\t\t\t\t\t17. j
+2. B; print(B)\t\t\t\t\t\t\t\t\t\t\t18. 1j
+3. B=A*3; print(B)\t\t\t\t\t\t\t\t\t\t19. X=1+3j; print(X)
+4. B*6\t\t\t\t\t\t\t\t\t\t\t\t\t20. Y=-2+1j; print(Y)
+5. B/5\t\t\t\t\t\t\t\t\t\t\t\t\t21. Z=X+Y; print(Z)
+6. B//5\t\t\t\t\t\t\t\t\t\t\t\t\t22. Z=X*Y; print(Z)
+7. B%5\t\t\t\t\t\t\t\t\t\t\t\t\t23. np.real(Z)
+8. A*B-A*3-B\t\t\t\t\t\t\t\t\t\t\t24. np.imag(Z)
+9. A=B^2; print(A)\t\t\t\t\t\t\t\t\t\t25. np.conjugate(Z)
+10. A=B**2; print(A)\t\t\t\t\t\t\t\t\t26. abs(Z)
+11. import numpy as np\t\t\t\t\t\t\t\t\t27. T=np.angle(1+1j); print(T)
+12. A=np.power(B,2); print(A)\t\t\t\t\t\t\t28. (180/pi)*T
+13. C=np.sqrt(B); print(C)\t\t\t\t\t\t\t\t29. (180/np.pi)*T
 14. A=2; B=4;C=A+B; print(C)
 15. C=A**B; print(C)
 16. A=12e6; print(A)
@@ -206,20 +206,20 @@ NumPy에 정의된 원주율 np.pi를 사용하여 T를 radian에서 degree로 �
           title: '1.B.',
           prompt: `벡터(1차원 Array) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.
 \`\`\`python
-1. import numpy as np\t\t\t\t\t15. Z[0]
-2. X=np.arange(-2,5); print(X)\t\t\t\t16. Z[:2]
-3. X=np.arange(2,13,3); print(X)\t\t\t17. Z[2:]
-4. Y=np.linspace(1,7,4); print(Y)\t\t\t18. Z[1:4]
-5. Z=X+Y; print(Z)\t\t\t\t\t19. X=[2,4,8,16]
-6. Z=X*Y; print(Z)\t\t\t\t\t20. Y=np.log2(X); print(Y)
-7. Z=np.dot(X,Y); print(Z)\t\t\t\t21. Y**3
-8. Z=X/Y; print(Z)\t\t\t\t\t22. Y=[7,3,-4,2,9,-1]
-9. 2*Y\t\t\t\t\t\t\t23. min(Y)
-10. sum(Y)\t\t\t\t\t\t24. max(Y)
-11. Y = [2, 1, 4, -3]\t\t\t\t\t25. np.argmin(Y)
-12. Y = [2 1 4 -3]\t\t\t\t\t26. np.argmax(Y)
-13. len(Y)\t\t\t\t\t\t27. sorted(Y)
-14. X=np.reshape(Y,(2,2)); print(X)\t\t\t28. np.append(X,Y)
+1. import numpy as np\t\t\t\t\t\t\t\t\t15. Z[0]
+2. X=np.arange(-2,5); print(X)\t\t\t\t\t\t\t16. Z[:2]
+3. X=np.arange(2,13,3); print(X)\t\t\t\t\t\t17. Z[2:]
+4. Y=np.linspace(1,7,4); print(Y)\t\t\t\t\t\t18. Z[1:4]
+5. Z=X+Y; print(Z)\t\t\t\t\t\t\t\t\t\t19. X=[2,4,8,16]
+6. Z=X*Y; print(Z)\t\t\t\t\t\t\t\t\t\t20. Y=np.log2(X); print(Y)
+7. Z=np.dot(X,Y); print(Z)\t\t\t\t\t\t\t\t21. Y**3
+8. Z=X/Y; print(Z)\t\t\t\t\t\t\t\t\t\t22. Y=[7,3,-4,2,9,-1]
+9. 2*Y\t\t\t\t\t\t\t\t\t\t\t\t\t23. min(Y)
+10. sum(Y)\t\t\t\t\t\t\t\t\t\t\t\t24. max(Y)
+11. Y = [2, 1, 4, -3]\t\t\t\t\t\t\t\t\t25. np.argmin(Y)
+12. Y = [2 1 4 -3]\t\t\t\t\t\t\t\t\t\t26. np.argmax(Y)
+13. len(Y)\t\t\t\t\t\t\t\t\t\t\t\t27. sorted(Y)
+14. X=np.reshape(Y,(2,2)); print(X)\t\t\t\t\t\t28. np.append(X,Y)
 \`\`\`
             `,
           referenceAnswer: `
@@ -363,19 +363,19 @@ Y=[7,3,-4,2,9,-1]
           title: '1.C.',
           prompt:`행렬(다차원 Array) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.
 \`\`\`python
-1. import numpy as np\t\t\t\t\t14. np.conjugate(Z.T)
-2. X=np.array([[3,6,-2],[0,5,2],[7,-1,4]]);print(X)\t15. Z=X*Y; print(Z)
-3. X.shape\t\t\t\t\t\t16. Z=X@Y; print(Z)
-4. Z=X[2,1]; print(Z)\t\t\t\t\t17. Z=X**3; print(Z)
-5. X[:,2]\t\t\t\t\t\t18. Z=X[2,1]; print(Z)
-6. X[:2,:]\t\t\t\t\t\t19. Z=(X**2)-3*Y; print(Z)
-7. X[0:2,1:3]\t\t\t\t\t\t20. Z.max()
-8. Y=np.zeros((3,3)); print(Y)\t\t\t\t21. Z.argmax()
-9. Y[0,:]=X[1,:]; print(Y)\t\t\t\t22. Z.max(axis=0)
-10. Y[1,:]=X[0,:]; print(Y)\t\t\t\t23. Z.min(axis=1)
-11. Y[2,:]=[1,2,3]; print(Y)\t\t\t\t24. Z=np.linalg.det(X); print(Z)
-12. Z=X+1j*Y; print(Z)\t\t\t\t\t25. Z=np.linalg.inv(X); print(Z)
-13. Z.T\t\t\t\t\t\t\t26. Z@X #결과가 왜 그렇게 나왔는지 쓸 것. 수치 오차가 존재함을 감안할 것.
+1. import numpy as np\t\t\t\t\t\t\t\t\t14. np.conjugate(Z.T)
+2. X=np.array([[3,6,-2],[0,5,2],[7,-1,4]]);print(X)\t\t15. Z=X*Y; print(Z)
+3. X.shape\t\t\t\t\t\t\t\t\t\t\t\t16. Z=X@Y; print(Z)
+4. Z=X[2,1]; print(Z)\t\t\t\t\t\t\t\t\t17. Z=X**3; print(Z)
+5. X[:,2]\t\t\t\t\t\t\t\t\t\t\t\t18. Z=X[2,1]; print(Z)
+6. X[:2,:]\t\t\t\t\t\t\t\t\t\t\t\t19. Z=(X**2)-3*Y; print(Z)
+7. X[0:2,1:3]\t\t\t\t\t\t\t\t\t\t\t20. Z.max()
+8. Y=np.zeros((3,3)); print(Y)\t\t\t\t\t\t\t21. Z.argmax()
+9. Y[0,:]=X[1,:]; print(Y)\t\t\t\t\t\t\t\t22. Z.max(axis=0)
+10. Y[1,:]=X[0,:]; print(Y)\t\t\t\t\t\t\t\t23. Z.min(axis=1)
+11. Y[2,:]=[1,2,3]; print(Y)\t\t\t\t\t\t\t24. Z=np.linalg.det(X); print(Z)
+12. Z=X+1j*Y; print(Z)\t\t\t\t\t\t\t\t\t25. Z=np.linalg.inv(X); print(Z)
+13. Z.T\t\t\t\t\t\t\t\t\t\t\t\t\t26. Z@X #결과의 의미를 쓰되, 수치 오차를 감안할 것.
 \`\`\`
             `,
           referenceAnswer: `
@@ -464,24 +464,24 @@ X의 역행렬을 계산한다.
           title: '1.D.',
           prompt:
             `랜덤(Random) 변수 연산\n아래 명령을 순서대로 실행하고 Console 결과를 확인하시오. 각 명령이 수행하는 동작과 출력 결과의 의미를 작성하고, 만약 오류 메시지가 출력되면 그 오류의 의미를 작성하시오.
-특히 2~9번, 25~27번은 반복 실행하여 명령어의 의미를 유추하여 쓰시오.
 \`\`\`python
-1. import numpy as np\t\t\t\t\t16. N=np.random.randn(1000000)+3; print(N)
-2. np.random.rand()\t\t\t\t\t17. np.mean(N) #이론치에 근사하는지도 쓸 것
-3. 6*np.random.rand()\t\t\t\t\t18. np.var(N) #이론치에 근사하는지도 쓸 것
-4. np.random.rand()+2\t\t\t\t\t19. N=np.random.randn(10,5)
-5. np.random.rand(1,5)\t\t\t\t\t20. N.max()
-6. 6*np.random.rand(3,4)+2\t\t\t\t21. np.max(N,axis=0)
-7. np.random.rand(4)\t\t\t\t\t22. np.max(N,axis=1)
-8. np.random.randn()\t\t\t\t\t23. max(np.max(N,axis=0))
-9. np.random.randn(10)\t\t\t\t\t24. max(np.min(N,axis=0))
-10. N=np.random.randn(10000000); print(N)\t\t25. np.random.randint(5)
-11. np.mean(N) #이론치에 근사하는지도 쓸 것\t\t26. np.random.randint(-5,-3)
-12. np.var(N) #이론치에 근사하는지도 쓸 것\t\t27. np.random.randint(1,5,10)
-13. N=np.sqrt(5)*np.random.randn(10000000) 
-14. np.mean(N) #이론치에 근사하는지도 쓸 것 
+1. import numpy as np\t\t\t\t\t\t\t\t\t16. N=np.random.randn(1000000)+3; print(N)
+2. np.random.rand()\t\t\t\t\t\t\t\t\t\t17. np.mean(N) #이론치에 근사하는지도 쓸 것
+3. 6*np.random.rand()\t\t\t\t\t\t\t\t\t18. np.var(N) #이론치에 근사하는지도 쓸 것
+4. np.random.rand()+2\t\t\t\t\t\t\t\t\t19. N=np.random.randn(10,5)
+5. np.random.rand(1,5)\t\t\t\t\t\t\t\t\t20. N.max()
+6. 6*np.random.rand(3,4)+2\t\t\t\t\t\t\t\t21. np.max(N,axis=0)
+7. np.random.rand(4)\t\t\t\t\t\t\t\t\t22. np.max(N,axis=1)
+8. np.random.randn()\t\t\t\t\t\t\t\t\t23. max(np.max(N,axis=0))
+9. np.random.randn(10)\t\t\t\t\t\t\t\t\t24. max(np.min(N,axis=0))
+10. N=np.random.randn(10000000); print(N)\t\t\t\t25. np.random.randint(5)
+11. np.mean(N) #이론치에 근사하는지도 쓸 것\t\t\t\t26. np.random.randint(-5,-3)
+12. np.var(N) #이론치에 근사하는지도 쓸 것\t\t\t\t27. np.random.randint(1,5,10)
+13. N=np.sqrt(5)*np.random.randn(10000000)
+14. np.mean(N) #이론치에 근사하는지도 쓸 것
 15. np.var(N) #이론치에 근사하는지도 쓸 것
-\`\`\`            
+\`\`\`
+특히 2~9번, 25~27번은 반복 실행하여 명령어의 의미를 유추하여 쓰시오.
             `,
           referenceAnswer: `
 1. import numpy as np  
@@ -574,23 +574,23 @@ N의 모든 원소 중 가장 큰 값을 구한다. 난수로 생성된 배열�
           title: '1.E.',
           prompt:
             `기본적인 NumPy 수학 함수와 Matplotlib 그래프 그리기\n아래 명령을 순서대로 실행하고 Console 결과 및 Figure의 변화를 확인하시오. 각 명령이 수행하는 동작과 출력 결과 또는 그래프의 의미를 작성하시오.
-(주의. Figure를 초기 상태로 되돌리려면 브라우저를 새로고침한 후 다시 실행하시오.),
 \`\`\`python
-1. import numpy as np\t\t\t\t\t15. plt.axis([-5,15,-3,3])
-2. import matplotlib.pyplot as plt\t\t\t16. plt.axis([0,10,-2,2])
-3. x=np.arange(0,10,0.1)\t\t\t\t17. plt.figure()
-4. y1=np.sin(x)\t\t\t\t\t\t18. plt.subplot(3,1,1)
-5. y2=np.cos(x)\t\t\t\t\t\t19. plt.plot(x,y1)
-6. plt.plot(x)\t\t\t\t\t\t20. plt.subplot(3,1,2)
-7. plt.plot(y1)\t\t\t\t\t\t21. plt.plot(x,y2)
-8. plt.figure()\t\t\t\t\t\t22. plt.subplot(3,1,3)
-9. plt.plot(x,y1,label='sin(x)')\t\t\t23. plt.plot(x,y3)
-10. plt.grid()\t\t\t\t\t\t24. plt.figure()
-11. plt.plot(x,y2,label='cos(x)')\t\t\t25. plt.semilogy(x,y3)
+1. import numpy as np\t\t\t\t\t\t\t\t\t15. plt.axis([-5,15,-3,3])
+2. import matplotlib.pyplot as plt\t\t\t\t\t\t16. plt.axis([0,10,-2,2])
+3. x=np.arange(0,10,0.1)\t\t\t\t\t\t\t\t17. plt.figure()
+4. y1=np.sin(x)\t\t\t\t\t\t\t\t\t\t\t18. plt.subplot(3,1,1)
+5. y2=np.cos(x)\t\t\t\t\t\t\t\t\t\t\t19. plt.plot(x,y1)
+6. plt.plot(x)\t\t\t\t\t\t\t\t\t\t\t20. plt.subplot(3,1,2)
+7. plt.plot(y1)\t\t\t\t\t\t\t\t\t\t\t21. plt.plot(x,y2)
+8. plt.figure()\t\t\t\t\t\t\t\t\t\t\t22. plt.subplot(3,1,3)
+9. plt.plot(x,y1,label='sin(x)')\t\t\t\t\t\t23. plt.plot(x,y3)
+10. plt.grid()\t\t\t\t\t\t\t\t\t\t\t24. plt.figure()
+11. plt.plot(x,y2,label='cos(x)')\t\t\t\t\t\t25. plt.semilogy(x,y3)
 12. y3=np.exp(-x)
 13. plt.plot(x,y3,'r',label='exp(-x)')
 14. plt.legend()
 \`\`\`
+(주의. Console의 Figure를 초기 상태로 되돌리려면 브라우저를 새로고침한 후 다시 실행하시오)
             `,
           referenceAnswer: `
 1. import numpy as np  
@@ -678,13 +678,13 @@ semilogy에서는 y축에 로그 스케일이 적용되어 직선 형태로 나�
           prompt:
             `불(Bool) 연산과 그래프 그리기\n아래 명령을 순서대로 실행하고 Console 결과 및 Figure의 변화를 확인하시오. 각 명령이 수행하는 동작과 출력 결과 또는 그래프의 의미를 작성하시오.
 \`\`\`python
-1. import numpy as np\t\t\t\t\t11. np.array([1,0,1,1,1])==np.array([1,0,1,0,0])
-2. import matplotlib.pyplot as plt\t\t\t12. np.array([1,0,1,1,1])!=np.array([1,0,1,0,0])
-3. A=np.array([0,1,2,3,4])\t\t\t\t13. x=np.arange(0,10,0.1)
-4. A<3\t\t\t\t\t\t\t14. y=x<3
-5. B=(A>2); print(B)\t\t\t\t\t15. plt.plot(x,y);plt.axis([0,10,-2,2]);plt.grid()
-6. B=np.where(A>2,1,0); print(B)\t\t\t16. y=(1<x)&(x<4)
-7. np.logical_and([1,1,0,0],[1,1,1,0])\t\t\t17. plt.plot(x,y);plt.axis([0,10,-2,2])
+1. import numpy as np\t\t\t\t\t\t\t\t\t11. np.array([1,0,1,1,1])==np.array([1,0,1,0,0])
+2. import matplotlib.pyplot as plt\t\t\t\t\t\t12. np.array([1,0,1,1,1])!=np.array([1,0,1,0,0])
+3. A=np.array([0,1,2,3,4])\t\t\t\t\t\t\t\t13. x=np.arange(0,10,0.1)
+4. A<3\t\t\t\t\t\t\t\t\t\t\t\t\t14. y=x<3
+5. B=(A>2); print(B)\t\t\t\t\t\t\t\t\t15. plt.plot(x,y);plt.axis([0,10,-2,2]);plt.grid()
+6. B=np.where(A>2,1,0); print(B)\t\t\t\t\t\t16. y=(1<x)&(x<4)
+7. np.logical_and([1,1,0,0],[1,1,1,0])\t\t\t\t\t17. plt.plot(x,y);plt.axis([0,10,-2,2])
 8. np.logical_or([1,1,0,0],[1,1,1,0]) 
 9. np.logical_xor([1,1,0,0],[1,1,1,0])
 10. np.logical_not([1,0,1,0,0])

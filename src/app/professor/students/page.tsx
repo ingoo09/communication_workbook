@@ -322,7 +322,7 @@ export default function ProfessorStudentsPage() {
                 { label: '소속 학생', value: `${students.length}명` },
                 { label: '저장 답안', value: `${answers.length}개` },
                 {
-                  label: 'AI 채점 완료',
+                  label: '답안 채점 완료',
                   value: `${answers.filter((a) => typeof a.score === 'number').length}개`,
                 },
               ].map((item) => (

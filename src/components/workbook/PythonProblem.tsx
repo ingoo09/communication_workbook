@@ -135,7 +135,7 @@ export default function PythonProblem({
                 color: "#a5b4fc",
               }}
             >
-              저장 및 AI 채점에 자동 반영
+              저장 및 답안 채점에 자동 반영
             </span>
           </div>
 

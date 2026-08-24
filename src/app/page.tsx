@@ -406,12 +406,33 @@ export default function WorkbookHome() {
             boxSizing: 'border-box',
           }}
         >
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 14, opacity: 0.7 }}>
-              Communication System and Digital Communication Workbook
-            </div>
-            <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>
-              통신시스템과 디지털통신
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 12,
+              minWidth: 0,
+            }}
+          >
+            <img
+              src="/favicon.ico"
+              alt="Workbook icon"
+              style={{
+                width: 55,
+                height: 55,
+                borderRadius: 10,
+                flexShrink: 0,
+              }}
+            />
+
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 14, opacity: 0.7 }}>
+                Interactive Workbook
+              </div>
+
+              <div style={{ fontSize: 24, fontWeight: 800, marginTop: 4 }}>
+                온라인 워크북
+              </div>
             </div>
           </div>
 
@@ -585,8 +606,7 @@ export default function WorkbookHome() {
               maxWidth: 760,
             }}
           >
-            Python 실습, AI 채점, 수학 시각화와 인터랙티브 문제 풀이를 결합한
-            온라인 통신공학 교재
+            Python 기반 인터랙티브 문제 풀이와 즉시 채점 피드백
           </p>
 
           <div style={{ marginTop: 36, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
@@ -1066,7 +1086,7 @@ export default function WorkbookHome() {
                 lineHeight: 1.7,
               }}
             >
-              로그인하면 저장한 답안, 학습 진행률, AI 채점 결과를 계정에서 계속 확인할 수 있습니다.
+              로그인하면 저장한 답안, 학습 진행률, 내 답안 채점 결과를 계정에서 계속 확인할 수 있습니다.
             </p>
 
             <div

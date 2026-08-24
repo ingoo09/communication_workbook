@@ -13,6 +13,7 @@ export const chapter = {
           "title": "1.A.",
           "prompt": `아래 py 스크립트는 전산 모의 실험을 통해 주사위 눈의 분포를 그린다.
 \`\`\`python
+import numpy as np
 import math
 import matplotlib.pyplot as plt
 
