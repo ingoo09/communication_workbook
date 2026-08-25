@@ -64,7 +64,7 @@ function formatStoredAnswer(value: string) {
 function normalizeSimilarityText(value: string) {
   return formatStoredAnswer(value)
     .toLowerCase()
-    .replace(/```[\s\S]*?```/g, (block) => block.replace(/\s+/g, ""))
+    .replace(/```[\s\S]*?```/g, (block: string) => block.replace(/\s+/g, ""))
     .replace(/\s+/g, "")
     .replace(/[.,!?;:'"`()[\]{}<>\\/_+=~|·•\-]/g, "")
     .trim();
