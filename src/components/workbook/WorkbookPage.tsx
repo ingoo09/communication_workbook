@@ -792,11 +792,23 @@ export default function WorkbookPage({
       answer: "",
     };
 
-    // 문제 이동과 URL 변경을 같은 함수에서 처리하여
-    // ?p=문제ID deep link가 첫 문제로 덮어써지는 race condition을 방지한다.
-    router.replace(
-      `${chapterPath}?p=${encodeURIComponent(target.pb.id)}`,
-    );
+    // 문제 이동은 현재 WorkbookPage 내부 상태(idx)로 처리한다.
+    // ?p=문제ID는 deep link 용도이므로 Next.js router navigation을 발생시키지 않고
+    // 브라우저 History API로 주소만 갱신한다.
+    //
+    // router.replace()를 사용하면 production(Render) 환경에서 search param 변경이
+    // route transition / remount로 이어질 수 있고, 그 과정에서 gradeResult가 초기화된 뒤
+    // DB 복원보다 늦게 null 상태가 다시 적용되는 race condition이 생길 수 있다.
+    if (typeof window !== "undefined") {
+      const nextUrl =
+        `${chapterPath}?p=${encodeURIComponent(target.pb.id)}`;
+
+      window.history.replaceState(
+        window.history.state,
+        "",
+        nextUrl,
+      );
+    }
 
     if (pyodide) {
       try {
