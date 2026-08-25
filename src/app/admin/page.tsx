@@ -61,6 +61,83 @@ function formatStoredAnswer(value: string) {
   return value;
 }
 
+
+function normalizeSimilarityText(value: string) {
+  return formatStoredAnswer(value)
+    .toLowerCase()
+    .replace(/```[\s\S]*?```/g, (block) => block.replace(/\s+/g, ""))
+    .replace(/\s+/g, "")
+    .replace(/[.,!?;:'"`()[\]{}<>\\/_+=~|·•\-]/g, "")
+    .trim();
+}
+
+function makeNgrams(text: string, n = 3) {
+  const grams = new Set<string>();
+
+  if (!text) return grams;
+
+  if (text.length <= n) {
+    grams.add(text);
+    return grams;
+  }
+
+  for (let i = 0; i <= text.length - n; i += 1) {
+    grams.add(text.slice(i, i + n));
+  }
+
+  return grams;
+}
+
+function calculateAnswerSimilarity(a: string, b: string) {
+  const left = normalizeSimilarityText(a);
+  const right = normalizeSimilarityText(b);
+
+  // 너무 짧은 답안은 우연한 일치 가능성이 높아서 비교하지 않는다.
+  if (left.length < 20 || right.length < 20) {
+    return null;
+  }
+
+  const leftGrams = makeNgrams(left, 3);
+  const rightGrams = makeNgrams(right, 3);
+
+  if (leftGrams.size === 0 || rightGrams.size === 0) {
+    return null;
+  }
+
+  let intersection = 0;
+
+  for (const gram of leftGrams) {
+    if (rightGrams.has(gram)) {
+      intersection += 1;
+    }
+  }
+
+  const union = leftGrams.size + rightGrams.size - intersection;
+  if (union <= 0) return null;
+
+  return Math.round((intersection / union) * 100);
+}
+
+function similarityLabel(score: number) {
+  if (score >= 90) return "매우 높은 유사도";
+  if (score >= 80) return "높은 유사도";
+  if (score >= 60) return "유사 표현 존재";
+  return "일반";
+}
+
+function similarityTone(score: number) {
+  if (score >= 90) {
+    return { background: "#fee2e2", color: "#991b1b", border: "#fecaca" };
+  }
+  if (score >= 80) {
+    return { background: "#fef3c7", color: "#92400e", border: "#fde68a" };
+  }
+  if (score >= 60) {
+    return { background: "#eff6ff", color: "#1d4ed8", border: "#bfdbfe" };
+  }
+  return { background: "#f3f4f6", color: "#4b5563", border: "#e5e7eb" };
+}
+
 export default function AdminPage() {
   const router = useRouter();
 
@@ -178,6 +255,58 @@ export default function AdminPage() {
 
     return map;
   }, [answers]);
+
+  const profileById = useMemo(() => {
+    const map = new Map<string, ProfileRow>();
+
+    for (const profile of profiles) {
+      map.set(profile.id, profile);
+    }
+
+    return map;
+  }, [profiles]);
+
+  const similarityByAnswerId = useMemo(() => {
+    const result = new Map<
+      number | string,
+      {
+        score: number;
+        otherAnswer: AnswerRow;
+        otherStudent: ProfileRow | null;
+      } | null
+    >();
+
+    for (const answer of answers) {
+      let best:
+        | {
+            score: number;
+            otherAnswer: AnswerRow;
+            otherStudent: ProfileRow | null;
+          }
+        | null = null;
+
+      for (const other of answers) {
+        if (other.user_id === answer.user_id) continue;
+        if (other.chapter_id !== answer.chapter_id) continue;
+        if (other.problem_id !== answer.problem_id) continue;
+
+        const score = calculateAnswerSimilarity(answer.answer, other.answer);
+        if (score == null) continue;
+
+        if (!best || score > best.score) {
+          best = {
+            score,
+            otherAnswer: other,
+            otherStudent: profileById.get(other.user_id) ?? null,
+          };
+        }
+      }
+
+      result.set(answer.id, best);
+    }
+
+    return result;
+  }, [answers, profileById]);
 
   useEffect(() => {
     setChapterFilter("all");
@@ -624,7 +753,11 @@ export default function AdminPage() {
                         아직 저장된 답안이 없습니다.
                       </div>
                     ) : (
-                      visibleAnswers.map((answer, index) => (
+                      visibleAnswers.map((answer, index) => {
+                        const similarity = similarityByAnswerId.get(answer.id) ?? null;
+                        const tone = similarity ? similarityTone(similarity.score) : null;
+
+                        return (
                         <article
                           key={answer.id}
                           style={{
@@ -697,6 +830,98 @@ export default function AdminPage() {
                             )}
                           </div>
 
+                          {similarity && tone && (
+                            <div
+                              style={{
+                                marginTop: 14,
+                                padding: 14,
+                                borderRadius: 12,
+                                background: tone.background,
+                                color: tone.color,
+                                border: `1px solid ${tone.border}`,
+                              }}
+                            >
+                              <div
+                                style={{
+                                  display: "flex",
+                                  justifyContent: "space-between",
+                                  gap: 10,
+                                  flexWrap: "wrap",
+                                  alignItems: "center",
+                                }}
+                              >
+                                <div style={{ fontWeight: 900 }}>
+                                  답안 유사도 {similarity.score}% · {similarityLabel(similarity.score)}
+                                </div>
+                                <div style={{ fontSize: 13, fontWeight: 800 }}>
+                                  가장 유사한 답안: {similarity.otherStudent?.name?.trim() || "이름 없음"}
+                                  {similarity.otherStudent?.student_number
+                                    ? ` (${similarity.otherStudent.student_number})`
+                                    : ""}
+                                </div>
+                              </div>
+
+                              <details style={{ marginTop: 10 }}>
+                                <summary style={{ cursor: "pointer", fontWeight: 800 }}>
+                                  두 답안 비교 보기
+                                </summary>
+
+                                <div
+                                  style={{
+                                    marginTop: 10,
+                                    display: "grid",
+                                    gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))",
+                                    gap: 10,
+                                  }}
+                                >
+                                  <div
+                                    style={{
+                                      padding: 12,
+                                      borderRadius: 10,
+                                      background: "#fff",
+                                      border: "1px solid rgba(0,0,0,0.06)",
+                                      color: "#111827",
+                                    }}
+                                  >
+                                    <div style={{ fontWeight: 900, marginBottom: 7 }}>현재 학생</div>
+                                    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
+                                      {formatStoredAnswer(answer.answer) || "(답안 없음)"}
+                                    </div>
+                                  </div>
+
+                                  <div
+                                    style={{
+                                      padding: 12,
+                                      borderRadius: 10,
+                                      background: "#fff",
+                                      border: "1px solid rgba(0,0,0,0.06)",
+                                      color: "#111827",
+                                    }}
+                                  >
+                                    <div style={{ fontWeight: 900, marginBottom: 7 }}>
+                                      {similarity.otherStudent?.name?.trim() || "비교 학생"}
+                                    </div>
+                                    <div style={{ whiteSpace: "pre-wrap", lineHeight: 1.65 }}>
+                                      {formatStoredAnswer(similarity.otherAnswer.answer) || "(답안 없음)"}
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div
+                                  style={{
+                                    marginTop: 9,
+                                    fontSize: 12,
+                                    lineHeight: 1.6,
+                                    color: "#6b7280",
+                                  }}
+                                >
+                                  유사도는 동일 Chapter·동일 문제 ID의 다른 학생 답안을 3글자 단위로 비교한 참고 지표입니다.
+                                  높은 유사도만으로 표절 여부를 확정하지 않습니다.
+                                </div>
+                              </details>
+                            </div>
+                          )}
+
                           <details style={{ marginTop: 15 }}>
                             <summary
                               style={{
@@ -757,7 +982,8 @@ export default function AdminPage() {
                             )}
                           </details>
                         </article>
-                      ))
+                        );
+                      })
                     )}
                   </>
                 )}

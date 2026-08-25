@@ -185,6 +185,178 @@ function renderFencedText(s: string) {
   return nodes;
 }
 
+
+function splitTableRow(line: string) {
+  const cells: string[] = [];
+  let current = "";
+  let escaped = false;
+
+  for (const ch of line) {
+    if (escaped) {
+      current += ch;
+      escaped = false;
+      continue;
+    }
+
+    if (ch === "\\") {
+      current += ch;
+      escaped = true;
+      continue;
+    }
+
+    if (ch === "|") {
+      cells.push(current.trim());
+      current = "";
+      continue;
+    }
+
+    current += ch;
+  }
+
+  cells.push(current.trim());
+  return cells;
+}
+
+function renderWorkbookTable(raw: string, key: string) {
+  const lines = raw
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (lines.length < 2) {
+    return (
+      <div
+        key={key}
+        style={{
+          margin: "18px 0",
+          padding: 14,
+          borderRadius: 10,
+          background: "#fff7ed",
+          border: "1px solid #fed7aa",
+          color: "#9a3412",
+        }}
+      >
+        표 형식이 올바르지 않습니다.
+      </div>
+    );
+  }
+
+  let caption = "";
+  if (/^caption\s*:/i.test(lines[0])) {
+    caption = lines.shift()!.replace(/^caption\s*:/i, "").trim();
+  }
+
+  const rows = lines.map(splitTableRow);
+  const header = rows[0];
+  const body = rows.slice(1);
+
+  return (
+    <figure
+      key={key}
+      style={{
+        margin: "20px 0",
+        maxWidth: "100%",
+      }}
+    >
+      {caption && (
+        <figcaption
+          style={{
+            marginBottom: 9,
+            textAlign: "center",
+            fontSize: 14,
+            fontWeight: 800,
+            color: "#374151",
+            lineHeight: 1.6,
+          }}
+        >
+          {caption}
+        </figcaption>
+      )}
+
+      <div
+        style={{
+          width: "100%",
+          overflowX: "auto",
+          border: "1px solid #d1d5db",
+          borderRadius: 10,
+          background: "#fff",
+        }}
+      >
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+            minWidth: 520,
+            fontSize: 14,
+            lineHeight: 1.65,
+          }}
+        >
+          <thead>
+            <tr>
+              {header.map((cell, index) => (
+                <th
+                  key={`h-${index}`}
+                  style={{
+                    padding: "10px 12px",
+                    background: "#f3f4f6",
+                    borderRight:
+                      index < header.length - 1
+                        ? "1px solid #d1d5db"
+                        : "none",
+                    borderBottom: "2px solid #9ca3af",
+                    textAlign: "center",
+                    fontWeight: 900,
+                    color: "#111827",
+                    whiteSpace: "pre-wrap",
+                  }}
+                >
+                  {cell}
+                </th>
+              ))}
+            </tr>
+          </thead>
+
+          <tbody>
+            {body.map((row, rowIndex) => (
+              <tr key={`r-${rowIndex}`}>
+                {header.map((_, cellIndex) => (
+                  <td
+                    key={`c-${rowIndex}-${cellIndex}`}
+                    style={{
+                      padding: "10px 12px",
+                      borderRight:
+                        cellIndex < header.length - 1
+                          ? "1px solid #e5e7eb"
+                          : "none",
+                      borderBottom:
+                        rowIndex < body.length - 1
+                          ? "1px solid #e5e7eb"
+                          : "none",
+                      textAlign: "center",
+                      verticalAlign: "middle",
+                      whiteSpace: "pre-wrap",
+                      color: "#1f2937",
+                    }}
+                  >
+                    {String(row[cellIndex] ?? "")
+  .split("<br>")
+  .map((part, i) => (
+    <React.Fragment key={i}>
+      {i > 0 && <br />}
+      {part}
+    </React.Fragment>
+  ))}
+                  </td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </figure>
+  );
+}
+
 function renderRichText(s: string) {
   const nodes: React.ReactNode[] = [];
 
@@ -193,9 +365,16 @@ function renderRichText(s: string) {
   // [[image:/images/ch16/figure16_1.png|그림 16.1 설명]]
   //
   // [[link:/workbook/ch2?p=2-1A1|수치적분(2장 문제 1.A1 참고)]]
+  //
+  // [[table:
+  // caption:표 2.1 문제 2.B4의 Python 스크립트 변수와 대응 수식
+  // 변수 | 수식
+  // ft | $f(t)$
+  // snt | $s_5(t)=\sin(2\pi \times 5f_1t)$
+  // ]]
 
   const tokenRegex =
-    /\[\[(image|link):([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
+    /\[\[table:\s*([\s\S]*?)\]\]|\[\[(image|link):([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
 
   let last = 0;
   let match: RegExpExecArray | null;
@@ -212,9 +391,23 @@ function renderRichText(s: string) {
       );
     }
 
-    const type = String(match[1] ?? "").trim();
-    const target = String(match[2] ?? "").trim();
-    const label = String(match[3] ?? "").trim();
+    const tableRaw = match[1];
+
+    if (tableRaw != null) {
+      nodes.push(
+        renderWorkbookTable(
+          tableRaw,
+          `rich-table-${key++}`,
+        ),
+      );
+
+      last = match.index + match[0].length;
+      continue;
+    }
+
+    const type = String(match[2] ?? "").trim();
+    const target = String(match[3] ?? "").trim();
+    const label = String(match[4] ?? "").trim();
 
     if (type === "image") {
       nodes.push(
@@ -306,6 +499,8 @@ export default function WorkbookPage({
 
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [userRole, setUserRole] = useState<string | null>(null);
+  const [userName, setUserName] = useState("");
+  const [studentNumber, setStudentNumber] = useState("");
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authPromptAction, setAuthPromptAction] = useState("");
 
@@ -495,17 +690,21 @@ export default function WorkbookPage({
 
       if (!user) {
         setUserRole(null);
+        setUserName("");
+        setStudentNumber("");
         return;
       }
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role")
+        .select("role, name, student_number")
         .eq("id", user.id)
         .maybeSingle();
 
       if (!mounted) return;
       setUserRole(profile?.role ?? null);
+      setUserName(profile?.name ?? "");
+      setStudentNumber(profile?.student_number ?? "");
     }
 
     void syncAuthState();
@@ -518,17 +717,21 @@ export default function WorkbookPage({
 
       if (!user) {
         setUserRole(null);
+        setUserName("");
+        setStudentNumber("");
         return;
       }
 
       void supabase
         .from("profiles")
-        .select("role")
+        .select("role, name, student_number")
         .eq("id", user.id)
         .maybeSingle()
         .then(({ data: profile }) => {
           if (!mounted) return;
           setUserRole(profile?.role ?? null);
+          setUserName(profile?.name ?? "");
+          setStudentNumber(profile?.student_number ?? "");
         });
     });
 
@@ -537,6 +740,11 @@ export default function WorkbookPage({
       listener.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  async function handleLogout() {
+    await supabase.auth.signOut();
+    router.push("/");
+  }
 
   function requestAuthenticatedAction(actionLabel: string, action: () => void) {
     if (isAuthenticated) {
@@ -1934,6 +2142,99 @@ except Exception:
                   {idx + 1} / {flat.length}
                 </span>
               </div>
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flexWrap: "wrap",
+                justifyContent: "flex-end",
+              }}
+            >
+              {isAuthenticated ? (
+                <>
+                  <div
+                    style={{
+                      padding: "8px 11px",
+                      borderRadius: 10,
+                      background: "#fff",
+                      border: "1px solid #e5e7eb",
+                      color: "#374151",
+                      fontSize: 13,
+                      lineHeight: 1.4,
+                    }}
+                  >
+                    <div style={{ fontWeight: 900 }}>
+                      {userName.trim() || "사용자"}
+                      {studentNumber ? ` · ${studentNumber}` : ""}
+                    </div>
+                    {userRole && (
+                      <div
+                        style={{
+                          marginTop: 2,
+                          color: "#6b7280",
+                          fontSize: 12,
+                        }}
+                      >
+                        {userRole}
+                      </div>
+                    )}
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() => router.push("/")}
+                    style={{
+                      minHeight: 38,
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #d1d5db",
+                      background: "#fff",
+                      color: "#111827",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    홈
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    style={{
+                      minHeight: 38,
+                      padding: "8px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #d1d5db",
+                      background: "#fff",
+                      color: "#111827",
+                      fontWeight: 800,
+                      cursor: "pointer",
+                    }}
+                  >
+                    로그아웃
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => router.push("/login")}
+                  style={{
+                    minHeight: 38,
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    background: "#fff",
+                    color: "#111827",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  로그인
+                </button>
+              )}
             </div>
 
           </div>

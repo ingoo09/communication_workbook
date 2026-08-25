@@ -38,7 +38,7 @@ const knownChapters: Record<number, Pick<Chapter, 'title' | 'description'>> = {
   },
   2: {
     title: 'Numerical Integration & Orthogonal Expansion',
-    description: '수치적분법과 직교 확장을 통해 통신 신호 해석의 기초를 학습합니다.',
+    description: '수치적분법과 직교확장을 통해 통신 신호 해석의 기초를 학습합니다.',
   },
   3: {
     title: 'Fourier Series & Frequency Transfer Function',
@@ -150,7 +150,7 @@ const knownChapters: Record<number, Pick<Chapter, 'title' | 'description'>> = {
   },
   30: {
     title: 'Near Ultrasonic Wireless OFDM Modem Design',
-    description: '비가척 대역 무선 OFDM 모뎀을 이용한 이미지 전송 및 수신 방법을 학습합니다.',
+    description: '비가청 대역 무선 OFDM 모뎀을 이용한 이미지 전송 및 수신 방법을 학습합니다.',
   }
 };
 
@@ -165,10 +165,11 @@ function getPart(chapterId: number): PartId {
 const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
+
+  //const access: Chapter['access'] = id === 1 || id === 2 || id === 14 ? 'sample' : 'locked';
   const access: Chapter['access'] = id === 1 || id === 2 || id === 14 ? 'sample' : 'preparing';
     //id === 1 || id === 2 || id === 14 ? 'sample' :
     //id === 15 || id === 16 ? 'locked' : 'preparing';
-
 
   const available = access !== 'preparing';
 

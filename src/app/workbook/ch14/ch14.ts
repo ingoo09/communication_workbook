@@ -1392,7 +1392,7 @@ sigma²=3에서는 sigma²=1일 때보다 Rayleigh 분포가 더 넓게 퍼진�
     },
     { // 설문조사
   "id": "14-8",
-  "title": "8. 온라인 Workbook 베타 버전 설문조사",
+  "title": "8. 설문조사",
   "problems": [
     {
       "id": "14-8A",
