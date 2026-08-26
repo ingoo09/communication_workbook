@@ -529,9 +529,11 @@ export default function WorkbookPage({
   const [userAnswer, setUserAnswer] = useState("");
   const [saved, setSaved] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
-  const [completedProblemIds, setCompletedProblemIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  type ProblemProgressStatus = "unattempted" | "saved" | "passed";
+
+  const [problemProgressById, setProblemProgressById] = useState<
+    Record<string, ProblemProgressStatus>
+  >({});
 
   // 현재 문제에서 마지막으로 저장/불러온 답안을 기준으로 변경 여부를 판단한다.
   const savedAnswerRef = useRef<{
@@ -764,15 +766,21 @@ export default function WorkbookPage({
   }, [supabase]);
 
   // 좌측 목차에 문제별 학습 상태를 표시하기 위해
-  // 현재 Chapter의 저장 기록을 한 번에 불러온다.
-  // 비회원은 localStorage의 임시 저장 기록을 사용한다.
+  // 현재 Chapter의 저장/채점 기록을 한 번에 불러온다.
+  //
+  // ✓ 초록색: 채점 결과 80점 이상
+  // △ 노란색: 저장했지만 미채점, 또는 채점 결과 80점 미만
+  // ○ 회색: 저장/채점 기록 없음
+  //
+  // 비회원은 localStorage의 임시 저장 여부까지만 확인할 수 있으므로
+  // 저장된 문제는 △ 상태로 표시한다.
   useEffect(() => {
     if (isAuthenticated === null) return;
 
     let cancelled = false;
 
-    function getLocalCompletedProblemIds() {
-      const ids = new Set<string>();
+    function getLocalProgress() {
+      const progress: Record<string, ProblemProgressStatus> = {};
 
       try {
         const raw = window.localStorage.getItem(storageKey);
@@ -780,18 +788,18 @@ export default function WorkbookPage({
 
         if (parsed && typeof parsed === "object") {
           for (const problemId of Object.keys(parsed)) {
-            ids.add(problemId);
+            progress[problemId] = "saved";
           }
         }
       } catch {
         // localStorage를 읽을 수 없어도 DB 기록 확인은 계속한다.
       }
 
-      return ids;
+      return progress;
     }
 
-    async function syncCompletedProblems() {
-      const next = getLocalCompletedProblemIds();
+    async function syncProblemProgress() {
+      const next = getLocalProgress();
 
       if (isAuthenticated) {
         const {
@@ -801,15 +809,24 @@ export default function WorkbookPage({
         if (user) {
           const { data: rows, error } = await supabase
             .from("answers")
-            .select("problem_id")
+            .select("problem_id, score")
             .eq("user_id", user.id)
             .eq("chapter_id", chapterSlug);
 
           if (!error) {
             for (const row of rows ?? []) {
-              if (row?.problem_id) {
-                next.add(String(row.problem_id));
-              }
+              if (!row?.problem_id) continue;
+
+              const problemId = String(row.problem_id);
+              const score =
+                typeof row.score === "number"
+                  ? row.score
+                  : null;
+
+              next[problemId] =
+                score != null && score >= ANSWER_UNLOCK_SCORE
+                  ? "passed"
+                  : "saved";
             }
           } else {
             console.error("목차 학습 상태 불러오기 실패:", error.message);
@@ -818,25 +835,25 @@ export default function WorkbookPage({
       }
 
       if (!cancelled) {
-        setCompletedProblemIds(next);
+        setProblemProgressById(next);
       }
     }
 
-    void syncCompletedProblems();
+    void syncProblemProgress();
 
     return () => {
       cancelled = true;
     };
   }, [chapterSlug, isAuthenticated, storageKey, supabase]);
 
-  function markProblemCompleted(problemId: string) {
-    setCompletedProblemIds((previous) => {
-      if (previous.has(problemId)) return previous;
-
-      const next = new Set(previous);
-      next.add(problemId);
-      return next;
-    });
+  function setProblemProgress(
+    problemId: string,
+    status: ProblemProgressStatus,
+  ) {
+    setProblemProgressById((previous) => ({
+      ...previous,
+      [problemId]: status,
+    }));
   }
 
   async function handleLogout() {
@@ -994,7 +1011,29 @@ export default function WorkbookPage({
     active: boolean,
     prefix = "",
   ) {
-    const completed = completedProblemIds.has(pb.id);
+    const status = problemProgressById[pb.id] ?? "unattempted";
+
+    const marker =
+      status === "passed"
+        ? "✓"
+        : status === "saved"
+          ? "△"
+          : "○";
+
+    const label =
+      status === "passed"
+        ? `채점 결과 ${ANSWER_UNLOCK_SCORE}점 이상`
+        : status === "saved"
+          ? "저장됨 · 미채점 또는 80점 미만"
+          : "미풀이";
+
+    const markerColor = active
+      ? "#ffffff"
+      : status === "passed"
+        ? "#16a34a"
+        : status === "saved"
+          ? "#d97706"
+          : "#cbd5e1";
 
     return (
       <span
@@ -1011,23 +1050,15 @@ export default function WorkbookPage({
           {pb.title}
         </span>
         <span
-          aria-label={completed ? "풀이 완료" : "미풀이"}
-          title={
-            completed
-              ? "저장 또는 채점한 문제"
-              : "아직 저장되지 않은 문제"
-          }
+          aria-label={label}
+          title={label}
           style={{
             flexShrink: 0,
             fontWeight: 900,
-            color: active
-              ? "#ffffff"
-              : completed
-                ? "#16a34a"
-                : "#cbd5e1",
+            color: markerColor,
           }}
         >
-          {completed ? "✓" : "○"}
+          {marker}
         </span>
       </span>
     );
@@ -1347,7 +1378,7 @@ plt.close('all')
         answer: userAnswer,
       };
 
-      markProblemCompleted(current.pb.id);
+      setProblemProgress(current.pb.id, "saved");
       setSaved(true);
       setSaveNotice(
         "이 브라우저에 임시 저장되었습니다. 로그인하면 학습 기록을 계정에 저장할 수 있습니다.",
@@ -1378,7 +1409,13 @@ plt.close('all')
       answer: userAnswer,
     };
 
-    markProblemCompleted(current.pb.id);
+    setProblemProgress(
+      current.pb.id,
+      typeof gradeResult?.score === "number" &&
+        gradeResult.score >= ANSWER_UNLOCK_SCORE
+        ? "passed"
+        : "saved",
+    );
     setSaved(true);
     setSaveNotice("계정에 저장되었습니다.");
     window.setTimeout(() => setSaved(false), 1200);
@@ -1461,7 +1498,12 @@ plt.close('all')
           problemId: current.pb.id,
           answer: userAnswer,
         };
-        markProblemCompleted(current.pb.id);
+        setProblemProgress(
+          current.pb.id,
+          normalizedScore >= ANSWER_UNLOCK_SCORE
+            ? "passed"
+            : "saved",
+        );
       }
     } catch (e: any) {
       setGradeResult({
@@ -2179,11 +2221,17 @@ except Exception:
               marginBottom: 20,
               fontSize: 12,
               color: "#6b7280",
-              lineHeight: 1.5,
+              lineHeight: 1.7,
             }}
           >
             <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>{" "}
-            저장 또는 채점한 문제
+            80점 이상
+            <span style={{ margin: "0 7px", color: "#d1d5db" }}>·</span>
+            <span style={{ color: "#d97706", fontWeight: 900 }}>△</span>{" "}
+            저장/80점 미만
+            <span style={{ margin: "0 7px", color: "#d1d5db" }}>·</span>
+            <span style={{ color: "#cbd5e1", fontWeight: 900 }}>○</span>{" "}
+            미풀이
           </div>
 
           {(data.sections ?? []).map((sec) => (
