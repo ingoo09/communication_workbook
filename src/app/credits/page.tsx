@@ -82,6 +82,10 @@ export default function CreditsPage() {
       return;
     }
 
+    // 이 시점 이후에는 반드시 string임을 별도 상수에 고정한다.
+    // 비동기 함수/클로저 안에서도 TypeScript가 undefined 가능성을 다시 추론하지 않게 한다.
+    const safeClientKey: string = clientKey;
+
     let cancelled = false;
 
     async function initializeWidget() {
@@ -89,7 +93,7 @@ export default function CreditsPage() {
         setMessage("");
         setIsError(false);
 
-        const tossPayments = window.TossPayments!(clientKey);
+        const tossPayments = window.TossPayments!(safeClientKey);
         const customerKey = `customer-${crypto.randomUUID()}`;
         const widgets = tossPayments.widgets({ customerKey });
 
