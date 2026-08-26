@@ -54,6 +54,20 @@ function scrollTargetIntoView(selector: string) {
   }
 }
 
+function getAvailableStepIndexes(steps: TutorialStep[]) {
+  if (typeof document === "undefined") {
+    return steps.map((_, index) => index);
+  }
+
+  return steps
+    .map((step, index) => ({ step, index }))
+    .filter(
+      ({ step }) =>
+        !step.optional || Boolean(document.querySelector(step.target)),
+    )
+    .map(({ index }) => index);
+}
+
 export default function TutorialOverlay({
   steps,
   storageKey,
@@ -66,12 +80,47 @@ export default function TutorialOverlay({
   const [internalOpen, setInternalOpen] = useState(false);
   const [stepIndex, setStepIndex] = useState(0);
   const [targetRect, setTargetRect] = useState<Rect | null>(null);
+  const [availableIndexes, setAvailableIndexes] = useState<number[]>([]);
 
   const isControlled = typeof open === "boolean";
   const visible = isControlled ? Boolean(open) : internalOpen;
 
   const usableSteps = useMemo(() => steps.filter(Boolean), [steps]);
   const currentStep = usableSteps[stepIndex] ?? usableSteps[0];
+
+  useEffect(() => {
+    if (!visible) return;
+
+    const refreshAvailableSteps = () => {
+      setAvailableIndexes(getAvailableStepIndexes(usableSteps));
+    };
+
+    refreshAvailableSteps();
+
+    const observer = new MutationObserver(refreshAvailableSteps);
+    observer.observe(document.body, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["data-tutorial"],
+    });
+
+    return () => observer.disconnect();
+  }, [usableSteps, visible]);
+
+  const currentAvailablePosition = availableIndexes.indexOf(stepIndex);
+
+  const goToPreviousStep = useCallback(() => {
+    const position = availableIndexes.indexOf(stepIndex);
+    if (position <= 0) return;
+    setStepIndex(availableIndexes[position - 1]);
+  }, [availableIndexes, stepIndex]);
+
+  const goToNextStep = useCallback(() => {
+    const position = availableIndexes.indexOf(stepIndex);
+    if (position < 0 || position >= availableIndexes.length - 1) return;
+    setStepIndex(availableIndexes[position + 1]);
+  }, [availableIndexes, stepIndex]);
 
   const closeTutorial = useCallback(
     (completed: boolean) => {
@@ -139,49 +188,32 @@ export default function TutorialOverlay({
         closeTutorial(false);
       }
 
-      if (event.key === "ArrowRight" && stepIndex < usableSteps.length - 1) {
-        setStepIndex((value) => value + 1);
+      if (event.key === "ArrowRight") {
+        goToNextStep();
       }
 
-      if (event.key === "ArrowLeft" && stepIndex > 0) {
-        setStepIndex((value) => value - 1);
+      if (event.key === "ArrowLeft") {
+        goToPreviousStep();
       }
     };
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [closeTutorial, stepIndex, usableSteps.length, visible]);
+  }, [closeTutorial, goToNextStep, goToPreviousStep, visible]);
 
   useEffect(() => {
-    if (!visible || !currentStep) return;
+    if (!visible || !currentStep || availableIndexes.length === 0) return;
 
-    const element = document.querySelector(currentStep.target);
-    if (element || !currentStep.optional) return;
+    if (availableIndexes.includes(stepIndex)) return;
 
-    const nextIndex = usableSteps.findIndex(
-      (step, index) =>
-        index > stepIndex &&
-        (!step.optional || document.querySelector(step.target)),
-    );
-
-    if (nextIndex >= 0) {
+    const nextIndex = availableIndexes.find((index) => index > stepIndex);
+    if (typeof nextIndex === "number") {
       setStepIndex(nextIndex);
       return;
     }
 
-    const previousIndex = [...usableSteps]
-      .map((step, index) => ({ step, index }))
-      .reverse()
-      .find(
-        ({ step, index }) =>
-          index < stepIndex &&
-          (!step.optional || document.querySelector(step.target)),
-      )?.index;
-
-    if (typeof previousIndex === "number") {
-      setStepIndex(previousIndex);
-    }
-  }, [currentStep, stepIndex, usableSteps, visible]);
+    setStepIndex(availableIndexes[availableIndexes.length - 1]);
+  }, [availableIndexes, currentStep, stepIndex, visible]);
 
   if (!visible || !currentStep) return null;
 
@@ -241,8 +273,14 @@ export default function TutorialOverlay({
   }
   if (cardTop < 16) cardTop = 16;
 
-  const isFirst = stepIndex === 0;
-  const isLast = stepIndex === usableSteps.length - 1;
+  const displayStepNumber =
+    currentAvailablePosition >= 0 ? currentAvailablePosition + 1 : 1;
+  const displayStepTotal = Math.max(availableIndexes.length, 1);
+
+  const isFirst = currentAvailablePosition <= 0;
+  const isLast =
+    currentAvailablePosition >= 0 &&
+    currentAvailablePosition === availableIndexes.length - 1;
 
   return (
     <div
@@ -314,7 +352,7 @@ export default function TutorialOverlay({
               letterSpacing: 0.4,
             }}
           >
-            {stepIndex + 1} / {usableSteps.length}
+            {displayStepNumber} / {displayStepTotal}
           </div>
 
           <button
@@ -367,7 +405,7 @@ export default function TutorialOverlay({
         >
           <div
             style={{
-              width: `${((stepIndex + 1) / usableSteps.length) * 100}%`,
+              width: `${(displayStepNumber / displayStepTotal) * 100}%`,
               height: "100%",
               background: "linear-gradient(90deg,#4f46e5,#7c3aed)",
               transition: "width 180ms ease",
@@ -386,7 +424,7 @@ export default function TutorialOverlay({
           <button
             type="button"
             disabled={isFirst}
-            onClick={() => setStepIndex((value) => Math.max(0, value - 1))}
+            onClick={goToPreviousStep}
             style={{
               minHeight: 42,
               padding: "9px 14px",
@@ -426,9 +464,7 @@ export default function TutorialOverlay({
                 if (isLast) {
                   closeTutorial(true);
                 } else {
-                  setStepIndex((value) =>
-                    Math.min(usableSteps.length - 1, value + 1),
-                  );
+                  goToNextStep();
                 }
               }}
               style={{
