@@ -57,6 +57,17 @@ function formatStoredAnswer(value: string) {
   return value;
 }
 
+
+function compareProblemOrder(a: AnswerRow, b: AnswerRow) {
+  const aLabel = (a.problem_title || a.problem_id).trim();
+  const bLabel = (b.problem_title || b.problem_id).trim();
+
+  return aLabel.localeCompare(bLabel, "ko-KR", {
+    numeric: true,
+    sensitivity: "base",
+  });
+}
+
 export default function HistoryPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
@@ -66,7 +77,9 @@ export default function HistoryPage() {
   const [error, setError] = useState("");
   const [chapterFilter, setChapterFilter] = useState("all");
   const [gradingFilter, setGradingFilter] = useState<"all" | "graded" | "ungraded">("all");
-  const [sortMode, setSortMode] = useState<"recent" | "oldest" | "score-desc" | "score-asc">("recent");
+  const [sortMode, setSortMode] = useState<
+    "problem" | "recent" | "oldest" | "score-desc" | "score-asc"
+  >("problem");
   const [searchTerm, setSearchTerm] = useState("");
 
   useEffect(() => {
@@ -159,6 +172,10 @@ export default function HistoryPage() {
     });
 
     return [...rows].sort((a, b) => {
+      if (sortMode === "problem") {
+        return compareProblemOrder(a, b);
+      }
+
       if (sortMode === "oldest") {
         return new Date(a.updated_at).getTime() - new Date(b.updated_at).getTime();
       }
@@ -392,6 +409,7 @@ export default function HistoryPage() {
                 onChange={(event) =>
                   setSortMode(
                     event.target.value as
+                      | "problem"
                       | "recent"
                       | "oldest"
                       | "score-desc"
@@ -401,6 +419,7 @@ export default function HistoryPage() {
                 style={filterControlStyle}
                 aria-label="정렬"
               >
+                <option value="problem">문제 번호순</option>
                 <option value="recent">최근 저장순</option>
                 <option value="oldest">오래된 저장순</option>
                 <option value="score-desc">점수 높은순</option>

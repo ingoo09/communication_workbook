@@ -529,6 +529,9 @@ export default function WorkbookPage({
   const [userAnswer, setUserAnswer] = useState("");
   const [saved, setSaved] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
+  const [completedProblemIds, setCompletedProblemIds] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   // 현재 문제에서 마지막으로 저장/불러온 답안을 기준으로 변경 여부를 판단한다.
   const savedAnswerRef = useRef<{
@@ -760,6 +763,82 @@ export default function WorkbookPage({
     };
   }, [supabase]);
 
+  // 좌측 목차에 문제별 학습 상태를 표시하기 위해
+  // 현재 Chapter의 저장 기록을 한 번에 불러온다.
+  // 비회원은 localStorage의 임시 저장 기록을 사용한다.
+  useEffect(() => {
+    if (isAuthenticated === null) return;
+
+    let cancelled = false;
+
+    function getLocalCompletedProblemIds() {
+      const ids = new Set<string>();
+
+      try {
+        const raw = window.localStorage.getItem(storageKey);
+        const parsed = raw ? JSON.parse(raw) : {};
+
+        if (parsed && typeof parsed === "object") {
+          for (const problemId of Object.keys(parsed)) {
+            ids.add(problemId);
+          }
+        }
+      } catch {
+        // localStorage를 읽을 수 없어도 DB 기록 확인은 계속한다.
+      }
+
+      return ids;
+    }
+
+    async function syncCompletedProblems() {
+      const next = getLocalCompletedProblemIds();
+
+      if (isAuthenticated) {
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+
+        if (user) {
+          const { data: rows, error } = await supabase
+            .from("answers")
+            .select("problem_id")
+            .eq("user_id", user.id)
+            .eq("chapter_id", chapterSlug);
+
+          if (!error) {
+            for (const row of rows ?? []) {
+              if (row?.problem_id) {
+                next.add(String(row.problem_id));
+              }
+            }
+          } else {
+            console.error("목차 학습 상태 불러오기 실패:", error.message);
+          }
+        }
+      }
+
+      if (!cancelled) {
+        setCompletedProblemIds(next);
+      }
+    }
+
+    void syncCompletedProblems();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [chapterSlug, isAuthenticated, storageKey, supabase]);
+
+  function markProblemCompleted(problemId: string) {
+    setCompletedProblemIds((previous) => {
+      if (previous.has(problemId)) return previous;
+
+      const next = new Set(previous);
+      next.add(problemId);
+      return next;
+    });
+  }
+
   async function handleLogout() {
     await supabase.auth.signOut();
     router.push("/");
@@ -909,6 +988,50 @@ export default function WorkbookPage({
   }, [idToIndex]);
 
   const current = flat[idx];
+
+  function renderSidebarProblemLabel(
+    pb: WorkbookProblem,
+    active: boolean,
+    prefix = "",
+  ) {
+    const completed = completedProblemIds.has(pb.id);
+
+    return (
+      <span
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: 8,
+          width: "100%",
+        }}
+      >
+        <span>
+          {prefix}
+          {pb.title}
+        </span>
+        <span
+          aria-label={completed ? "풀이 완료" : "미풀이"}
+          title={
+            completed
+              ? "저장 또는 채점한 문제"
+              : "아직 저장되지 않은 문제"
+          }
+          style={{
+            flexShrink: 0,
+            fontWeight: 900,
+            color: active
+              ? "#ffffff"
+              : completed
+                ? "#16a34a"
+                : "#cbd5e1",
+          }}
+        >
+          {completed ? "✓" : "○"}
+        </span>
+      </span>
+    );
+  }
 
   // 저장 답안 로드
   // 로그인 상태에서는 Supabase를 먼저 확인하고,
@@ -1224,6 +1347,7 @@ plt.close('all')
         answer: userAnswer,
       };
 
+      markProblemCompleted(current.pb.id);
       setSaved(true);
       setSaveNotice(
         "이 브라우저에 임시 저장되었습니다. 로그인하면 학습 기록을 계정에 저장할 수 있습니다.",
@@ -1254,6 +1378,7 @@ plt.close('all')
       answer: userAnswer,
     };
 
+    markProblemCompleted(current.pb.id);
     setSaved(true);
     setSaveNotice("계정에 저장되었습니다.");
     window.setTimeout(() => setSaved(false), 1200);
@@ -1336,6 +1461,7 @@ plt.close('all')
           problemId: current.pb.id,
           answer: userAnswer,
         };
+        markProblemCompleted(current.pb.id);
       }
     } catch (e: any) {
       setGradeResult({
@@ -2042,10 +2168,22 @@ except Exception:
             style={{
               fontSize: 22,
               fontWeight: 900,
-              marginBottom: 24,
+              marginBottom: 8,
             }}
           >
             {data.title}
+          </div>
+
+          <div
+            style={{
+              marginBottom: 20,
+              fontSize: 12,
+              color: "#6b7280",
+              lineHeight: 1.5,
+            }}
+          >
+            <span style={{ color: "#16a34a", fontWeight: 900 }}>✓</span>{" "}
+            저장 또는 채점한 문제
           </div>
 
           {(data.sections ?? []).map((sec) => (
@@ -2093,7 +2231,7 @@ except Exception:
                             transition: "0.15s",
                           }}
                         >
-                          {pb.title}
+                          {renderSidebarProblemLabel(pb, active)}
                         </button>
                       );
                     });
@@ -2127,7 +2265,11 @@ except Exception:
                           transition: "0.15s",
                         }}
                       >
-                        ↳ {group.parent.title}
+                        {renderSidebarProblemLabel(
+                          group.parent,
+                          active,
+                          "↳ ",
+                        )}
                       </button>
                     );
                   }
@@ -2198,7 +2340,7 @@ except Exception:
                                 transition: "0.15s",
                               }}
                             >
-                              ↳ {pb.title}
+                              {renderSidebarProblemLabel(pb, active, "↳ ")}
                             </button>
                           );
                         })}
