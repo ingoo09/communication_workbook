@@ -58,6 +58,7 @@ plt.stem([1,2,3,4,5,6],Px)
           "title": "1.A2.",
           "type": "python",
           "prompt": `이 py 스크립트에서는 ‘x=math.ceil(np.random.rand*6)’을 ‘Nsim’번 반복 실행하여 실행할 때마다 값이 바뀌는 랜덤 변수 ‘x’를 생성한다. 한편, 매번 실행하면서, 현재까지 ‘x’가 1인 횟수를 ‘count[0]’에, ‘x’가 2인 횟수를 ‘count[1]’에, …, ‘x’가 6인 횟수를 ‘count[5]’에 저장한다. ‘Px’는 각 사건(주사위의 눈)이 발생한 확률의 실험치를 원소로 갖는 벡터이다. 예를 들어, ‘Px[2]’는 ‘x’가 3인 확률의 실험치이다.
+
 py 스크립트 파일의 미완성된 부분을 마저 채워 완성하고, '코드 실행'을 여러 번 클릭하여 결과 그래프를 확인하시오.`,
           "starterCode": `import math
 import matplotlib.pyplot as plt
@@ -587,7 +588,8 @@ plt.figure()
 plt.plot(PartitionCenters,Px,'r')
 plt.grid()`,
           "prompt": `'Nsim=1e4'로 증가시켜 문제 3.B를 반복하시오. 실행한 결과와 이론적인 PDF가 같은지 확인하시오.
-(실행하는데 다소 시간이 소요될 수 있음)`,
+
+(참고. 실행하는데 다소 시간이 소요될 수 있음)`,
           "referenceAnswer": `py 스크립트의
 \`\`\`python
 Nsim=100
@@ -1220,7 +1222,8 @@ $$
           "title": "7.B1.",
           "type": "console",
           "prompt": `$\\sigma^2=1$일 때, (식 14.8)에 따라 $\\alpha$의 샘플을 생성해보자. 함수 'np.random.randn()'을 이용하여, $\\alpha$의 샘플 'alpha_sample'을 생성하는 코드를 완성하시오.
-(코드 작성 전, 'import numpy as np'를 실행하는 것을 잊지 말 것)
+
+(주의. 코드 작성 전, 'import numpy as np'를 먼저 실행하는 것을 잊지 말 것)
 \`\`\`python
 alpha_sample = ?
 \`\`\`          
@@ -1237,7 +1240,8 @@ np.random.randn()은 평균 0, 분산 1인 가우시안 랜덤 변수의 샘플�
           "title": "7.B2.",
           "type": "console",
           "prompt": `$\\sigma^2=0.5$일 때, 문제 7.B1을 반복하시오.
-(코드 작성 전, 'import numpy as np'를 실행하는 것을 잊지 말 것)
+
+(주의. 코드 작성 전, 'import numpy as np'를 먼저 실행하는 것을 잊지 말 것)
 \`\`\`python
 alpha_sample = ?
 \`\`\`          
@@ -1254,10 +1258,9 @@ np.random.randn()의 분산은 1이다. 분산을 0.5로 만들기 위해서는 
           "type": "python",
           "prompt": `문제 3에서 했던 방법으로, $\\sigma^2=1$인 레일 레이 랜덤 변수 $\\alpha$의 실험에 의한 PDF를 그리자. ‘Nsim=1000’, ‘xstep=0.1’, ‘xmin=0’, ‘xmax=5’으로 설정할 것.
 
-문제 3.A에서 완성한 py 스크립트 파일에, 문제 7.B1의 답을 활용하여 py 스크립트 파일을 적절히 수정하고, (식 14.7)을 참고하여 이론적인 PDF는 파란색으로 겹쳐 그리도록 작성하자.
+문제 3.A에서 완성한 py 스크립트 파일에, 문제 7.B1의 답을 활용하여 py 스크립트 파일을 적절히 수정하고, (식 14.7)을 참고하여 이론적인 PDF는 파란색으로 겹쳐 그리도록 작성하자. 요구사항에 맞게 py 스크립트를 수정한 후 실행하여 결과 그림을 확인하시오.
 
-요구사항에 맞게 py 스크립트를 수정한 후 실행하여 결과 그림을 확인하시오.
-(실험에 의한 PDF 곡선이 부드럽게 그려지지 않았을 때는 ‘Nsim’의 값을 더 크게 설정할 것)`,
+(참고. 실험에 의한 PDF 곡선이 부드럽게 그려지지 않았을 때는 ‘Nsim’의 값을 더 크게 설정할 것)`,
           "referenceAnswer": `\`\`\`python
 import numpy as np
 import matplotlib.pyplot as plt

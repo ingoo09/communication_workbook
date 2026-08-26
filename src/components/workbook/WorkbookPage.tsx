@@ -14,6 +14,9 @@ import {
 import { saveAnswer } from "@/lib/answers/saveAnswer";
 import { loadAnswer } from "@/lib/answers/loadAnswer";
 import { createClient } from "@/lib/supabase/client";
+import TutorialOverlay from "@/components/tutorial/TutorialOverlay";
+import TutorialIntroPrompt from "@/components/tutorial/TutorialIntroPrompt";
+import { WORKBOOK_TUTORIAL_STEPS } from "@/components/tutorial/steps";
 
 import type { WorkbookChapter, WorkbookProblem } from "@/types/workbook";
 import { PROBLEM_TYPE_LABEL, resolveProblemType } from "@/types/workbook";
@@ -503,6 +506,22 @@ export default function WorkbookPage({
   const [studentNumber, setStudentNumber] = useState("");
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authPromptAction, setAuthPromptAction] = useState("");
+  const [workbookTutorialOpen, setWorkbookTutorialOpen] = useState(false);
+  // 전체화면 집중 학습은 로그인한 student 역할에만 적용한다.
+  // 반드시 이를 참조하는 useEffect보다 먼저 선언해야 한다.
+  const roleReady =
+    isAuthenticated !== true ||
+    userRole !== null;
+
+  const isStudent =
+    isAuthenticated === true &&
+    userRole === "student";
+  const [focusModeStarted, setFocusModeStarted] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
+  const [pageHidden, setPageHidden] = useState(false);
+  const [windowBlurred, setWindowBlurred] = useState(false);
+  const [fullscreenError, setFullscreenError] = useState("");
 
   const [idx, setIdx] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
@@ -756,6 +775,116 @@ export default function WorkbookPage({
     setShowAuthPrompt(true);
   }
 
+
+  useEffect(() => {
+    const syncFullscreen = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    const syncBrowserFullscreen = () => {
+      // F11 브라우저 전체화면은 Fullscreen API에 잡히지 않기 때문에
+      // viewport와 screen 크기가 거의 같은지 비교해 전체화면 상태를 추정한다.
+      // 브라우저/OS별 1~수 px 차이를 고려해 12px 허용 오차를 둔다.
+      const widthDiff = Math.abs(window.innerWidth - window.screen.width);
+      const heightDiff = Math.abs(window.innerHeight - window.screen.height);
+
+      setIsBrowserFullscreen(widthDiff <= 12 && heightDiff <= 12);
+    };
+
+    const syncVisibility = () => {
+      setPageHidden(document.hidden);
+    };
+
+    const handleBlur = () => {
+      setWindowBlurred(true);
+    };
+
+    const handleFocus = () => {
+      setWindowBlurred(false);
+      syncBrowserFullscreen();
+    };
+
+    syncFullscreen();
+    syncBrowserFullscreen();
+    syncVisibility();
+
+    document.addEventListener("fullscreenchange", syncFullscreen);
+    document.addEventListener("visibilitychange", syncVisibility);
+    window.addEventListener("resize", syncBrowserFullscreen);
+    window.addEventListener("blur", handleBlur);
+    window.addEventListener("focus", handleFocus);
+
+    return () => {
+      document.removeEventListener("fullscreenchange", syncFullscreen);
+      document.removeEventListener("visibilitychange", syncVisibility);
+      window.removeEventListener("resize", syncBrowserFullscreen);
+      window.removeEventListener("blur", handleBlur);
+      window.removeEventListener("focus", handleFocus);
+    };
+  }, []);
+
+  useEffect(() => {
+    // 학생 계정에서 최초 가림막 상태로 F11을 눌러 전체화면에 진입하면
+    // 집중 학습 모드를 시작한 것으로 처리한다.
+    if (
+      userRole === "student" &&
+      !focusModeStarted &&
+      isBrowserFullscreen
+    ) {
+      setFocusModeStarted(true);
+      setWindowBlurred(false);
+      setPageHidden(false);
+      setFullscreenError("");
+    }
+  }, [userRole, focusModeStarted, isBrowserFullscreen]);
+
+  useEffect(() => {
+    // 학생 이외의 역할에서는 집중 학습 강제를 사용하지 않는다.
+    if (roleReady && !isStudent && focusModeStarted) {
+      setFocusModeStarted(false);
+    }
+  }, [roleReady, isStudent, focusModeStarted]);
+
+  async function enterFocusMode() {
+    setFullscreenError("");
+
+    try {
+      if (!document.fullscreenElement) {
+        await document.documentElement.requestFullscreen();
+      }
+
+      setFocusModeStarted(true);
+      setWindowBlurred(false);
+      setPageHidden(false);
+    } catch (error: any) {
+      setFullscreenError(
+        error?.message ??
+          "전체화면으로 전환하지 못했습니다. 브라우저 설정을 확인해 주세요.",
+      );
+    }
+  }
+
+  async function exitFocusMode() {
+    setFocusModeStarted(false);
+    setFullscreenError("");
+
+    if (document.fullscreenElement) {
+      try {
+        await document.exitFullscreen();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  const fullscreenAccepted =
+    isFullscreen || isBrowserFullscreen;
+
+  const focusModeBlocked =
+    isStudent &&
+    focusModeStarted &&
+    (!fullscreenAccepted || pageHidden || windowBlurred);
+
   // 외부 링크(/history 등)에서 ?p=문제ID로 들어온 경우 해당 문제로 이동
   // URL을 읽는 역할만 담당하고, URL 쓰기는 moveToProblem()에서 처리한다.
   useEffect(() => {
@@ -949,6 +1078,7 @@ export default function WorkbookPage({
     userRole === "professor" ||
     userRole === "developer" ||
     userRole === "admin";
+
 
   const canViewPreparedAnswer =
     Boolean(isAuthenticated) &&
@@ -1895,6 +2025,7 @@ except Exception:
       >
         {/* 좌측 목차 */}
         <div
+          data-tutorial="workbook-sidebar"
           style={{
             width: 280,
             background: "#fff",
@@ -2153,6 +2284,42 @@ except Exception:
                 justifyContent: "flex-end",
               }}
             >
+              <button
+                type="button"
+                onClick={() => setWorkbookTutorialOpen(true)}
+                style={{
+                  minHeight: 38,
+                  padding: "8px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #c7d2fe",
+                  background: "#eef2ff",
+                  color: "#3730a3",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                사용법
+              </button>
+
+              {isStudent && (
+                <button
+                  type="button"
+                  onClick={focusModeStarted ? exitFocusMode : enterFocusMode}
+                  style={{
+                    minHeight: 38,
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    background: focusModeStarted ? "#111827" : "#fff",
+                    color: focusModeStarted ? "#fff" : "#111827",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  {focusModeStarted ? "학습 종료" : "학습 모드"}
+                </button>
+              )}
+
               {isAuthenticated ? (
                 <>
                   <div
@@ -2253,7 +2420,7 @@ except Exception:
             onCut={(event) => event.preventDefault()}
             onContextMenu={(event) => event.preventDefault()}
           >
-            <div ref={promptRef}>
+            <div ref={promptRef} data-tutorial="workbook-prompt">
               {renderRichText(displayPrompt || "(문제 본문이 비어 있습니다)")}
             </div>
           </div>
@@ -2280,18 +2447,28 @@ except Exception:
               </div>
             )}
 
-            <ProblemRenderer
-              problem={current.pb}
-              value={userAnswer}
-              onChange={setUserAnswer}
-              pyodide={pyodide}
-              pyReady={pyReady}
-              runningCode={runningCode}
-              codeOutput={codeOutput}
-              plotImage={plotImage}
-              audioSource={audioSource}
-              onRunPython={runPythonCode}
-            />
+            <div data-tutorial="workbook-answer">
+              <div
+                data-tutorial={
+                  currentProblemType === "python"
+                    ? "python-editor"
+                    : undefined
+                }
+              >
+                <ProblemRenderer
+                  problem={current.pb}
+                  value={userAnswer}
+                  onChange={setUserAnswer}
+                  pyodide={pyodide}
+                  pyReady={pyReady}
+                  runningCode={runningCode}
+                  codeOutput={codeOutput}
+                  plotImage={plotImage}
+                  audioSource={audioSource}
+                  onRunPython={runPythonCode}
+                />
+              </div>
+            </div>
 
             <div
               style={{
@@ -2304,6 +2481,7 @@ except Exception:
             >
               {/* 저장 버튼 */}
               <button
+                data-tutorial="workbook-save"
                 onClick={saveMyAnswer}
                 style={{
                   padding: "10px 14px",
@@ -2316,6 +2494,7 @@ except Exception:
 
               <button
                 type="button"
+                data-tutorial="workbook-grade"
                 onClick={() =>
                   requestAuthenticatedAction("내 답안 채점하기", gradeWithAI)
                 }
@@ -2565,6 +2744,7 @@ except Exception:
           )}
 
           <div
+            data-tutorial="workbook-navigation"
             style={{
               marginTop: 18,
               display: "grid",
@@ -2609,6 +2789,297 @@ except Exception:
           </div>
         </div>
       </div>
+
+      {isAuthenticated === true && userRole === null && (
+        <div
+          aria-live="polite"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 12002,
+            display: "grid",
+            placeItems: "center",
+            background: "#f5f7fb",
+            color: "#374151",
+          }}
+        >
+          <div
+            style={{
+              padding: "18px 22px",
+              borderRadius: 14,
+              background: "#fff",
+              border: "1px solid #e5e7eb",
+              boxShadow: "0 14px 36px rgba(15,23,42,0.10)",
+              fontWeight: 800,
+            }}
+          >
+            학습 환경을 확인하는 중입니다...
+          </div>
+        </div>
+      )}
+
+      {roleReady && isStudent && !focusModeStarted && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 12000,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            background: "rgba(15,23,42,0.92)",
+            backdropFilter: "blur(6px)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              padding: 30,
+              borderRadius: 22,
+              background: "#fff",
+              color: "#111827",
+              boxShadow: "0 28px 80px rgba(0,0,0,0.35)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 62,
+                height: 62,
+                margin: "0 auto",
+                borderRadius: 18,
+                display: "grid",
+                placeItems: "center",
+                background: "#eef2ff",
+                color: "#4338ca",
+                fontSize: 30,
+                fontWeight: 900,
+              }}
+            >
+              ⛶
+            </div>
+
+            <h2
+              style={{
+                margin: "18px 0 0",
+                fontSize: 26,
+                fontWeight: 900,
+              }}
+            >
+              전체화면 학습 모드
+            </h2>
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: "#6b7280",
+                lineHeight: 1.7,
+              }}
+            >
+              문제를 풀기 전에 전체화면 학습 모드를 시작해 주세요.
+              아래 버튼을 사용하거나 F11 전체화면을 사용할 수 있습니다.
+              전체화면이 해제되거나 다른 탭·창으로 이동하면 문제 화면이 즉시 가려집니다.
+            </p>
+
+            <button
+              type="button"
+              onClick={enterFocusMode}
+              style={{
+                width: "100%",
+                minHeight: 50,
+                marginTop: 22,
+                border: 0,
+                borderRadius: 12,
+                background: "#4f46e5",
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: 16,
+                cursor: "pointer",
+              }}
+            >
+              전체화면으로 학습 시작
+            </button>
+
+            <button
+              type="button"
+              onClick={() => router.push("/")}
+              style={{
+                width: "100%",
+                minHeight: 44,
+                marginTop: 10,
+                border: "1px solid #d1d5db",
+                borderRadius: 12,
+                background: "#fff",
+                color: "#374151",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              홈으로 돌아가기
+            </button>
+
+            {fullscreenError && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  color: "#b91c1c",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                }}
+              >
+                {fullscreenError}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {focusModeBlocked && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 12001,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            background: "rgba(15,23,42,0.95)",
+            backdropFilter: "blur(7px)",
+          }}
+        >
+          <div
+            style={{
+              width: "100%",
+              maxWidth: 520,
+              padding: 30,
+              borderRadius: 22,
+              background: "#fff",
+              color: "#111827",
+              boxShadow: "0 28px 80px rgba(0,0,0,0.35)",
+              textAlign: "center",
+            }}
+          >
+            <div
+              style={{
+                width: 62,
+                height: 62,
+                margin: "0 auto",
+                borderRadius: 18,
+                display: "grid",
+                placeItems: "center",
+                background: "#fff7ed",
+                color: "#c2410c",
+                fontSize: 28,
+              }}
+            >
+              ⚠
+            </div>
+
+            <h2
+              style={{
+                margin: "18px 0 0",
+                fontSize: 25,
+                fontWeight: 900,
+              }}
+            >
+              학습이 일시 중지되었습니다
+            </h2>
+
+            <p
+              style={{
+                margin: "12px 0 0",
+                color: "#6b7280",
+                lineHeight: 1.7,
+              }}
+            >
+              전체화면이 해제되었거나 다른 탭·창으로 이동했습니다.
+              계속 학습하려면 전체화면 학습 모드로 복귀해 주세요.
+            </p>
+
+            <button
+              type="button"
+              onClick={enterFocusMode}
+              style={{
+                width: "100%",
+                minHeight: 50,
+                marginTop: 22,
+                border: 0,
+                borderRadius: 12,
+                background: "#4f46e5",
+                color: "#fff",
+                fontWeight: 900,
+                fontSize: 16,
+                cursor: "pointer",
+              }}
+            >
+              전체화면으로 복귀
+            </button>
+
+            <button
+              type="button"
+              onClick={exitFocusMode}
+              style={{
+                width: "100%",
+                minHeight: 44,
+                marginTop: 10,
+                border: "1px solid #d1d5db",
+                borderRadius: 12,
+                background: "#fff",
+                color: "#374151",
+                fontWeight: 800,
+                cursor: "pointer",
+              }}
+            >
+              학습 모드 종료
+            </button>
+
+            {fullscreenError && (
+              <div
+                style={{
+                  marginTop: 14,
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  background: "#fef2f2",
+                  border: "1px solid #fecaca",
+                  color: "#b91c1c",
+                  fontSize: 13,
+                  lineHeight: 1.6,
+                }}
+              >
+                {fullscreenError}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {isAuthenticated !== null && (
+        <>
+          <TutorialIntroPrompt
+            storageKey="workbook_tutorial_workbook_v1"
+            title="문제 풀이 화면을 안내해드릴까요?"
+            description="문제 이동, 답안 작성, 실행과 채점 방법을 간단히 안내합니다."
+            onStart={() => setWorkbookTutorialOpen(true)}
+          />
+
+          <TutorialOverlay
+            steps={WORKBOOK_TUTORIAL_STEPS}
+            storageKey="workbook_tutorial_workbook_v1"
+            open={workbookTutorialOpen}
+            onClose={() => setWorkbookTutorialOpen(false)}
+            onComplete={() => setWorkbookTutorialOpen(false)}
+          />
+        </>
+      )}
 
       {pendingMoveIdx != null && (
         <div

@@ -4,6 +4,9 @@ import Link from 'next/link';
 import AuthControls from '@/components/auth/AuthControls';
 import { createClient } from '@/lib/supabase/client';
 import { useEffect, useMemo, useRef, useState } from 'react';
+import TutorialOverlay from '@/components/tutorial/TutorialOverlay';
+import TutorialIntroPrompt from '@/components/tutorial/TutorialIntroPrompt';
+import { HOME_TUTORIAL_STEPS } from '@/components/tutorial/steps';
 
 type PartId = 100 | 1 | 2 | 3 | 4;
 
@@ -196,6 +199,7 @@ export default function WorkbookHome() {
   const [chapterCosts, setChapterCosts] = useState<Record<number, number>>({});
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const [showHistoryAuthPrompt, setShowHistoryAuthPrompt] = useState(false);
+  const [homeTutorialOpen, setHomeTutorialOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -447,29 +451,9 @@ export default function WorkbookHome() {
               flexWrap: 'wrap',
             }}
           >
-            <button
-              type="button"
-              onClick={() => moveToCurriculum(1)}
-              style={{
-                flex: '0 0 auto',
-                minWidth: 124,
-                maxWidth: '100%',
-                boxSizing: 'border-box',
-                whiteSpace: 'nowrap',
-                background: 'linear-gradient(135deg,#4f46e5,#7c3aed)',
-                color: 'white',
-                border: 'none',
-                padding: '11px 18px',
-                borderRadius: 12,
-                cursor: 'pointer',
-                fontWeight: 800,
-                boxShadow: '0 10px 30px rgba(99,102,241,0.35)',
-              }}
-            >
-              학습 시작
-            </button>
             {isAuthenticated ? (
               <Link
+                data-tutorial="home-history"
                 href="/history"
                 style={{
                   flex: '0 0 auto',
@@ -488,6 +472,7 @@ export default function WorkbookHome() {
             ) : (
               <button
                 type="button"
+                data-tutorial="home-history"
                 onClick={() => setShowHistoryAuthPrompt(true)}
                 style={{
                   flex: '0 0 auto',
@@ -505,7 +490,10 @@ export default function WorkbookHome() {
               </button>
             )}
             {creditBalance !== null && (
-              <div
+              <Link
+                data-tutorial="home-credit"
+                href="/credits"
+                title="Credit 충전"
                 style={{
                   flex: '0 0 auto',
                   padding: '10px 13px',
@@ -516,10 +504,12 @@ export default function WorkbookHome() {
                   fontSize: 13,
                   fontWeight: 900,
                   whiteSpace: 'nowrap',
+                  textDecoration: 'none',
+                  cursor: 'pointer',
                 }}
               >
                 Credit {creditBalance}
-              </div>
+              </Link>
             )}
             {isAuthenticated && (
               <Link
@@ -613,6 +603,7 @@ export default function WorkbookHome() {
           <div style={{ marginTop: 36, display: 'flex', gap: 14, flexWrap: 'wrap' }}>
             <button
               type="button"
+              data-tutorial="home-start"
               onClick={() => moveToCurriculum(1)}
               style={{
                 maxWidth: '100%',
@@ -634,7 +625,7 @@ export default function WorkbookHome() {
 
             <button
               type="button"
-              onClick={() => moveToCurriculum(selectedPart)}
+              onClick={() => setHomeTutorialOpen(true)}
               style={{
                 maxWidth: '100%',
                 boxSizing: 'border-box',
@@ -649,7 +640,7 @@ export default function WorkbookHome() {
                 whiteSpace: 'nowrap',
               }}
             >
-              커리큘럼 보기
+              튜토리얼
             </button>
           </div>
         </div>
@@ -803,6 +794,7 @@ export default function WorkbookHome() {
           {visibleChapters.map((chapter) => (
             <article
               key={chapter.id}
+              data-tutorial="home-chapter-card"
               style={{
                 minWidth: 0,
                 display: 'flex',
@@ -1043,6 +1035,23 @@ export default function WorkbookHome() {
         </div>
       </section>
 
+      {isAuthenticated !== null && (
+        <>
+          <TutorialIntroPrompt
+            storageKey="workbook_tutorial_home_v1"
+            onStart={() => setHomeTutorialOpen(true)}
+          />
+
+          <TutorialOverlay
+            steps={HOME_TUTORIAL_STEPS}
+            storageKey="workbook_tutorial_home_v1"
+            open={homeTutorialOpen}
+            onClose={() => setHomeTutorialOpen(false)}
+            onComplete={() => setHomeTutorialOpen(false)}
+          />
+        </>
+      )}
+
       {showHistoryAuthPrompt && (
         <div
           role="dialog"
@@ -1155,6 +1164,18 @@ export default function WorkbookHome() {
       )}
 
       <style jsx>{`
+        .home-header-actions > button,
+        .home-header-actions > a {
+          min-height: 42px !important;
+          padding: 10px 14px !important;
+          box-sizing: border-box !important;
+          display: inline-flex !important;
+          align-items: center !important;
+          justify-content: center !important;
+          font-size: 13px !important;
+          line-height: 1.2 !important;
+        }
+
         @media (max-width: 900px) {
           .hero-section {
             grid-template-columns: 1fr !important;
