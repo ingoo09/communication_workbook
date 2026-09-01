@@ -504,6 +504,10 @@ export default function WorkbookPage({
   const [userRole, setUserRole] = useState<string | null>(null);
   const [userName, setUserName] = useState("");
   const [studentNumber, setStudentNumber] = useState("");
+  const [studentClassId, setStudentClassId] = useState<string | null>(null);
+  const [chapterDeadline, setChapterDeadline] = useState<string | null>(null);
+  const [deadlineLoading, setDeadlineLoading] = useState(false);
+  const [deadlineNow, setDeadlineNow] = useState(() => Date.now());
   const [showAuthPrompt, setShowAuthPrompt] = useState(false);
   const [authPromptAction, setAuthPromptAction] = useState("");
   const [workbookTutorialOpen, setWorkbookTutorialOpen] = useState(false);
@@ -716,12 +720,13 @@ export default function WorkbookPage({
         setUserRole(null);
         setUserName("");
         setStudentNumber("");
+        setStudentClassId(null);
         return;
       }
 
       const { data: profile } = await supabase
         .from("profiles")
-        .select("role, name, student_number")
+        .select("role, name, student_number, class_id")
         .eq("id", user.id)
         .maybeSingle();
 
@@ -729,6 +734,7 @@ export default function WorkbookPage({
       setUserRole(profile?.role ?? null);
       setUserName(profile?.name ?? "");
       setStudentNumber(profile?.student_number ?? "");
+      setStudentClassId(profile?.class_id ?? null);
     }
 
     void syncAuthState();
@@ -743,12 +749,13 @@ export default function WorkbookPage({
         setUserRole(null);
         setUserName("");
         setStudentNumber("");
+        setStudentClassId(null);
         return;
       }
 
       void supabase
         .from("profiles")
-        .select("role, name, student_number")
+        .select("role, name, student_number, class_id")
         .eq("id", user.id)
         .maybeSingle()
         .then(({ data: profile }) => {
@@ -756,6 +763,7 @@ export default function WorkbookPage({
           setUserRole(profile?.role ?? null);
           setUserName(profile?.name ?? "");
           setStudentNumber(profile?.student_number ?? "");
+          setStudentClassId(profile?.class_id ?? null);
         });
     });
 
@@ -764,6 +772,46 @@ export default function WorkbookPage({
       listener.subscription.unsubscribe();
     };
   }, [supabase]);
+
+  // 학생에게 배정된 분반의 현재 Chapter 마감기한을 조회한다.
+  // 실제 저장 차단은 Supabase DB trigger에서 한 번 더 검사한다.
+  useEffect(() => {
+    if (!isStudent || !studentClassId) {
+      setChapterDeadline(null);
+      setDeadlineLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function loadChapterDeadline() {
+      setDeadlineLoading(true);
+      const { data, error } = await supabase
+        .from("assignment_deadlines")
+        .select("deadline")
+        .eq("chapter_id", chapterSlug)
+        .eq("class_id", studentClassId)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      if (error) {
+        console.error("Chapter 마감기한 조회 실패:", error.message);
+        setChapterDeadline(null);
+      } else {
+        setChapterDeadline(data?.deadline ?? null);
+      }
+      setDeadlineLoading(false);
+    }
+
+    void loadChapterDeadline();
+    return () => { cancelled = true; };
+  }, [chapterSlug, isStudent, studentClassId, supabase]);
+
+  useEffect(() => {
+    const timer = window.setInterval(() => setDeadlineNow(Date.now()), 30000);
+    return () => window.clearInterval(timer);
+  }, []);
 
   // 좌측 목차에 문제별 학습 상태를 표시하기 위해
   // 현재 Chapter의 저장/채점 기록을 한 번에 불러온다.
@@ -1233,6 +1281,21 @@ export default function WorkbookPage({
     userRole === "developer" ||
     userRole === "admin";
 
+  const deadlineTimestamp = chapterDeadline != null ? new Date(chapterDeadline).getTime() : null;
+  const isDeadlinePassed =
+    isStudent &&
+    deadlineTimestamp != null &&
+    Number.isFinite(deadlineTimestamp) &&
+    deadlineNow > deadlineTimestamp;
+
+  const formattedChapterDeadline =
+    chapterDeadline != null
+      ? new Intl.DateTimeFormat("ko-KR", {
+          year: "numeric", month: "2-digit", day: "2-digit",
+          hour: "2-digit", minute: "2-digit",
+        }).format(new Date(chapterDeadline))
+      : null;
+
 
   const canViewPreparedAnswer =
     Boolean(isAuthenticated) &&
@@ -1359,6 +1422,11 @@ plt.close('all')
   }
 
   async function saveMyAnswer(): Promise<boolean> {
+    if (isDeadlinePassed) {
+      setSaveNotice("제출 기한이 종료되어 답안을 저장할 수 없습니다.");
+      return false;
+    }
+
     // localStorage는 비회원의 임시 저장소이자 회원의 보조 저장소로 사용한다.
     try {
       const raw = window.localStorage.getItem(storageKey);
@@ -1398,10 +1466,17 @@ plt.close('all')
       feedback: gradeResult?.feedback ?? null,
     });
 
-    if (!result.success && result.reason === "database_error") {
-      console.error("Supabase 답안 저장 실패:", result.message);
-      setSaveNotice("답안을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
-      return false;
+    if (!result.success) {
+      if (result.reason === "deadline_passed") {
+        setSaveNotice(result.message);
+        setDeadlineNow(Date.now());
+        return false;
+      }
+      if (result.reason === "database_error") {
+        console.error("Supabase 답안 저장 실패:", result.message);
+        setSaveNotice("답안을 저장하지 못했습니다. 잠시 후 다시 시도해주세요.");
+        return false;
+      }
     }
 
     savedAnswerRef.current = {
@@ -1423,6 +1498,11 @@ plt.close('all')
   }
 
   async function gradeWithAI() {
+    if (isDeadlinePassed) {
+      setGradeResult({ error: "제출 기한이 종료되었습니다.", feedback: "마감 이후에는 답안 채점 및 채점 결과 저장을 할 수 없습니다." });
+      return;
+    }
+
     setGrading(true);
     setGradeResult(null);
     try {
@@ -1490,8 +1570,15 @@ plt.close('all')
         feedback,
       });
 
-      if (!saveResult.success && saveResult.reason === "database_error") {
-        console.error("채점 결과 DB 저장 실패:", saveResult.message);
+      if (!saveResult.success) {
+        if (saveResult.reason === "deadline_passed") {
+          setGradeResult({ score: normalizedScore, feedback, error: saveResult.message });
+          setDeadlineNow(Date.now());
+          return;
+        }
+        if (saveResult.reason === "database_error") {
+          console.error("채점 결과 DB 저장 실패:", saveResult.message);
+        }
       } else {
         // 채점 시에도 현재 답안이 DB에 함께 저장되므로 변경 상태를 해제한다.
         savedAnswerRef.current = {
@@ -2596,6 +2683,20 @@ except Exception:
 
           </div>
 
+          {isStudent && (
+            <div style={{ marginTop: 16, padding: "13px 15px", borderRadius: 12, border: isDeadlinePassed ? "1px solid #fecaca" : "1px solid #c7d2fe", background: isDeadlinePassed ? "#fef2f2" : "#eef2ff", color: isDeadlinePassed ? "#991b1b" : "#3730a3", fontSize: 14, lineHeight: 1.6, fontWeight: 800 }}>
+              {deadlineLoading
+                ? "제출 기한을 확인하는 중입니다..."
+                : formattedChapterDeadline
+                  ? isDeadlinePassed
+                    ? `제출이 마감되었습니다. 마감: ${formattedChapterDeadline}`
+                    : `제출 기한: ${formattedChapterDeadline}`
+                  : studentClassId
+                    ? "이 Chapter에는 현재 설정된 제출 기한이 없습니다."
+                    : "아직 분반이 배정되지 않았습니다. 담당 교수에게 문의하세요."}
+            </div>
+          )}
+
           <div
             style={{
               marginTop: 16,
@@ -2673,13 +2774,16 @@ except Exception:
               <button
                 data-tutorial="workbook-save"
                 onClick={saveMyAnswer}
+                disabled={isDeadlinePassed}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #ddd",
+                  cursor: isDeadlinePassed ? "not-allowed" : "pointer",
+                  opacity: isDeadlinePassed ? 0.55 : 1,
                 }}
               >
-                저장
+                {isDeadlinePassed ? "마감됨" : "저장"}
               </button>
 
               <button
@@ -2688,7 +2792,7 @@ except Exception:
                 onClick={() =>
                   requestAuthenticatedAction("내 답안 채점하기", gradeWithAI)
                 }
-                disabled={grading}
+                disabled={grading || isDeadlinePassed}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -2696,11 +2800,11 @@ except Exception:
                   background: "#4f46e5",
                   color: "#fff",
                   fontWeight: 800,
-                  opacity: grading ? 0.6 : 1,
-                  cursor: grading ? "not-allowed" : "pointer",
+                  opacity: grading || isDeadlinePassed ? 0.6 : 1,
+                  cursor: grading || isDeadlinePassed ? "not-allowed" : "pointer",
                 }}
               >
-                {grading ? "채점 중..." : "내 답안 채점하기"}
+                {isDeadlinePassed ? "제출 마감" : grading ? "채점 중..." : "내 답안 채점하기"}
               </button>
 
               {/* 저장 표시 */}

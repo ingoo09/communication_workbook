@@ -17,7 +17,7 @@ export type SaveAnswerResult =
     }
   | {
       success: false;
-      reason: 'not_authenticated' | 'database_error';
+      reason: 'not_authenticated' | 'deadline_passed' | 'database_error';
       message: string;
     };
 
@@ -74,10 +74,18 @@ export async function saveAnswer({
   if (error) {
     console.error('Supabase answer save failed:', error);
 
+    const rawError = [error.message, error.details, error.hint, error.code]
+      .filter(Boolean)
+      .join(' ');
+
+    const deadlinePassed = rawError.includes('DEADLINE_PASSED');
+
     return {
       success: false,
-      reason: 'database_error',
-      message: error.message,
+      reason: deadlinePassed ? 'deadline_passed' : 'database_error',
+      message: deadlinePassed
+        ? '제출 기한이 종료되어 답안을 저장할 수 없습니다.'
+        : error.message,
     };
   }
 

@@ -11,6 +11,22 @@ type ProfileRow = {
   student_number: string | null;
   role: string | null;
   created_at: string;
+  class_id: string | null;
+};
+
+type ClassRow = {
+  id: string;
+  organization_id: string;
+  name: string;
+  semester: string | null;
+  created_at: string;
+};
+
+type DeadlineRow = {
+  id: string;
+  chapter_id: string;
+  class_id: string;
+  deadline: string;
 };
 
 type AnswerRow = {
@@ -162,8 +178,18 @@ export default function ProfessorStudentsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [organizationName, setOrganizationName] = useState('');
+  const [organizationId, setOrganizationId] = useState<string | null>(null);
   const [profiles, setProfiles] = useState<ProfileRow[]>([]);
   const [answers, setAnswers] = useState<AnswerRow[]>([]);
+  const [classes, setClasses] = useState<ClassRow[]>([]);
+  const [deadlines, setDeadlines] = useState<DeadlineRow[]>([]);
+  const [newClassName, setNewClassName] = useState('');
+  const [newClassSemester, setNewClassSemester] = useState('2026-2');
+  const [deadlineChapterId, setDeadlineChapterId] = useState('ch15');
+  const [deadlineClassId, setDeadlineClassId] = useState('');
+  const [deadlineLocal, setDeadlineLocal] = useState('');
+  const [managementBusy, setManagementBusy] = useState(false);
+  const [managementMessage, setManagementMessage] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
   const [chapterFilter, setChapterFilter] = useState('all');
@@ -192,7 +218,7 @@ export default function ProfessorStudentsPage() {
 
       const { data: myProfile, error: profileError } = await supabase
         .from('profiles')
-        .select('role, organization')
+        .select('role, organization, organization_id')
         .eq('id', user.id)
         .maybeSingle();
 
@@ -203,18 +229,42 @@ export default function ProfessorStudentsPage() {
         return;
       }
 
-      const [profilesResult, answersResult] = await Promise.all([
+      const { data: myOrganization, error: organizationError } = await supabase
+        .from('organizations')
+        .select('id, name')
+        .eq('owner_id', user.id)
+        .maybeSingle();
+
+      if (cancelled) return;
+
+      const resolvedOrganizationId =
+        myOrganization?.id ?? myProfile.organization_id ?? null;
+
+      if (organizationError || !resolvedOrganizationId) {
+        setError(
+          organizationError?.message ??
+            '교수 계정에 연결된 소속 정보를 찾지 못했습니다.',
+        );
+        setLoading(false);
+        return;
+      }
+
+      const [profilesResult, classesResult, deadlinesResult] = await Promise.all([
         supabase
           .from('profiles')
-          .select('id, name, student_number, role, created_at')
+          .select('id, name, student_number, role, created_at, class_id')
           .eq('role', 'student')
+          .eq('organization_id', resolvedOrganizationId)
           .order('created_at', { ascending: true }),
         supabase
-          .from('answers')
-          .select(
-            'id, user_id, chapter_id, problem_id, problem_title, answer, execution_output, score, feedback, created_at, updated_at',
-          )
-          .order('updated_at', { ascending: false }),
+          .from('classes')
+          .select('id, organization_id, name, semester, created_at')
+          .eq('organization_id', resolvedOrganizationId)
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('assignment_deadlines')
+          .select('id, chapter_id, class_id, deadline')
+          .order('chapter_id', { ascending: true }),
       ]);
 
       if (cancelled) return;
@@ -225,17 +275,51 @@ export default function ProfessorStudentsPage() {
         return;
       }
 
+      if (classesResult.error) {
+        setError(`분반 조회 실패: ${classesResult.error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      if (deadlinesResult.error) {
+        setError(`마감기한 조회 실패: ${deadlinesResult.error.message}`);
+        setLoading(false);
+        return;
+      }
+
+      const students = profilesResult.data ?? [];
+      const studentIds = students.map((student) => student.id);
+
+      const answersResult =
+        studentIds.length > 0
+          ? await supabase
+              .from('answers')
+              .select(
+                'id, user_id, chapter_id, problem_id, problem_title, answer, execution_output, score, feedback, created_at, updated_at',
+              )
+              .in('user_id', studentIds)
+              .order('updated_at', { ascending: false })
+          : { data: [] as AnswerRow[], error: null };
+
+      if (cancelled) return;
+
       if (answersResult.error) {
         setError(`답안 기록 조회 실패: ${answersResult.error.message}`);
         setLoading(false);
         return;
       }
 
-      const students = profilesResult.data ?? [];
+      const classRows = classesResult.data ?? [];
 
-      setOrganizationName(myProfile.organization ?? '');
+      setOrganizationName(
+        myOrganization?.name ?? myProfile.organization ?? '소속',
+      );
+      setOrganizationId(resolvedOrganizationId);
       setProfiles(students);
       setAnswers(answersResult.data ?? []);
+      setClasses(classRows);
+      setDeadlines(deadlinesResult.data ?? []);
+      setDeadlineClassId(classRows[0]?.id ?? '');
       setSelectedStudentId(students[0]?.id ?? null);
       setLoading(false);
     }
@@ -246,6 +330,128 @@ export default function ProfessorStudentsPage() {
       cancelled = true;
     };
   }, [router]);
+
+
+  async function createClass() {
+    const className = newClassName.trim();
+
+    if (!organizationId || !className) {
+      setManagementMessage('분반 이름을 입력해 주세요.');
+      return;
+    }
+
+    setManagementBusy(true);
+    setManagementMessage('');
+
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from('classes')
+        .insert({
+          organization_id: organizationId,
+          name: className,
+          semester: newClassSemester.trim() || null,
+        })
+        .select('id, organization_id, name, semester, created_at')
+        .single();
+
+      if (error) throw error;
+
+      setClasses((previous) => [...previous, data]);
+      if (!deadlineClassId) setDeadlineClassId(data.id);
+      setNewClassName('');
+      setManagementMessage(`${data.name} 분반을 생성했습니다.`);
+    } catch (error: any) {
+      setManagementMessage(error?.message ?? '분반을 생성하지 못했습니다.');
+    } finally {
+      setManagementBusy(false);
+    }
+  }
+
+  async function assignStudentClass(studentId: string, classId: string) {
+    setManagementBusy(true);
+    setManagementMessage('');
+
+    try {
+      const supabase = createClient();
+      const { error } = await supabase.rpc('assign_student_class', {
+        target_student_id: studentId,
+        target_class_id: classId || null,
+      });
+
+      if (error) throw error;
+
+      setProfiles((previous) =>
+        previous.map((profile) =>
+          profile.id === studentId
+            ? { ...profile, class_id: classId || null }
+            : profile,
+        ),
+      );
+      setManagementMessage('학생 분반을 변경했습니다.');
+    } catch (error: any) {
+      setManagementMessage(error?.message ?? '학생 분반을 변경하지 못했습니다.');
+    } finally {
+      setManagementBusy(false);
+    }
+  }
+
+  async function saveDeadline() {
+    if (!deadlineChapterId.trim() || !deadlineClassId || !deadlineLocal) {
+      setManagementMessage('Chapter, 분반, 마감일시를 모두 입력해 주세요.');
+      return;
+    }
+
+    setManagementBusy(true);
+    setManagementMessage('');
+
+    try {
+      const supabase = createClient();
+      const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+      if (userError || !user) {
+        router.replace('/login');
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('assignment_deadlines')
+        .upsert(
+          {
+            chapter_id: deadlineChapterId.trim(),
+            class_id: deadlineClassId,
+            deadline: new Date(deadlineLocal).toISOString(),
+            created_by: user.id,
+            updated_at: new Date().toISOString(),
+          },
+          { onConflict: 'chapter_id,class_id' },
+        )
+        .select('id, chapter_id, class_id, deadline')
+        .single();
+
+      if (error) throw error;
+
+      setDeadlines((previous) => {
+        const filtered = previous.filter(
+          (row) => !(row.chapter_id === data.chapter_id && row.class_id === data.class_id),
+        );
+        return [...filtered, data].sort((a, b) =>
+          a.chapter_id.localeCompare(b.chapter_id, undefined, { numeric: true }),
+        );
+      });
+      setManagementMessage('마감기한을 저장했습니다.');
+    } catch (error: any) {
+      setManagementMessage(error?.message ?? '마감기한을 저장하지 못했습니다.');
+    } finally {
+      setManagementBusy(false);
+    }
+  }
+
+  const classById = useMemo(() => {
+    const map = new Map<string, ClassRow>();
+    for (const row of classes) map.set(row.id, row);
+    return map;
+  }, [classes]);
 
   const students = useMemo(
     () => profiles.filter((profile) => profile.role === 'student'),
@@ -497,6 +703,93 @@ export default function ProfessorStudentsPage() {
               ))}
             </div>
 
+
+            <section
+              style={{
+                marginTop: 26,
+                padding: 22,
+                borderRadius: 20,
+                background: '#fff',
+                border: '1px solid #e5e7eb',
+              }}
+            >
+              <div style={{ fontSize: 20, fontWeight: 900 }}>분반 관리</div>
+              <p style={{ color: '#6b7280', lineHeight: 1.65 }}>
+                학생은 회원가입할 때 분반을 선택하지 않습니다. 교수 계정에서 분반을 만들고 학생에게 배정합니다.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, alignItems: 'end' }}>
+                <label style={{ fontSize: 13, fontWeight: 800, color: '#4b5563' }}>
+                  학기
+                  <input value={newClassSemester} onChange={(e) => setNewClassSemester(e.target.value)} placeholder="예: 2026-2" style={{ ...filterControlStyle, marginTop: 6 }} />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 800, color: '#4b5563' }}>
+                  분반 이름
+                  <input value={newClassName} onChange={(e) => setNewClassName(e.target.value)} placeholder="예: 01분반" style={{ ...filterControlStyle, marginTop: 6 }} />
+                </label>
+                <button type="button" onClick={createClass} disabled={managementBusy} style={{ minHeight: 42, border: 0, borderRadius: 10, background: '#7c3aed', color: '#fff', fontWeight: 900, cursor: managementBusy ? 'wait' : 'pointer', opacity: managementBusy ? 0.65 : 1 }}>
+                  분반 생성
+                </button>
+              </div>
+              <div style={{ marginTop: 16, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                {classes.length === 0 ? (
+                  <span style={{ color: '#6b7280' }}>아직 생성된 분반이 없습니다.</span>
+                ) : classes.map((row) => (
+                  <span key={row.id} style={{ padding: '7px 10px', borderRadius: 999, background: '#f3e8ff', color: '#6b21a8', fontSize: 13, fontWeight: 800 }}>
+                    {row.semester ? `${row.semester} · ` : ''}{row.name}
+                  </span>
+                ))}
+              </div>
+            </section>
+
+            <section
+              style={{
+                marginTop: 18,
+                padding: 22,
+                borderRadius: 20,
+                background: '#fff',
+                border: '1px solid #e5e7eb',
+              }}
+            >
+              <div style={{ fontSize: 20, fontWeight: 900 }}>Chapter별 마감기한 설정</div>
+              <p style={{ color: '#6b7280', lineHeight: 1.65 }}>
+                동일한 Chapter라도 분반별로 서로 다른 마감일시를 설정할 수 있습니다.
+              </p>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 10, alignItems: 'end' }}>
+                <label style={{ fontSize: 13, fontWeight: 800, color: '#4b5563' }}>
+                  Chapter ID
+                  <input value={deadlineChapterId} onChange={(e) => setDeadlineChapterId(e.target.value)} placeholder="예: ch15" style={{ ...filterControlStyle, marginTop: 6 }} />
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 800, color: '#4b5563' }}>
+                  분반
+                  <select value={deadlineClassId} onChange={(e) => setDeadlineClassId(e.target.value)} style={{ ...filterControlStyle, marginTop: 6 }}>
+                    <option value="">분반 선택</option>
+                    {classes.map((row) => <option key={row.id} value={row.id}>{row.semester ? `${row.semester} · ` : ''}{row.name}</option>)}
+                  </select>
+                </label>
+                <label style={{ fontSize: 13, fontWeight: 800, color: '#4b5563' }}>
+                  마감일시
+                  <input type="datetime-local" value={deadlineLocal} onChange={(e) => setDeadlineLocal(e.target.value)} style={{ ...filterControlStyle, marginTop: 6 }} />
+                </label>
+                <button type="button" onClick={saveDeadline} disabled={managementBusy} style={{ minHeight: 42, border: 0, borderRadius: 10, background: '#111827', color: '#fff', fontWeight: 900, cursor: managementBusy ? 'wait' : 'pointer', opacity: managementBusy ? 0.65 : 1 }}>
+                  마감기한 저장
+                </button>
+              </div>
+              {deadlines.length > 0 && (
+                <div style={{ marginTop: 18, display: 'grid', gap: 8 }}>
+                  {deadlines.map((row) => {
+                    const classRow = classById.get(row.class_id);
+                    return (
+                      <div key={row.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', padding: '10px 12px', borderRadius: 10, background: '#f9fafb', border: '1px solid #e5e7eb', fontSize: 14 }}>
+                        <strong>{row.chapter_id} · {classRow?.name ?? '분반'}</strong>
+                        <span style={{ color: '#6b7280' }}>{formatDate(row.deadline)}</span>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              {managementMessage && <div style={{ marginTop: 14, padding: '10px 12px', borderRadius: 10, background: '#f5f3ff', border: '1px solid #ddd6fe', color: '#6b21a8', fontSize: 13 }}>{managementMessage}</div>}
+            </section>
+
             <div
               style={{
                 marginTop: 26,
@@ -598,6 +891,13 @@ export default function ProfessorStudentsPage() {
                           <div style={{ marginTop: 6, color: '#6b7280' }}>
                             {selectedStudent.student_number || '학번 없음'}
                           </div>
+                          <label style={{ display: 'block', marginTop: 12, maxWidth: 300, color: '#4b5563', fontSize: 13, fontWeight: 800 }}>
+                            분반 배정
+                            <select value={selectedStudent.class_id ?? ''} onChange={(event) => assignStudentClass(selectedStudent.id, event.target.value)} disabled={managementBusy} style={{ ...filterControlStyle, marginTop: 6 }}>
+                              <option value="">미배정</option>
+                              {classes.map((row) => <option key={row.id} value={row.id}>{row.semester ? `${row.semester} · ` : ''}{row.name}</option>)}
+                            </select>
+                          </label>
                         </div>
 
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
