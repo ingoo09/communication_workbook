@@ -192,6 +192,10 @@ export default function ProfessorStudentsPage() {
   const [managementMessage, setManagementMessage] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
+  const [studentClassFilter, setStudentClassFilter] = useState('all');
+  const [studentSortMode, setStudentSortMode] = useState<
+    'created-oldest' | 'created-newest' | 'name' | 'student-number' | 'class'
+  >('class');
   const [chapterFilter, setChapterFilter] = useState('all');
   const [gradingFilter, setGradingFilter] = useState<'all' | 'graded' | 'ungraded'>('all');
   const [sortMode, setSortMode] = useState<
@@ -458,16 +462,81 @@ export default function ProfessorStudentsPage() {
     [profiles],
   );
 
+  function getStudentClassLabel(student: ProfileRow) {
+    if (!student.class_id) return '미배정';
+
+    const classRow = classById.get(student.class_id);
+    if (!classRow) return '미배정';
+
+    return classRow.semester
+      ? `${classRow.semester} · ${classRow.name}`
+      : classRow.name;
+  }
+
   const visibleStudents = useMemo(() => {
     const query = studentSearch.trim().toLowerCase();
-    if (!query) return students;
 
-    return students.filter((student) =>
-      `${student.name ?? ''} ${student.student_number ?? ''}`
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [students, studentSearch]);
+    const filtered = students.filter((student) => {
+      const matchesSearch =
+        !query ||
+        `${student.name ?? ''} ${student.student_number ?? ''}`
+          .toLowerCase()
+          .includes(query);
+
+      const matchesClass =
+        studentClassFilter === 'all'
+          ? true
+          : studentClassFilter === 'unassigned'
+            ? !student.class_id
+            : student.class_id === studentClassFilter;
+
+      return matchesSearch && matchesClass;
+    });
+
+    return [...filtered].sort((a, b) => {
+      if (studentSortMode === 'created-newest') {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+
+      if (studentSortMode === 'name') {
+        return (a.name ?? '').localeCompare(b.name ?? '', 'ko-KR', {
+          numeric: true,
+          sensitivity: 'base',
+        });
+      }
+
+      if (studentSortMode === 'student-number') {
+        return (a.student_number ?? '').localeCompare(
+          b.student_number ?? '',
+          'ko-KR',
+          { numeric: true, sensitivity: 'base' },
+        );
+      }
+
+      if (studentSortMode === 'class') {
+        const aUnassigned = !a.class_id;
+        const bUnassigned = !b.class_id;
+
+        if (aUnassigned !== bUnassigned) return aUnassigned ? -1 : 1;
+
+        const classCompare = getStudentClassLabel(a).localeCompare(
+          getStudentClassLabel(b),
+          'ko-KR',
+          { numeric: true, sensitivity: 'base' },
+        );
+
+        if (classCompare !== 0) return classCompare;
+
+        return (a.student_number ?? '').localeCompare(
+          b.student_number ?? '',
+          'ko-KR',
+          { numeric: true, sensitivity: 'base' },
+        );
+      }
+
+      return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    });
+  }, [students, studentSearch, studentClassFilter, studentSortMode, classById]);
 
   const answersByUser = useMemo(() => {
     const map = new Map<string, AnswerRow[]>();
@@ -813,13 +882,71 @@ export default function ProfessorStudentsPage() {
                     borderBottom: '1px solid #e5e7eb',
                   }}
                 >
-                  <div style={{ fontWeight: 900, fontSize: 18 }}>학생 목록</div>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      gap: 10,
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, fontSize: 18 }}>학생 목록</div>
+                    <div style={{ color: '#6b7280', fontSize: 12, fontWeight: 800 }}>
+                      {visibleStudents.length} / {students.length}명
+                    </div>
+                  </div>
+
                   <input
                     value={studentSearch}
                     onChange={(event) => setStudentSearch(event.target.value)}
                     placeholder="이름 또는 학번 검색"
                     style={{ ...filterControlStyle, marginTop: 12 }}
                   />
+
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 1fr',
+                      gap: 8,
+                      marginTop: 8,
+                    }}
+                  >
+                    <select
+                      value={studentClassFilter}
+                      onChange={(event) => setStudentClassFilter(event.target.value)}
+                      style={filterControlStyle}
+                    >
+                      <option value="all">전체 분반</option>
+                      <option value="unassigned">미배정</option>
+                      {classes.map((row) => (
+                        <option key={row.id} value={row.id}>
+                          {row.semester ? `${row.semester} · ` : ''}
+                          {row.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <select
+                      value={studentSortMode}
+                      onChange={(event) =>
+                        setStudentSortMode(
+                          event.target.value as
+                            | 'created-oldest'
+                            | 'created-newest'
+                            | 'name'
+                            | 'student-number'
+                            | 'class',
+                        )
+                      }
+                      style={filterControlStyle}
+                    >
+                      <option value="class">분반순 · 미배정 우선</option>
+                      <option value="name">이름순</option>
+                      <option value="student-number">학번순</option>
+                      <option value="created-newest">최근 가입순</option>
+                      <option value="created-oldest">가입 오래된순</option>
+                    </select>
+                  </div>
                 </div>
 
                 {visibleStudents.length === 0 ? (
@@ -852,6 +979,58 @@ export default function ProfessorStudentsPage() {
                         </div>
                         <div style={{ marginTop: 5, color: '#6b7280', fontSize: 13 }}>
                           {student.student_number || '학번 없음'} · 저장 {studentAnswers.length}개
+                        </div>
+                        <div
+                          style={{
+                            marginTop: 7,
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 7,
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <span
+                            style={{
+                              padding: '4px 7px',
+                              borderRadius: 999,
+                              background: student.class_id ? '#ede9fe' : '#fef3c7',
+                              color: student.class_id ? '#6d28d9' : '#92400e',
+                              fontSize: 11,
+                              fontWeight: 900,
+                            }}
+                          >
+                            {getStudentClassLabel(student)}
+                          </span>
+                          <select
+                            value={student.class_id ?? ''}
+                            disabled={managementBusy}
+                            onClick={(event) => event.stopPropagation()}
+                            onChange={(event) => {
+                              event.stopPropagation();
+                              void assignStudentClass(student.id, event.target.value);
+                            }}
+                            aria-label={`${student.name ?? '학생'} 분반 배정`}
+                            style={{
+                              minWidth: 118,
+                              flex: '1 1 118px',
+                              minHeight: 30,
+                              padding: '4px 7px',
+                              borderRadius: 8,
+                              border: '1px solid #d1d5db',
+                              background: '#fff',
+                              color: '#111827',
+                              fontSize: 12,
+                              cursor: managementBusy ? 'wait' : 'pointer',
+                            }}
+                          >
+                            <option value="">미배정</option>
+                            {classes.map((row) => (
+                              <option key={row.id} value={row.id}>
+                                {row.semester ? `${row.semester} · ` : ''}
+                                {row.name}
+                              </option>
+                            ))}
+                          </select>
                         </div>
                       </button>
                     );
