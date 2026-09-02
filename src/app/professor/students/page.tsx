@@ -190,6 +190,8 @@ export default function ProfessorStudentsPage() {
   const [deadlineLocal, setDeadlineLocal] = useState('');
   const [managementBusy, setManagementBusy] = useState(false);
   const [managementMessage, setManagementMessage] = useState('');
+  const [resetPasswordBusy, setResetPasswordBusy] = useState(false);
+  const [temporaryPassword, setTemporaryPassword] = useState('');
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentSearch, setStudentSearch] = useState('');
   const [studentClassFilter, setStudentClassFilter] = useState('all');
@@ -201,6 +203,9 @@ export default function ProfessorStudentsPage() {
   const [sortMode, setSortMode] = useState<
     'problem' | 'recent' | 'oldest' | 'score-desc' | 'score-asc'
   >('problem');
+  const [openAnswerIds, setOpenAnswerIds] = useState<Set<number | string>>(
+    () => new Set(),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -397,6 +402,61 @@ export default function ProfessorStudentsPage() {
       setManagementMessage(error?.message ?? '학생 분반을 변경하지 못했습니다.');
     } finally {
       setManagementBusy(false);
+    }
+  }
+
+  async function resetStudentPassword(student: ProfileRow) {
+    const studentName = student.name?.trim() || '이름 없음';
+    const confirmed = window.confirm(
+      `${studentName} 학생의 비밀번호를 초기화하시겠습니까?\n\n기존 비밀번호는 더 이상 사용할 수 없습니다.`,
+    );
+
+    if (!confirmed) return;
+
+    setResetPasswordBusy(true);
+    setTemporaryPassword('');
+    setManagementMessage('');
+
+    try {
+      const response = await fetch('/api/professor/reset-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          studentId: student.id,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok || !result?.success || !result?.temporaryPassword) {
+        throw new Error(result?.error ?? '비밀번호를 초기화하지 못했습니다.');
+      }
+
+      setTemporaryPassword(result.temporaryPassword);
+      setManagementMessage(
+        `${studentName} 학생의 임시 비밀번호를 발급했습니다. 아래 비밀번호를 학생에게 전달해 주세요.`,
+      );
+    } catch (error: any) {
+      setManagementMessage(
+        error?.message ?? '비밀번호를 초기화하지 못했습니다.',
+      );
+    } finally {
+      setResetPasswordBusy(false);
+    }
+  }
+
+  async function copyTemporaryPassword() {
+    if (!temporaryPassword) return;
+
+    try {
+      await navigator.clipboard.writeText(temporaryPassword);
+      setManagementMessage('임시 비밀번호를 복사했습니다.');
+    } catch {
+      setManagementMessage(
+        '복사하지 못했습니다. 임시 비밀번호를 직접 선택해 복사해 주세요.',
+      );
     }
   }
 
@@ -606,6 +666,8 @@ export default function ProfessorStudentsPage() {
     setChapterFilter('all');
     setGradingFilter('all');
     setSortMode('problem');
+    setTemporaryPassword('');
+    setOpenAnswerIds(new Set());
   }, [selectedStudentId]);
 
   const selectedStudent =
@@ -656,6 +718,34 @@ export default function ProfessorStudentsPage() {
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
   }, [selectedAnswers, chapterFilter, gradingFilter, sortMode]);
+
+  function openAllVisibleAnswers() {
+    setOpenAnswerIds(
+      new Set(visibleAnswers.map((answer) => answer.id)),
+    );
+  }
+
+  function closeAllVisibleAnswers() {
+    setOpenAnswerIds((previous) => {
+      const next = new Set(previous);
+      for (const answer of visibleAnswers) {
+        next.delete(answer.id);
+      }
+      return next;
+    });
+  }
+
+  function toggleAnswerOpen(answerId: number | string, open: boolean) {
+    setOpenAnswerIds((previous) => {
+      const next = new Set(previous);
+      if (open) {
+        next.add(answerId);
+      } else {
+        next.delete(answerId);
+      }
+      return next;
+    });
+  }
 
   const gradedAnswers = selectedAnswers.filter(
     (answer) => typeof answer.score === 'number',
@@ -1077,6 +1167,106 @@ export default function ProfessorStudentsPage() {
                               {classes.map((row) => <option key={row.id} value={row.id}>{row.semester ? `${row.semester} · ` : ''}{row.name}</option>)}
                             </select>
                           </label>
+
+                          <div
+                            style={{
+                              marginTop: 12,
+                              padding: 12,
+                              borderRadius: 12,
+                              background: '#f9fafb',
+                              border: '1px solid #e5e7eb',
+                              maxWidth: 420,
+                            }}
+                          >
+                            <div style={{ fontSize: 13, fontWeight: 900, color: '#374151' }}>
+                              계정 관리
+                            </div>
+                            <button
+                              type="button"
+                              onClick={() => void resetStudentPassword(selectedStudent)}
+                              disabled={resetPasswordBusy}
+                              style={{
+                                marginTop: 8,
+                                minHeight: 38,
+                                padding: '8px 12px',
+                                borderRadius: 9,
+                                border: '1px solid #fca5a5',
+                                background: '#fff',
+                                color: '#b91c1c',
+                                fontWeight: 900,
+                                cursor: resetPasswordBusy ? 'wait' : 'pointer',
+                                opacity: resetPasswordBusy ? 0.65 : 1,
+                              }}
+                            >
+                              {resetPasswordBusy ? '초기화 중...' : '임시 비밀번호 발급'}
+                            </button>
+
+                            {temporaryPassword && (
+                              <div
+                                style={{
+                                  marginTop: 10,
+                                  padding: 10,
+                                  borderRadius: 10,
+                                  background: '#fff7ed',
+                                  border: '1px solid #fed7aa',
+                                }}
+                              >
+                                <div style={{ fontSize: 12, color: '#9a3412', fontWeight: 800 }}>
+                                  임시 비밀번호
+                                </div>
+                                <div
+                                  style={{
+                                    marginTop: 5,
+                                    display: 'flex',
+                                    gap: 8,
+                                    alignItems: 'center',
+                                    flexWrap: 'wrap',
+                                  }}
+                                >
+                                  <code
+                                    style={{
+                                      padding: '7px 9px',
+                                      borderRadius: 8,
+                                      background: '#fff',
+                                      border: '1px solid #fdba74',
+                                      color: '#7c2d12',
+                                      fontSize: 15,
+                                      fontWeight: 900,
+                                      letterSpacing: 0.5,
+                                    }}
+                                  >
+                                    {temporaryPassword}
+                                  </code>
+                                  <button
+                                    type="button"
+                                    onClick={() => void copyTemporaryPassword()}
+                                    style={{
+                                      minHeight: 34,
+                                      padding: '6px 10px',
+                                      borderRadius: 8,
+                                      border: '1px solid #fdba74',
+                                      background: '#fff',
+                                      color: '#9a3412',
+                                      fontWeight: 900,
+                                      cursor: 'pointer',
+                                    }}
+                                  >
+                                    복사
+                                  </button>
+                                </div>
+                                <div
+                                  style={{
+                                    marginTop: 7,
+                                    color: '#9a3412',
+                                    fontSize: 11,
+                                    lineHeight: 1.5,
+                                  }}
+                                >
+                                  학생에게 직접 전달해 주세요. 다른 학생을 선택하거나 새 비밀번호를 발급하면 이 값은 화면에서 사라질 수 있습니다.
+                                </div>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
                         <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
@@ -1166,8 +1356,60 @@ export default function ProfessorStudentsPage() {
                             <option value="score-asc">점수 낮은순</option>
                           </select>
                         </div>
-                        <div style={{ marginTop: 9, color: '#6b7280', fontSize: 13 }}>
-                          표시 중 {visibleAnswers.length}개
+                        <div
+                          style={{
+                            marginTop: 10,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            gap: 10,
+                            alignItems: 'center',
+                            flexWrap: 'wrap',
+                          }}
+                        >
+                          <div style={{ color: '#6b7280', fontSize: 13 }}>
+                            표시 중 {visibleAnswers.length}개
+                          </div>
+
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                            <button
+                              type="button"
+                              onClick={openAllVisibleAnswers}
+                              disabled={visibleAnswers.length === 0}
+                              style={{
+                                minHeight: 34,
+                                padding: '6px 10px',
+                                borderRadius: 8,
+                                border: '1px solid #d8b4fe',
+                                background: '#faf5ff',
+                                color: '#7e22ce',
+                                fontSize: 12,
+                                fontWeight: 900,
+                                cursor: visibleAnswers.length === 0 ? 'default' : 'pointer',
+                                opacity: visibleAnswers.length === 0 ? 0.5 : 1,
+                              }}
+                            >
+                              전체 펼치기
+                            </button>
+                            <button
+                              type="button"
+                              onClick={closeAllVisibleAnswers}
+                              disabled={visibleAnswers.length === 0}
+                              style={{
+                                minHeight: 34,
+                                padding: '6px 10px',
+                                borderRadius: 8,
+                                border: '1px solid #d1d5db',
+                                background: '#fff',
+                                color: '#4b5563',
+                                fontSize: 12,
+                                fontWeight: 900,
+                                cursor: visibleAnswers.length === 0 ? 'default' : 'pointer',
+                                opacity: visibleAnswers.length === 0 ? 0.5 : 1,
+                              }}
+                            >
+                              전체 접기
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1333,7 +1575,16 @@ export default function ProfessorStudentsPage() {
                             </div>
                           )}
 
-                          <details style={{ marginTop: 15 }}>
+                          <details
+                            open={openAnswerIds.has(answer.id)}
+                            onToggle={(event) =>
+                              toggleAnswerOpen(
+                                answer.id,
+                                event.currentTarget.open,
+                              )
+                            }
+                            style={{ marginTop: 15 }}
+                          >
                             <summary style={{ cursor: 'pointer', fontWeight: 800, color: '#4b5563' }}>
                               답안 및 채점 피드백 보기
                             </summary>
