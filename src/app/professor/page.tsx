@@ -39,7 +39,7 @@ export default function ProfessorPage() {
 
         const { data: profile, error: profileError } = await supabase
           .from('profiles')
-          .select('name, role')
+          .select('name, role, organization_id')
           .eq('id', user.id)
           .single();
 
@@ -50,11 +50,16 @@ export default function ProfessorPage() {
           return;
         }
 
+        if (!profile.organization_id) {
+          throw new Error('교수 계정에 연결된 소속 정보가 없습니다.');
+        }
+
         // 로그인 직후에는 인증코드를 읽지 않는다.
+        // 대표 교수(owner_id) 여부와 관계없이 profile.organization_id로 소속을 찾는다.
         const { data: org, error: orgError } = await supabase
           .from('organizations')
           .select('id, name')
-          .eq('owner_id', user.id)
+          .eq('id', profile.organization_id)
           .maybeSingle();
 
         if (orgError) throw orgError;
@@ -107,7 +112,6 @@ export default function ProfessorPage() {
         .from('organizations')
         .select('code')
         .eq('id', organization.id)
-        .eq('owner_id', user.id)
         .single();
 
       if (error) throw error;
