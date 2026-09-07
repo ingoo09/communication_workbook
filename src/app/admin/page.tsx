@@ -166,11 +166,17 @@ export default function AdminPage() {
   const [answers, setAnswers] = useState<AnswerRow[]>([]);
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const [studentSearch, setStudentSearch] = useState("");
+  const [studentSortMode, setStudentSortMode] = useState<
+    "name" | "student-number" | "created-newest" | "created-oldest" | "answers-desc"
+  >("student-number");
   const [chapterFilter, setChapterFilter] = useState("all");
   const [gradingFilter, setGradingFilter] = useState<"all" | "graded" | "ungraded">("all");
   const [sortMode, setSortMode] = useState<
     "problem" | "recent" | "oldest" | "score-desc" | "score-asc"
   >("problem");
+  const [openAnswerIds, setOpenAnswerIds] = useState<Set<number | string>>(
+    () => new Set(),
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -204,18 +210,11 @@ export default function AdminPage() {
         return;
       }
 
-      const [profilesResult, answersResult] = await Promise.all([
-        supabase
-          .from("profiles")
-          .select("id, name, student_number, role, created_at")
-          .order("created_at", { ascending: true }),
-        supabase
-          .from("answers")
-          .select(
-            "id, user_id, chapter_id, problem_id, problem_title, answer, execution_output, score, feedback, created_at, updated_at",
-          )
-          .order("updated_at", { ascending: false }),
-      ]);
+      const profilesResult = await supabase
+        .from("profiles")
+        .select("id, name, student_number, role, created_at")
+        .eq("role", "student")
+        .order("created_at", { ascending: true });
 
       if (cancelled) return;
 
@@ -225,20 +224,45 @@ export default function AdminPage() {
         return;
       }
 
-      if (answersResult.error) {
-        setError(`답안 기록 조회 실패: ${answersResult.error.message}`);
-        setLoading(false);
-        return;
+      const students = (profilesResult.data ?? []) as ProfileRow[];
+      const studentIds = students.map((student) => student.id);
+
+      let allAnswers: AnswerRow[] = [];
+
+      if (studentIds.length > 0) {
+        const pageSize = 500;
+        let from = 0;
+
+        while (true) {
+          const { data: answerPage, error: answerPageError } = await supabase
+            .from("answers")
+            .select(
+              "id, user_id, chapter_id, problem_id, problem_title, answer, execution_output, score, feedback, created_at, updated_at",
+            )
+            .in("user_id", studentIds)
+            .order("updated_at", { ascending: false })
+            .range(from, from + pageSize - 1);
+
+          if (cancelled) return;
+
+          if (answerPageError) {
+            setError(`답안 기록 조회 실패: ${answerPageError.message}`);
+            setLoading(false);
+            return;
+          }
+
+          const rows = (answerPage ?? []) as AnswerRow[];
+          allAnswers.push(...rows);
+
+          if (rows.length < pageSize) break;
+
+          from += pageSize;
+        }
       }
 
-      setProfiles(profilesResult.data ?? []);
-      setAnswers(answersResult.data ?? []);
-
-      const firstStudent = (profilesResult.data ?? []).find(
-        (profile) => profile.role !== "developer",
-      );
-
-      setSelectedStudentId(firstStudent?.id ?? null);
+      setProfiles(students);
+      setAnswers(allAnswers);
+      setSelectedStudentId(students[0]?.id ?? null);
       setLoading(false);
     }
 
@@ -250,20 +274,9 @@ export default function AdminPage() {
   }, [router]);
 
   const students = useMemo(
-    () => profiles.filter((profile) => profile.role !== "developer"),
+    () => profiles.filter((profile) => profile.role === "student"),
     [profiles],
   );
-
-  const visibleStudents = useMemo(() => {
-    const query = studentSearch.trim().toLowerCase();
-    if (!query) return students;
-
-    return students.filter((student) =>
-      `${student.name ?? ""} ${student.student_number ?? ""}`
-        .toLowerCase()
-        .includes(query),
-    );
-  }, [students, studentSearch]);
 
   const answersByUser = useMemo(() => {
     const map = new Map<string, AnswerRow[]>();
@@ -276,6 +289,46 @@ export default function AdminPage() {
 
     return map;
   }, [answers]);
+
+  const visibleStudents = useMemo(() => {
+    const query = studentSearch.trim().toLowerCase();
+
+    const filtered = students.filter((student) =>
+      !query ||
+      `${student.name ?? ""} ${student.student_number ?? ""}`
+        .toLowerCase()
+        .includes(query),
+    );
+
+    return [...filtered].sort((a, b) => {
+      if (studentSortMode === "name") {
+        return (a.name ?? "").localeCompare(b.name ?? "", "ko-KR", {
+          numeric: true,
+          sensitivity: "base",
+        });
+      }
+
+      if (studentSortMode === "created-newest") {
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      }
+
+      if (studentSortMode === "created-oldest") {
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      }
+
+      if (studentSortMode === "answers-desc") {
+        const aCount = (answersByUser.get(a.id) ?? []).length;
+        const bCount = (answersByUser.get(b.id) ?? []).length;
+        if (aCount !== bCount) return bCount - aCount;
+      }
+
+      return (a.student_number ?? "").localeCompare(
+        b.student_number ?? "",
+        "ko-KR",
+        { numeric: true, sensitivity: "base" },
+      );
+    });
+  }, [students, studentSearch, studentSortMode, answersByUser]);
 
   const profileById = useMemo(() => {
     const map = new Map<string, ProfileRow>();
@@ -333,6 +386,7 @@ export default function AdminPage() {
     setChapterFilter("all");
     setGradingFilter("all");
     setSortMode("problem");
+    setOpenAnswerIds(new Set());
   }, [selectedStudentId]);
 
   const selectedStudent =
@@ -383,6 +437,29 @@ export default function AdminPage() {
       return new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime();
     });
   }, [selectedAnswers, chapterFilter, gradingFilter, sortMode]);
+
+  function openAllVisibleAnswers() {
+    setOpenAnswerIds(new Set(visibleAnswers.map((answer) => answer.id)));
+  }
+
+  function closeAllVisibleAnswers() {
+    setOpenAnswerIds((previous) => {
+      const next = new Set(previous);
+      for (const answer of visibleAnswers) {
+        next.delete(answer.id);
+      }
+      return next;
+    });
+  }
+
+  function toggleAnswerOpen(answerId: number | string, open: boolean) {
+    setOpenAnswerIds((previous) => {
+      const next = new Set(previous);
+      if (open) next.add(answerId);
+      else next.delete(answerId);
+      return next;
+    });
+  }
 
   const gradedAnswers = selectedAnswers.filter(
     (answer) => typeof answer.score === "number",
@@ -558,13 +635,47 @@ export default function AdminPage() {
                     borderBottom: "1px solid #e5e7eb",
                   }}
                 >
-                  <div style={{ fontWeight: 900, fontSize: 18 }}>학생 목록</div>
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      gap: 10,
+                    }}
+                  >
+                    <div style={{ fontWeight: 900, fontSize: 18 }}>학생 목록</div>
+                    <div style={{ color: "#6b7280", fontSize: 12, fontWeight: 800 }}>
+                      {visibleStudents.length} / {students.length}명
+                    </div>
+                  </div>
+
                   <input
                     value={studentSearch}
                     onChange={(event) => setStudentSearch(event.target.value)}
                     placeholder="이름 또는 학번 검색"
                     style={{ ...filterControlStyle, marginTop: 12 }}
                   />
+
+                  <select
+                    value={studentSortMode}
+                    onChange={(event) =>
+                      setStudentSortMode(
+                        event.target.value as
+                          | "name"
+                          | "student-number"
+                          | "created-newest"
+                          | "created-oldest"
+                          | "answers-desc",
+                      )
+                    }
+                    style={{ ...filterControlStyle, marginTop: 8 }}
+                  >
+                    <option value="student-number">학번순</option>
+                    <option value="name">이름순</option>
+                    <option value="answers-desc">저장 답안 많은순</option>
+                    <option value="created-newest">최근 가입순</option>
+                    <option value="created-oldest">가입 오래된순</option>
+                  </select>
                 </div>
 
                 {visibleStudents.length === 0 ? (
@@ -763,8 +874,60 @@ export default function AdminPage() {
                             <option value="score-asc">점수 낮은순</option>
                           </select>
                         </div>
-                        <div style={{ marginTop: 9, color: "#6b7280", fontSize: 13 }}>
-                          표시 중 {visibleAnswers.length}개
+                        <div
+                          style={{
+                            marginTop: 10,
+                            display: "flex",
+                            justifyContent: "space-between",
+                            alignItems: "center",
+                            gap: 10,
+                            flexWrap: "wrap",
+                          }}
+                        >
+                          <div style={{ color: "#6b7280", fontSize: 13 }}>
+                            표시 중 {visibleAnswers.length}개
+                          </div>
+
+                          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                            <button
+                              type="button"
+                              onClick={openAllVisibleAnswers}
+                              disabled={visibleAnswers.length === 0}
+                              style={{
+                                minHeight: 34,
+                                padding: "6px 10px",
+                                borderRadius: 8,
+                                border: "1px solid #c7d2fe",
+                                background: "#eef2ff",
+                                color: "#3730a3",
+                                fontSize: 12,
+                                fontWeight: 900,
+                                cursor: visibleAnswers.length === 0 ? "default" : "pointer",
+                                opacity: visibleAnswers.length === 0 ? 0.5 : 1,
+                              }}
+                            >
+                              전체 펼치기
+                            </button>
+                            <button
+                              type="button"
+                              onClick={closeAllVisibleAnswers}
+                              disabled={visibleAnswers.length === 0}
+                              style={{
+                                minHeight: 34,
+                                padding: "6px 10px",
+                                borderRadius: 8,
+                                border: "1px solid #d1d5db",
+                                background: "#fff",
+                                color: "#4b5563",
+                                fontSize: 12,
+                                fontWeight: 900,
+                                cursor: visibleAnswers.length === 0 ? "default" : "pointer",
+                                opacity: visibleAnswers.length === 0 ? 0.5 : 1,
+                              }}
+                            >
+                              전체 접기
+                            </button>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -949,7 +1112,13 @@ export default function AdminPage() {
                             </div>
                           )}
 
-                          <details style={{ marginTop: 15 }}>
+                          <details
+                            open={openAnswerIds.has(answer.id)}
+                            onToggle={(event) =>
+                              toggleAnswerOpen(answer.id, event.currentTarget.open)
+                            }
+                            style={{ marginTop: 15 }}
+                          >
                             <summary
                               style={{
                                 cursor: "pointer",
