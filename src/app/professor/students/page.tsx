@@ -299,23 +299,39 @@ export default function ProfessorStudentsPage() {
       const students = profilesResult.data ?? [];
       const studentIds = students.map((student) => student.id);
 
-      const answersResult =
-        studentIds.length > 0
-          ? await supabase
-              .from('answers')
-              .select(
-                'id, user_id, chapter_id, problem_id, problem_title, answer, execution_output, score, feedback, created_at, updated_at',
-              )
-              .in('user_id', studentIds)
-              .order('updated_at', { ascending: false })
-          : { data: [] as AnswerRow[], error: null };
+      let allAnswers: AnswerRow[] = [];
 
-      if (cancelled) return;
+      if (studentIds.length > 0) {
+        const pageSize = 500;
+        let from = 0;
 
-      if (answersResult.error) {
-        setError(`답안 기록 조회 실패: ${answersResult.error.message}`);
-        setLoading(false);
-        return;
+        while (true) {
+          const { data: answerPage, error: answerPageError } = await supabase
+            .from('answers')
+            .select(
+              'id, user_id, chapter_id, problem_id, problem_title, answer, execution_output, score, feedback, created_at, updated_at',
+            )
+            .in('user_id', studentIds)
+            .order('updated_at', { ascending: false })
+            .range(from, from + pageSize - 1);
+
+          if (cancelled) return;
+
+          if (answerPageError) {
+            setError(`답안 기록 조회 실패: ${answerPageError.message}`);
+            setLoading(false);
+            return;
+          }
+
+          const rows = (answerPage ?? []) as AnswerRow[];
+          allAnswers.push(...rows);
+
+          if (rows.length < pageSize) {
+            break;
+          }
+
+          from += pageSize;
+        }
       }
 
       const classRows = classesResult.data ?? [];
@@ -325,7 +341,7 @@ export default function ProfessorStudentsPage() {
       );
       setOrganizationId(resolvedOrganizationId);
       setProfiles(students);
-      setAnswers(answersResult.data ?? []);
+      setAnswers(allAnswers);
       setClasses(classRows);
       setDeadlines(deadlinesResult.data ?? []);
       setDeadlineClassId(classRows[0]?.id ?? '');
