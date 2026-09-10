@@ -576,6 +576,16 @@ export default function WorkbookPage({
 
   const [pyReady, setPyReady] = useState(false);
 
+  // 현재 Chapter의 WorkbookPage가 열려 있는 동안 Pyodide 작업공간에
+  // 가져온 실습 파일 목록을 유지한다.
+  // 문제 이동은 같은 WorkbookPage 인스턴스 안에서 처리되므로
+  // 2.A4에서 가져온 파일을 2.A5, 2.B 등에서도 그대로 사용할 수 있다.
+  const [workspaceFiles, setWorkspaceFiles] = useState<
+    Array<{ name: string; size: number }>
+  >([]);
+  const [workspaceFileNotice, setWorkspaceFileNotice] = useState("");
+  const [importingWorkspaceFile, setImportingWorkspaceFile] = useState(false);
+
   const pyodideRef = useRef<any>(null);
 
   // Pyodide 초기화가 중복 실행되지 않도록 Promise를 공유한다.
@@ -2044,6 +2054,77 @@ has_audio = False
     }
   }
 
+  async function importFilesToPythonWorkspace(files: FileList | File[]) {
+    const selectedFiles = Array.from(files ?? []);
+
+    if (selectedFiles.length === 0) return;
+
+    setImportingWorkspaceFile(true);
+    setWorkspaceFileNotice("");
+
+    try {
+      const instance = await ensurePyodide();
+
+      try {
+        instance.FS.chdir("/home/pyodide");
+      } catch {
+        // 기본 작업 경로가 이미 /home/pyodide인 경우 그대로 진행한다.
+      }
+
+      const imported: Array<{ name: string; size: number }> = [];
+
+      for (const file of selectedFiles) {
+        const safeName =
+          file.name
+            .split(/[\\/]/)
+            .pop()
+            ?.trim() || "uploaded_file";
+
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+
+        instance.FS.writeFile(
+          `/home/pyodide/${safeName}`,
+          bytes,
+        );
+
+        imported.push({
+          name: safeName,
+          size: file.size,
+        });
+      }
+
+      setWorkspaceFiles((previous) => {
+        const next = new Map(
+          previous.map((file) => [file.name, file]),
+        );
+
+        for (const file of imported) {
+          next.set(file.name, file);
+        }
+
+        return Array.from(next.values()).sort((a, b) =>
+          a.name.localeCompare(b.name),
+        );
+      });
+
+      setWorkspaceFileNotice(
+        imported.length === 1
+          ? `${imported[0].name} 파일을 Python 작업공간으로 가져왔습니다. 같은 Chapter의 다른 문제에서도 그대로 사용할 수 있습니다.`
+          : `${imported.length}개 파일을 Python 작업공간으로 가져왔습니다. 같은 Chapter의 다른 문제에서도 그대로 사용할 수 있습니다.`,
+      );
+    } catch (error: any) {
+      console.error("Python 작업공간 파일 가져오기 실패:", error);
+      setWorkspaceFileNotice(
+        `파일을 가져오지 못했습니다: ${String(
+          error?.message ?? error,
+        )}`,
+      );
+    } finally {
+      setImportingWorkspaceFile(false);
+    }
+  }
+
   function codeUsesWorkbookHelpers(code: string) {
     return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view)\s*\(/.test(
       code,
@@ -2746,6 +2827,142 @@ except Exception:
                     : undefined
                 }
               >
+                {current.pb.fileUploadEnabled && (
+                  <div
+                    onDragOver={(event) => {
+                      event.preventDefault();
+                      event.dataTransfer.dropEffect = "copy";
+                    }}
+                    onDrop={(event) => {
+                      event.preventDefault();
+                      void importFilesToPythonWorkspace(
+                        event.dataTransfer.files,
+                      );
+                    }}
+                    style={{
+                      marginBottom: 14,
+                      padding: 14,
+                      border: "1px dashed #a5b4fc",
+                      borderRadius: 12,
+                      background: "#f8faff",
+                    }}
+                  >
+                    <div
+                      style={{
+                        fontWeight: 900,
+                        color: "#312e81",
+                      }}
+                    >
+                      실습 파일 가져오기
+                    </div>
+
+                    <div
+                      style={{
+                        marginTop: 5,
+                        color: "#6b7280",
+                        fontSize: 13,
+                        lineHeight: 1.6,
+                      }}
+                    >
+                      파일을 선택하거나 이 영역으로 끌어놓으면 현재
+                      Chapter의 Python 작업공간에 저장됩니다. 문제를
+                      이동해도 같은 Chapter 안에서는 다시 업로드할 필요가
+                      없습니다.
+                    </div>
+
+                    <label
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 8,
+                        marginTop: 10,
+                        padding: "8px 12px",
+                        borderRadius: 9,
+                        border: "1px solid #c7d2fe",
+                        background: "#fff",
+                        color: "#3730a3",
+                        fontWeight: 800,
+                        cursor: importingWorkspaceFile
+                          ? "wait"
+                          : "pointer",
+                      }}
+                    >
+                      {importingWorkspaceFile
+                        ? "가져오는 중..."
+                        : "파일 선택"}
+
+                      <input
+                        type="file"
+                        multiple
+                        disabled={importingWorkspaceFile}
+                        onChange={(event) => {
+                          const files = event.currentTarget.files;
+
+                          if (files && files.length > 0) {
+                            void importFilesToPythonWorkspace(files);
+                          }
+
+                          event.currentTarget.value = "";
+                        }}
+                        style={{ display: "none" }}
+                      />
+                    </label>
+
+                    {workspaceFiles.length > 0 && (
+                      <div
+                        style={{
+                          marginTop: 12,
+                          padding: "10px 12px",
+                          borderRadius: 9,
+                          background: "#eef2ff",
+                          color: "#3730a3",
+                          fontSize: 13,
+                          lineHeight: 1.7,
+                        }}
+                      >
+                        <div style={{ fontWeight: 900 }}>
+                          현재 Chapter 작업공간
+                        </div>
+                        {workspaceFiles.map((file) => (
+                          <div key={file.name}>
+                            ✓ {file.name}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {workspaceFileNotice && (
+                      <div
+                        style={{
+                          marginTop: 10,
+                          fontSize: 13,
+                          lineHeight: 1.6,
+                          color: workspaceFileNotice.startsWith(
+                            "파일을 가져오지 못했습니다",
+                          )
+                            ? "#b91c1c"
+                            : "#166534",
+                        }}
+                      >
+                        {workspaceFileNotice}
+                      </div>
+                    )}
+
+                    <div
+                      style={{
+                        marginTop: 8,
+                        color: "#6b7280",
+                        fontSize: 12,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      ※ 파일은 Render/Supabase에 업로드되지 않고 현재
+                      브라우저의 Python 작업공간에만 보관됩니다. 새로고침하거나
+                      Chapter를 나가면 다시 가져와야 합니다.
+                    </div>
+                  </div>
+                )}
+
                 <ProblemRenderer
                   problem={current.pb}
                   value={userAnswer}

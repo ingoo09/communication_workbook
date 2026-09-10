@@ -105,7 +105,7 @@ export default function ChapterUnlockPanel({
         setMessage(
           result?.message === 'Not enough credits'
             ? 'Credit이 부족합니다.'
-            : result?.message ?? 'Chapter를 해금하지 못했습니다.',
+            : result?.message ?? 'Chapter를 열지 못했습니다.',
         );
         return;
       }
@@ -114,11 +114,11 @@ export default function ChapterUnlockPanel({
         setBalance(result.remaining_balance);
       }
 
-      setMessage('Chapter가 해금되었습니다.');
+      setMessage('Chapter를 열었습니다.');
       router.refresh();
     } catch (error: any) {
       setIsError(true);
-      setMessage(error?.message ?? 'Chapter 해금 중 오류가 발생했습니다.');
+      setMessage(error?.message ?? 'Chapter를 여는 도중 오류가 발생했습니다.');
     } finally {
       setUnlocking(false);
     }
@@ -184,7 +184,7 @@ export default function ChapterUnlockPanel({
         >
           {creditCost == null
             ? 'Chapter 가격 정보를 확인하고 있습니다.'
-            : `이 Chapter는 ${creditCost} Credit으로 한 번 해금하면 이후 계속 이용할 수 있습니다.`}
+            : `이 Chapter는 ${creditCost} Credit으로 한 번 열면 이후 계속 이용할 수 있습니다.`}
         </p>
 
         {isLoggedIn ? (
@@ -239,10 +239,10 @@ export default function ChapterUnlockPanel({
               }}
             >
               {unlocking
-                ? '해금 중...'
+                ? '구입 중...'
                 : creditCost == null
                   ? '가격 확인 중...'
-                  : `${creditCost} Credit으로 Chapter 해금`}
+                  : `${creditCost} Credit으로 Chapter 열기`}
             </button>
           </>
         ) : (

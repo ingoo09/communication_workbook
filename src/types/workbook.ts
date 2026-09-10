@@ -30,6 +30,9 @@ export type BaseProblem = LegacyAnswerFields & {
   code?: string;
   answerType?: "textarea" | "short" | "code";
 
+  /** 이 문제에서만 학생 로컬 파일을 Python 작업공간으로 가져오는 UI를 표시합니다. */
+  fileUploadEnabled?: boolean;
+
   /** 이전 수식 증명 데이터와의 임시 호환용. 화면에서는 서술형으로 처리합니다. */
   givenExpressions?: ReadonlyArray<string>;
   proofSteps?: ReadonlyArray<unknown>;

@@ -170,9 +170,9 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const known = knownChapters[id];
 
   //const access: Chapter['access'] = id === 1 || id === 2 || id === 14 ? 'sample' : 'locked';
-  const access: Chapter['access'] = id === 1 || id === 2 || id === 14 ? 'sample' : 'preparing';
-    //id === 1 || id === 2 || id === 14 ? 'sample' :
-    //id === 15 || id === 16 ? 'locked' : 'preparing';
+  const access: Chapter['access'] = //id === 1 || id === 2 || id === 14 ? 'sample' : 'preparing';
+    id === 1 || id === 2 || id === 14 ? 'sample' :
+    id === 5 || id === 15 || id === 16 ? 'locked' : 'preparing';
 
   const available = access !== 'preparing';
 
@@ -1005,7 +1005,7 @@ export default function WorkbookHome() {
                     }}
                   >
                     🔒 {chapterCosts[chapter.id] != null
-                      ? `${chapterCosts[chapter.id]} Credit으로 해금`
+                      ? `${chapterCosts[chapter.id]} Credit으로 열기`
                       : '가격 확인 중...'}
                   </Link>
                 ) : (
