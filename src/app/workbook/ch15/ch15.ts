@@ -1074,6 +1074,7 @@ while(cnt<Nid):
         cnt=cnt+1
     trials=trials+1
 P=?/? #완성해야 할 부분 (6)
+print(P)
 \`\`\`
 ?를 채워 py 스크립트를 완성하고, 실행하여 결과를 확인하시오.
           `,
@@ -1090,7 +1091,8 @@ while(cnt<Nid):
     if(Y >= ?): #완성해야 할 부분 (5)
         cnt=cnt+1
     trials=trials+1
-P=?/? #완성해야 할 부분 (6)`,
+P=?/? #완성해야 할 부분 (6)
+print(P)`,
             "referenceAnswer": `
 각 확률 변수는
 $$
