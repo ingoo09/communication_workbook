@@ -1,5 +1,5 @@
 /** 온라인 교재 문제 유형 */
-export type ProblemType = "essay" | "python" | "console";
+export type ProblemType = "essay" | "python" | "console" | "proof";
 
 export type GradingCriterion = {
   id: string;
@@ -43,6 +43,18 @@ export type EssayProblem = BaseProblem & {
   type: "essay";
 };
 
+export type ProofProblem = BaseProblem & {
+  type: "proof";
+
+  /**
+   * 증명 답안 입력 방식.
+   * handwriting: 직접 필기 캔버스
+   * upload: 이미지 파일 업로드
+   * both: 두 방식 모두 허용
+   */
+  proofInputMode?: "handwriting" | "upload" | "both";
+};
+
 export type PythonProblem = BaseProblem & {
   type: "python";
   starterCode?: string;
@@ -70,7 +82,7 @@ export type ConsoleProblem = BaseProblem & {
 };
 
 
-export type TypedWorkbookProblem = EssayProblem | PythonProblem | ConsoleProblem;
+export type TypedWorkbookProblem = EssayProblem | PythonProblem | ConsoleProblem | ProofProblem;
 
 export type LegacyWorkbookProblem = BaseProblem & {
   type?: undefined;
@@ -99,4 +111,5 @@ export const PROBLEM_TYPE_LABEL: Record<ProblemType, string> = {
   essay: "서술형",
   python: "Python 실행형",
   console: "Console 실습형",
+  proof: "증명형",
 };

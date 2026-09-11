@@ -267,17 +267,28 @@ S=np.sum(y)*tstep; print(S)
         {
           "id": "2-2A1",
           "title": "2.A1",
-          "type": "essay",
-          "prompt": `수치적분 방법과 sympy 모듈을 이용한 적분 방법에 앞서, 수식 전개로 $\\{s_1(t), s_2(t), s_3(t), \\dots \\}$는 직교 집합임을 확인하자.
-$i\\ne k$일 때,
+          "type": "proof",
+          "prompt":  `
+수치적분 방법과 sympy 모듈을 이용한 적분 방법에 앞서, 수식 전개로 \\(\\{s_1(t), s_2(t), s_3(t), \\cdots\\}\\)는 서로 직교함을 확인할 수 있다. \\(s_1(t)\\)는 사인(sine) 파형이라고 했으므로 $s_1(t)=\\sin(2\\pi f_1 t)$로 나타내며, 주기가 \\(2T\\)라 했으므로 주파수는 $f_1=\\frac{1}{2T}$이다. \\(s_n(t)\\)은 \\(s_1(t)\\)의 주파수의 정수 \\(n\\)배의 주파수를 갖는 사인파이므로 $s_n(t)=\\sin(2\\pi n f_1 t)$이다. 임의의 두 원소 \\(s_i(t)\\), \\(s_k(t)\\)를 내적 공식 $\\int_0^T s_i(t)s_k(t)\\,dt$에 대입하여 정리하면, \\(i\\neq k\\)일 때 내적이 0임을 보일 수 있다. 이를 수식으로 정리하여 보이시오.`,
+  referenceAnswer: `
+\\(s_i(t)\\)와 \\(s_k(t)\\)는 각각
 $$
-s_i(t)=\\sin\\left(\\frac{i\\pi t}{T}\\right),
+s_i(t)=\\sin(2\\pi i f_1 t),
 \\qquad
-s_k(t)=\\sin\\left(\\frac{k\\pi t}{T}\\right)
+s_k(t)=\\sin(2\\pi k f_1 t)
+$$
+이므로 두 신호의 내적은
+$$
+\\int_0^T s_i(t)s_k(t)\\,dt
+=
+\\int_0^T
+\\sin(2\\pi i f_1 t)
+\\sin(2\\pi k f_1 t)
+\\,dt
 $$
 이다.
 
-곱을 합으로 바꾸는 공식
+삼각함수의 곱-합 공식
 $$
 \\sin A\\sin B
 =
@@ -286,43 +297,54 @@ $$
 \\cos(A-B)-\\cos(A+B)
 \\right]
 $$
-을 이용하여 다음 빈칸을 채우시오.
+을 이용하면,
 $$
-\\begin{aligned}
 \\int_0^T s_i(t)s_k(t)\\,dt
-&=
+=
 \\frac{1}{2}
 \\int_0^T
 \\left[
-\\cos\\left(\\frac{\\boxed{\\ ?\\ }\\pi t}{T}\\right)
+\\cos\\left(2\\pi(i-k)f_1t\\right)
 -
-\\cos\\left(\\frac{\\boxed{\\ ?\\ }\\pi t}{T}\\right)
+\\cos\\left(2\\pi(i+k)f_1t\\right)
 \\right]dt
-\\\\[4pt]
-&=
-\\frac{T}{2(i-k)\\pi}
-\\left[
-\\sin\\left(\\frac{(i-k)\\pi t}{T}\\right)
-\\right]_0^T
-\\\\
-&\\quad
--
-\\frac{T}{2(i+k)\\pi}
-\\left[
-\\sin\\left(\\frac{(i+k)\\pi t}{T}\\right)
-\\right]_0^T
-\\\\[4pt]
-&=
-\\boxed{\\ ?\\ }
-\\end{aligned}
 $$
+가 된다.
 
-따라서, $i\\ne k$일 때 $s_i(t)$와 $s_k(t)$가 서로 직교함을 설명하시오.
-`,
-        "referenceAnswer": `
-첫 번째 빈칸은 $i-k$, 두 번째 빈칸은 $i+k$이다.
+이를 적분하면
+$$
+\\int_0^T s_i(t)s_k(t)\\,dt
+=
+\\frac{1}{2}
+\\left[
+\\frac{\\sin\\left(2\\pi(i-k)f_1T\\right)}
+{2\\pi(i-k)f_1}
+-
+\\frac{\\sin\\left(2\\pi(i+k)f_1T\\right)}
+{2\\pi(i+k)f_1}
+\\right]
+$$
+이다.
 
-$i$와 $k$는 정수이므로
+여기서
+$$
+f_1=\\frac{1}{2T}
+$$
+이므로
+$$
+2\\pi(i-k)f_1T
+=
+(i-k)\\pi
+$$
+이고,
+$$
+2\\pi(i+k)f_1T
+=
+(i+k)\\pi
+$$
+이다.
+
+\\(i\\)와 \\(k\\)가 정수이므로
 $$
 \\sin((i-k)\\pi)=0,
 \\qquad
@@ -330,14 +352,14 @@ $$
 $$
 이다.
 
-따라서 마지막 빈칸은 $0$이다.
-
-즉,
+따라서 \\(i\\neq k\\)일 때
 $$
+\\boxed{
 \\int_0^T s_i(t)s_k(t)\\,dt=0
+}
 $$
-이므로 $i\\ne k$인 두 신호는 서로 직교한다.
-`
+이므로 \\(s_i(t)\\)와 \\(s_k(t)\\)는 서로 직교한다.
+`,
         },
         {
           "id": "2-2A2",

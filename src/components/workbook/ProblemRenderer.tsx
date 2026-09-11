@@ -5,6 +5,7 @@ import { resolveProblemType } from "@/types/workbook";
 import ConsoleProblem from "./ConsoleProblem";
 import EssayProblem from "./EssayProblem";
 import PythonProblem from "./PythonProblem";
+import ProofProblem from "./ProofProblem";
 import PythonConsoleProblem, { isPythonConsoleProblem } from "./PythonConsoleProblem";
 
 type ProblemRendererProps = {
@@ -42,6 +43,16 @@ export default function ProblemRenderer({
         onChange={onChange}
         pyodide={pyodide}
         pyReady={pyReady}
+      />
+    );
+  }
+
+  if (type === "proof" && problem.type === "proof") {
+    return (
+      <ProofProblem
+        problem={problem}
+        value={value}
+        onChange={onChange}
       />
     );
   }

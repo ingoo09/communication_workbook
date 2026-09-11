@@ -10,6 +10,29 @@ function sanitize(s?: string) {
     .trim();
 }
 
+function normalizeStudentAnswer(raw?: string) {
+  const text = String(raw ?? "");
+
+  try {
+    const parsed = JSON.parse(text);
+
+    if (
+      parsed?.kind === "proof" &&
+      typeof parsed.recognizedText === "string"
+    ) {
+      return [
+        "[증명 답안]",
+        parsed.recognizedText.trim() ||
+          "(인식된 증명 내용 없음)",
+      ].join("\n");
+    }
+  } catch {
+    // 일반 문자열 답안
+  }
+
+  return sanitize(text);
+}
+
 export async function POST(req: Request) {
   try {
 
@@ -60,7 +83,7 @@ ${sanitize(prompt)}
 ${solutionText}
 
 [학생 답안]
-${sanitize(userAnswer)}
+${normalizeStudentAnswer(userAnswer)}
 
 평가 기준:
 1. 핵심 개념 이해
@@ -78,6 +101,12 @@ ${sanitize(userAnswer)}
 
 - 서술형 문제:
   학생의 서술 내용이 문제의 핵심 개념을 충족하는지 평가한다.
+
+- 증명형 문제:
+  학생이 제시한 증명 과정의 논리적 타당성, 핵심 수식 전개, 사용한 성질의 적절성을 중심으로 평가한다.
+  필기 인식 결과는 학생이 최종 확인·수정한 텍스트이므로 해당 내용을 학생 답안으로 간주한다.
+  단순히 최종식이 맞는지만 보지 말고 문제에서 요구한 증명 과정이 충분히 제시되었는지 평가한다.
+  표기 방식이나 사소한 LaTeX 문법 차이는 의미가 명확하면 감점하지 않는다.
 
 - Python 계산 문제:
   코드의 논리와 문제에서 요구한 계산식 또는 결과를 중심으로 평가한다.
