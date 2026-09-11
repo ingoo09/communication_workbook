@@ -28,7 +28,7 @@ export const chapter = {
 11. import numpy as np\t\t\t\t\t\t\t\t\t27. T=np.angle(1+1j); print(T)
 12. A=np.power(B,2); print(A)\t\t\t\t\t\t\t28. (180/pi)*T
 13. C=np.sqrt(B); print(C)\t\t\t\t\t\t\t\t29. (180/np.pi)*T
-14. A=2; B=4;C=A+B; print(C)
+14. A=2; B=4; C=A+B; print(C)
 15. C=A**B; print(C)
 16. A=12e6; print(A)
 \`\`\`
@@ -482,6 +482,7 @@ X의 역행렬을 계산한다.
 15. np.var(N) #이론치에 근사하는지도 쓸 것
 \`\`\`
 특히 2~9번, 25~27번은 반복 실행하여 명령어의 의미를 유추하여 쓰시오.
+(참고. 키보드의 위 방향 화살표[↑] 키를 누르면 이전 명령어를 그대로 사용할 수 있으니, 명령어 반복 실행에 유용하게 사용할 수 있음)
             `,
           referenceAnswer: `
 1. import numpy as np  

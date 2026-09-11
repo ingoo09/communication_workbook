@@ -171,6 +171,16 @@ export default function PythonConsoleProblem({
   // 같은 시점에 namespace 초기화가 중복 실행되지 않도록 공유한다.
   const namespacePromiseRef = useRef<Promise<void> | null>(null);
 
+  // Enter 연타/키 반복으로 같은 Console 명령이 중복 실행되는 것을 즉시 차단한다.
+  const consoleRunningRef = useRef(false);
+
+  // Console 명령 실행 후 입력창으로 자동 포커스를 돌려준다.
+  const consoleInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 실제 Python Console처럼 ↑/↓ 방향키로 이전 명령을 탐색한다.
+  const consoleHistoryCursorRef = useRef<number | null>(null);
+  const consoleHistoryDraftRef = useRef("");
+
   function updateAnswer(patch: Partial<PythonConsoleAnswer>) {
     onChange(
       JSON.stringify({
@@ -311,6 +321,8 @@ json.dumps({
 
   useEffect(() => {
     setTypedCommand("");
+    consoleHistoryCursorRef.current = null;
+    consoleHistoryDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
     namespacePromiseRef.current = null;
@@ -322,6 +334,18 @@ json.dumps({
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problem.id, pyReady]);
+
+  // Console input의 disabled 상태가 실제 DOM에 반영된 뒤 포커스를 복구한다.
+  // Script 또는 Console 실행이 끝난 뒤 다시 클릭하지 않아도 바로 입력할 수 있다.
+  useEffect(() => {
+    if (
+      pyReady &&
+      !runningScript &&
+      !runningConsole
+    ) {
+      consoleInputRef.current?.focus();
+    }
+  }, [pyReady, runningScript, runningConsole, problem.id]);
 
   async function runScript() {
     if (!pyodide || !pyReady) return;
@@ -385,7 +409,6 @@ json.dumps({
       const state = await collectState();
       setWorkspace(state.workspace);
       setFigures(state.figures);
-      setTypedCommand("");
     } catch (error: any) {
       updateAnswer({
         scriptOutput: `에러 발생:\n${String(error?.message ?? error)}`,
@@ -399,12 +422,22 @@ json.dumps({
   }
 
   async function runConsoleCommand() {
-    if (!pyodide || !pyReady) return;
+    if (!pyodide || !pyReady || consoleRunningRef.current) return;
 
     const source = typedCommand.trim();
     if (!source) return;
 
+    // React state 반영 전 Enter가 다시 들어와도 중복 실행되지 않도록
+    // ref를 먼저 잠근다.
+    consoleRunningRef.current = true;
     setRunningConsole(true);
+
+    // 실행 시작 즉시 입력창을 비워 이전 명령이 남아 보이지 않게 한다.
+    setTypedCommand("");
+
+    // 새 명령을 실행하면 명령 히스토리 탐색 위치를 초기화한다.
+    consoleHistoryCursorRef.current = null;
+    consoleHistoryDraftRef.current = "";
 
     try {
       // Console에서 실제 import 문이 입력된 경우에만 해당 패키지를 확인한다.
@@ -496,9 +529,10 @@ json.dumps({
           },
         ],
       });
-      setTypedCommand("");
     } finally {
+      consoleRunningRef.current = false;
       setRunningConsole(false);
+
     }
   }
 
@@ -525,8 +559,12 @@ if "matplotlib.pyplot" in sys.modules:
     });
 
     setTypedCommand("");
+    consoleHistoryCursorRef.current = null;
+    consoleHistoryDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
+    consoleRunningRef.current = false;
+
   }
 
   return (
@@ -671,12 +709,66 @@ if "matplotlib.pyplot" in sys.modules:
           <span style={{ color: "#86efac" }}>&gt;&gt;&gt;</span>
 
           <input
+            ref={consoleInputRef}
             value={typedCommand}
             onChange={(event) =>
               setTypedCommand(event.target.value)
             }
             onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
+              if (
+                event.key === "ArrowUp" &&
+                !event.nativeEvent.isComposing
+              ) {
+                if (parsed.history.length === 0) return;
+
+                event.preventDefault();
+
+                if (consoleHistoryCursorRef.current == null) {
+                  consoleHistoryDraftRef.current = typedCommand;
+                  consoleHistoryCursorRef.current =
+                    parsed.history.length - 1;
+                } else {
+                  consoleHistoryCursorRef.current = Math.max(
+                    0,
+                    consoleHistoryCursorRef.current - 1,
+                  );
+                }
+
+                setTypedCommand(
+                  parsed.history[consoleHistoryCursorRef.current].command,
+                );
+                return;
+              }
+
+              if (
+                event.key === "ArrowDown" &&
+                !event.nativeEvent.isComposing
+              ) {
+                if (consoleHistoryCursorRef.current == null) return;
+
+                event.preventDefault();
+
+                if (
+                  consoleHistoryCursorRef.current <
+                  parsed.history.length - 1
+                ) {
+                  consoleHistoryCursorRef.current += 1;
+                  setTypedCommand(
+                    parsed.history[consoleHistoryCursorRef.current].command,
+                  );
+                } else {
+                  consoleHistoryCursorRef.current = null;
+                  setTypedCommand(consoleHistoryDraftRef.current);
+                }
+                return;
+              }
+
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.repeat &&
+                !event.nativeEvent.isComposing
+              ) {
                 event.preventDefault();
                 void runConsoleCommand();
               }
@@ -704,6 +796,16 @@ if "matplotlib.pyplot" in sys.modules:
               padding: "4px 0",
             }}
           />
+
+          <span
+            style={{
+              flex: "0 0 auto",
+              fontSize: 11,
+              color: "#6b7280",
+            }}
+          >
+            Enter 실행 · ↑↓ 이전 명령
+          </span>
         </div>
       </div>
 

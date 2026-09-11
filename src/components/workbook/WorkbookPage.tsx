@@ -32,6 +32,16 @@ type WorkbookPageProps = {
 declare global {
   interface Window {
     renderMathInElement?: (elem: HTMLElement, opts?: any) => void;
+    katex?: {
+      render?: (
+        latex: string,
+        element: HTMLElement,
+        options?: {
+          displayMode?: boolean;
+          throwOnError?: boolean;
+        },
+      ) => void;
+    };
 
     loadPyodide?: any;
   }
@@ -49,6 +59,13 @@ type SidebarGroup = {
   parent?: WorkbookProblem;
   children: WorkbookProblem[];
   standalone: WorkbookProblem[];
+};
+
+type ChapterEquation = {
+  id: string;
+  latex: string;
+  problemId: string;
+  problemTitle: string;
 };
 
 function sanitize(s?: string) {
@@ -360,7 +377,62 @@ function renderWorkbookTable(raw: string, key: string) {
   );
 }
 
-function renderRichText(s: string) {
+function EquationMath({
+  latex,
+}: {
+  latex: string;
+}) {
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    let attempts = 0;
+
+    const renderEquation = () => {
+      if (cancelled || !ref.current) return;
+
+      const katexRender = window.katex?.render;
+
+      if (typeof katexRender === "function") {
+        katexRender(latex, ref.current, {
+          displayMode: true,
+          throwOnError: false,
+        });
+        return;
+      }
+
+      // KaTeX 스크립트가 아직 준비되지 않았다면 잠깐 재시도한다.
+      attempts += 1;
+      if (attempts <= 20) {
+        window.setTimeout(renderEquation, 100);
+      }
+    };
+
+    renderEquation();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [latex]);
+
+  return (
+    <div
+      ref={ref}
+      style={{
+        minHeight: 28,
+        overflowX: "auto",
+      }}
+    >
+      {latex}
+    </div>
+  );
+}
+
+function renderRichText(
+  s: string,
+  onWorkbookLinkClick?: (href: string) => void,
+  onEquationClick?: (equationId: string) => void,
+) {
   const nodes: React.ReactNode[] = [];
 
   // 지원 문법:
@@ -368,6 +440,7 @@ function renderRichText(s: string) {
   // [[image:/images/ch16/figure16_1.png|그림 16.1 설명]]
   //
   // [[link:/workbook/ch2?p=2-1A1|수치적분(2장 문제 1.A1 참고)]]
+  // [[equation:15.3]]
   //
   // [[table:
   // caption:표 2.1 문제 2.B4의 Python 스크립트 변수와 대응 수식
@@ -377,7 +450,7 @@ function renderRichText(s: string) {
   // ]]
 
   const tokenRegex =
-    /\[\[table:\s*([\s\S]*?)\]\]|\[\[(image|link):([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
+    /\[\[table:\s*([\s\S]*?)\]\]|\[\[(image|link|equation):([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
 
   let last = 0;
   let match: RegExpExecArray | null;
@@ -450,11 +523,48 @@ function renderRichText(s: string) {
       );
     }
 
+    if (type === "equation") {
+      nodes.push(
+        <button
+          key={`rich-equation-${key++}`}
+          type="button"
+          onClick={() => onEquationClick?.(target)}
+          style={{
+            display: "inline",
+            padding: 0,
+            border: 0,
+            background: "transparent",
+            color: "#4f46e5",
+            font: "inherit",
+            fontWeight: 800,
+            textDecoration: "underline",
+            textUnderlineOffset: 3,
+            cursor: onEquationClick ? "pointer" : "default",
+          }}
+          title={`${target} 수식 보기`}
+        >
+          {label || `(식 ${target})`}
+        </button>,
+      );
+    }
+
     if (type === "link") {
+      const isWorkbookInternalLink =
+        target.startsWith("/workbook/") ||
+        target.startsWith("?p=");
+
       nodes.push(
         <a
           key={`rich-link-${key++}`}
           href={target}
+          onClick={
+            isWorkbookInternalLink && onWorkbookLinkClick
+              ? (event) => {
+                  event.preventDefault();
+                  onWorkbookLinkClick(target);
+                }
+              : undefined
+          }
           style={{
             color: "#4f46e5",
             fontWeight: 700,
@@ -495,7 +605,10 @@ export default function WorkbookPage({
     sections: Array.isArray(chapter?.sections) ? chapter.sections : [],
   };
   const storageKey = `workbook::${chapterSlug}`;
+  const draftStorageKey = `workbook-draft::${chapterSlug}`;
+  const bookmarkStorageKey = `workbook-bookmarks::${chapterSlug}`;
   const chapterPath = `/workbook/${chapterSlug}`;
+  const workbookReturnStorageKey = "workbook::return-target";
 
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
@@ -529,14 +642,61 @@ export default function WorkbookPage({
 
   const [idx, setIdx] = useState(0);
   const [showAnswer, setShowAnswer] = useState(false);
+  const [equationModalId, setEquationModalId] = useState<string | null>(null);
+  const [showEquationLibrary, setShowEquationLibrary] = useState(false);
+
+  // 참고 링크를 통해 다른 문제로 이동했을 때
+  // 학생이 "원래 문제로 돌아가기" 버튼으로 쉽게 복귀할 수 있도록 한다.
+  const [returnProblemId, setReturnProblemId] = useState<string | null>(null);
+  const [returnProblemTitle, setReturnProblemTitle] = useState<string | null>(null);
+
+  // 다른 Chapter의 참고 링크를 통해 들어온 경우,
+  // sessionStorage에 저장된 출발 문제 정보를 읽어 복귀 버튼을 복원한다.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const raw = window.sessionStorage.getItem(workbookReturnStorageKey);
+      if (!raw) return;
+
+      const parsed = JSON.parse(raw);
+      const href =
+        typeof parsed?.href === "string" ? parsed.href : "";
+      const title =
+        typeof parsed?.title === "string" ? parsed.title : "";
+
+      if (!href) return;
+
+      const currentHref =
+        `${window.location.pathname}${window.location.search}`;
+
+      // 이미 원래 문제로 돌아온 뒤라면 남아 있는 return target을 제거한다.
+      if (currentHref === href) {
+        window.sessionStorage.removeItem(workbookReturnStorageKey);
+        setReturnProblemId(null);
+        setReturnProblemTitle(null);
+        return;
+      }
+
+      setReturnProblemId(href);
+      setReturnProblemTitle(title || null);
+    } catch {
+      // 잘못된 sessionStorage 값은 무시한다.
+    }
+  }, [chapterSlug, workbookReturnStorageKey]);
 
   const [userAnswer, setUserAnswer] = useState("");
   const [saved, setSaved] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
+  const [autoSaveNotice, setAutoSaveNotice] = useState("");
   type ProblemProgressStatus = "unattempted" | "saved" | "passed";
 
   const [problemProgressById, setProblemProgressById] = useState<
     Record<string, ProblemProgressStatus>
+  >({});
+
+  const [bookmarkedProblemIds, setBookmarkedProblemIds] = useState<
+    Record<string, boolean>
   >({});
 
   // 현재 문제에서 마지막으로 저장/불러온 답안을 기준으로 변경 여부를 판단한다.
@@ -601,6 +761,8 @@ export default function WorkbookPage({
   const promptRef = useRef<HTMLDivElement | null>(null);
 
   const answerRef = useRef<HTMLDivElement | null>(null);
+  const equationModalRef = useRef<HTMLDivElement | null>(null);
+  const equationLibraryRef = useRef<HTMLDivElement | null>(null);
 
   const { flat, idToIndex } = useMemo(() => {
     const out: FlatItem[] = [];
@@ -710,6 +872,141 @@ export default function WorkbookPage({
 
     return result;
   }, [data.sections]);
+
+  const chapterEquations = useMemo(() => {
+    const equations: ChapterEquation[] = [];
+    const seen = new Set<string>();
+
+    for (const sec of data.sections ?? []) {
+      for (const pb of sec.problems ?? []) {
+        const prompt = String(pb.prompt ?? "");
+        const mathBlocks = Array.from(
+          prompt.matchAll(/\$\$([\s\S]*?)\$\$/g),
+        );
+
+        for (let blockIndex = 0; blockIndex < mathBlocks.length; blockIndex += 1) {
+          const match = mathBlocks[blockIndex];
+          const rawLatex = String(match[1] ?? "");
+          const labelMatch = rawLatex.match(
+            /\\text\{\(식\s+([0-9]+\.[0-9]+)\)\}/,
+          );
+
+          if (!labelMatch) continue;
+
+          const equationId = labelMatch[1];
+          if (seen.has(equationId)) continue;
+
+          let latex = rawLatex
+            .replace(
+              /\\qquad\s*\\text\{\(식\s+[0-9]+\.[0-9]+\)\}/g,
+              "",
+            )
+            .replace(
+              /\\text\{\(식\s+[0-9]+\.[0-9]+\)\}/g,
+              "",
+            )
+            .trim();
+
+          // 식이 두 개의 연속된 display-math 블록으로 나뉘고,
+          // 번호가 붙은 두 번째 블록이 "="로 시작하면 앞 블록도 함께 보여준다.
+          if (
+            /^=/.test(latex) &&
+            blockIndex > 0
+          ) {
+            const previous = mathBlocks[blockIndex - 1];
+            const previousEnd =
+              (previous.index ?? 0) + previous[0].length;
+            const currentStart = match.index ?? 0;
+            const between = prompt.slice(previousEnd, currentStart);
+
+            if (between.trim() === "") {
+              const previousLatex = String(previous[1] ?? "").trim();
+              if (previousLatex) {
+                latex = `${previousLatex}\n${latex}`;
+              }
+            }
+          }
+
+          seen.add(equationId);
+          equations.push({
+            id: equationId,
+            latex,
+            problemId: pb.id,
+            problemTitle: pb.title,
+          });
+        }
+      }
+    }
+
+    return equations.sort((a, b) => {
+      const [aChapter, aNumber] = a.id.split(".").map(Number);
+      const [bChapter, bNumber] = b.id.split(".").map(Number);
+      return aChapter - bChapter || aNumber - bNumber;
+    });
+  }, [data.sections]);
+
+  const equationById = useMemo(
+    () =>
+      Object.fromEntries(
+        chapterEquations.map((equation) => [equation.id, equation]),
+      ) as Record<string, ChapterEquation>,
+    [chapterEquations],
+  );
+
+  const activeEquation =
+    equationModalId != null
+      ? equationById[equationModalId] ?? null
+      : null;
+
+  function equationSourceIndex(equation: ChapterEquation) {
+    const directIndex = idToIndex[equation.problemId];
+    if (directIndex != null) return directIndex;
+
+    const childIndex = flat.findIndex(
+      (item) => item.preface?.id === equation.problemId,
+    );
+
+    return childIndex >= 0 ? childIndex : null;
+  }
+
+  useEffect(() => {
+    try {
+      const raw = window.localStorage.getItem(bookmarkStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+
+      if (parsed && typeof parsed === "object") {
+        setBookmarkedProblemIds(parsed);
+      } else {
+        setBookmarkedProblemIds({});
+      }
+    } catch {
+      setBookmarkedProblemIds({});
+    }
+  }, [bookmarkStorageKey]);
+
+  function toggleBookmark(problemId: string) {
+    setBookmarkedProblemIds((previous) => {
+      const next = {
+        ...previous,
+        [problemId]: !previous[problemId],
+      };
+
+      if (!next[problemId]) {
+        delete next[problemId];
+      }
+
+      try {
+        window.localStorage.setItem(
+          bookmarkStorageKey,
+          JSON.stringify(next),
+        );
+      } catch {
+        // localStorage 저장 실패 시 현재 세션의 UI 상태는 유지한다.
+      }
+
+      return next;
+    });
+  }
 
   // 로그인 상태와 역할 확인
   // 학생은 AI 점수가 기준 이상일 때 정답을 볼 수 있고,
@@ -1059,10 +1356,195 @@ export default function WorkbookPage({
       setPlotImage(null);
       setAudioSource(null);
       setSaved(false);
+
+      const state =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+
+      if (typeof state.workbookReturnProblemId === "string") {
+        setReturnProblemId(
+          `${chapterPath}?p=${encodeURIComponent(
+            state.workbookReturnProblemId,
+          )}`,
+        );
+        setReturnProblemTitle(
+          typeof state.workbookReturnProblemTitle === "string"
+            ? state.workbookReturnProblemTitle
+            : null,
+        );
+      }
     }
   }, [idToIndex]);
 
+  // 브라우저 뒤로가기/앞으로가기로 ?p=문제ID가 바뀌면
+  // URL만 바꾸는 것이 아니라 Workbook의 현재 문제 상태(idx)도 함께 복원한다.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const problemId = params.get("p");
+
+      if (!problemId) return;
+
+      const targetIdx = idToIndex[problemId];
+      if (targetIdx == null) return;
+
+      const target = flat[targetIdx];
+      if (!target) return;
+
+      setIdx(targetIdx);
+      resetProblemViewState(target.pb.id);
+
+      const state =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+
+      if (typeof state.workbookReturnProblemId === "string") {
+        setReturnProblemId(
+          `${chapterPath}?p=${encodeURIComponent(
+            state.workbookReturnProblemId,
+          )}`,
+        );
+        setReturnProblemTitle(
+          typeof state.workbookReturnProblemTitle === "string"
+            ? state.workbookReturnProblemTitle
+            : null,
+        );
+      }
+    };
+
+    window.addEventListener("popstate", handlePopState);
+
+    return () => {
+      window.removeEventListener("popstate", handlePopState);
+    };
+  }, [idToIndex, flat]);
+
   const current = flat[idx];
+
+  function resetProblemViewState(targetProblemId: string) {
+    setShowAnswer(false);
+    setGradeResult(
+      gradeResultByProblemRef.current[targetProblemId] ?? null,
+    );
+    setCodeOutput(null);
+    setPlotImage(null);
+    setAudioSource(null);
+    setSaved(false);
+    setSaveNotice("");
+
+    // 새 문제 답안이 restore되기 전에는 이전 문제의 저장 기준을 사용하지 않는다.
+    savedAnswerRef.current = {
+      problemId: null,
+      answer: "",
+    };
+  }
+
+  function problemIndexFromHref(href: string) {
+    if (typeof window === "undefined") return null;
+
+    try {
+      const url = new URL(href, window.location.href);
+
+      // 같은 Workbook chapter 안의 deep link만 현재 페이지 상태로 처리한다.
+      if (url.pathname !== chapterPath) {
+        return null;
+      }
+
+      const problemId = url.searchParams.get("p");
+      if (!problemId) return null;
+
+      const targetIdx = idToIndex[problemId];
+      return targetIdx != null ? targetIdx : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function moveToWorkbookLink(href: string) {
+    const targetIdx = problemIndexFromHref(href);
+
+    if (targetIdx == null) {
+      if (typeof window !== "undefined") {
+        try {
+          window.sessionStorage.setItem(
+            workbookReturnStorageKey,
+            JSON.stringify({
+              href:
+                `${chapterPath}?p=${encodeURIComponent(current.pb.id)}`,
+              title: current.pb.title,
+            }),
+          );
+        } catch {
+          // sessionStorage를 사용할 수 없어도 링크 이동 자체는 계속한다.
+        }
+      }
+
+      try {
+        const targetUrl = new URL(href, window.location.href);
+        router.push(`${targetUrl.pathname}${targetUrl.search}${targetUrl.hash}`);
+      } catch {
+        router.push(href);
+      }
+      return;
+    }
+
+    if (targetIdx === idx) return;
+
+    if (hasUnsavedAnswer()) {
+      // 현재 저장 경고 모달은 일반 문제 이동용이므로,
+      // 내부 참고 링크 클릭도 동일하게 보호한다.
+      setPendingMoveIdx(targetIdx);
+      return;
+    }
+
+    const target = flat[targetIdx];
+    if (!target) return;
+
+    setIdx(targetIdx);
+    resetProblemViewState(target.pb.id);
+
+    if (typeof window !== "undefined") {
+      const nextUrl =
+        `${chapterPath}?p=${encodeURIComponent(target.pb.id)}`;
+
+      const previousState =
+        window.history.state && typeof window.history.state === "object"
+          ? window.history.state
+          : {};
+
+      // 참고 링크 이동은 출발 문제 정보를 history state에 함께 기록한다.
+      // 브라우저 뒤로가기뿐 아니라 화면의 "원래 문제로 돌아가기" 버튼에서도 사용한다.
+      window.history.pushState(
+        {
+          ...previousState,
+          workbookReturnProblemId: current.pb.id,
+          workbookReturnProblemTitle: current.pb.title,
+        },
+        "",
+        nextUrl,
+      );
+
+      setReturnProblemId(
+        `${chapterPath}?p=${encodeURIComponent(current.pb.id)}`,
+      );
+      setReturnProblemTitle(current.pb.title);
+    }
+
+    if (pyodide) {
+      try {
+        await pyodide.runPythonAsync(`
+import matplotlib.pyplot as plt
+plt.close('all')
+`);
+      } catch {
+        // ignore
+      }
+    }
+  }
 
   function renderSidebarProblemLabel(
     pb: WorkbookProblem,
@@ -1106,6 +1588,19 @@ export default function WorkbookPage({
         <span>
           {prefix}
           {pb.title}
+          {bookmarkedProblemIds[pb.id] && (
+            <span
+              aria-label="북마크됨"
+              title="북마크됨"
+              style={{
+                marginLeft: 6,
+                color: active ? "#ffffff" : "#f59e0b",
+                fontWeight: 900,
+              }}
+            >
+              ★
+            </span>
+          )}
         </span>
         <span
           aria-label={label}
@@ -1122,9 +1617,54 @@ export default function WorkbookPage({
     );
   }
 
+  function readAutoSavedDraft(problemId: string) {
+    try {
+      const raw = window.localStorage.getItem(draftStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+      const draft = parsed?.[problemId];
+
+      if (draft && typeof draft.answer === "string") {
+        return {
+          answer: draft.answer,
+          updatedAt:
+            typeof draft.updatedAt === "string"
+              ? draft.updatedAt
+              : "",
+        };
+      }
+    } catch {
+      // 자동 저장 임시 답안을 읽지 못해도 일반 답안 복원은 계속한다.
+    }
+
+    return null;
+  }
+
+  function clearAutoSavedDraft(problemId: string) {
+    try {
+      const raw = window.localStorage.getItem(draftStorageKey);
+      const parsed = raw ? JSON.parse(raw) : {};
+
+      if (!parsed || typeof parsed !== "object") return;
+
+      delete parsed[problemId];
+
+      if (Object.keys(parsed).length === 0) {
+        window.localStorage.removeItem(draftStorageKey);
+      } else {
+        window.localStorage.setItem(
+          draftStorageKey,
+          JSON.stringify(parsed),
+        );
+      }
+    } catch {
+      // 임시 답안 정리 실패는 실제 저장 성공 여부와 무관하므로 무시한다.
+    }
+  }
+
   // 저장 답안 로드
   // 로그인 상태에서는 Supabase를 먼저 확인하고,
   // 저장된 DB 답안이 없으면 localStorage → starter code 순서로 fallback한다.
+  // 단, 이 브라우저에 자동 저장된 임시 답안이 있으면 그 내용을 우선 화면에 복원한다.
   useEffect(() => {
     if (!current) return;
 
@@ -1158,11 +1698,19 @@ export default function WorkbookPage({
               ? pythonAnswerToCode(remote.answer.answer ?? "")
               : remote.answer.answer ?? "";
 
-          setUserAnswer(restoredAnswer);
+          const draft = readAutoSavedDraft(current.pb.id);
+          const visibleAnswer = draft?.answer ?? restoredAnswer;
+
+          setUserAnswer(visibleAnswer);
           savedAnswerRef.current = {
             problemId: current.pb.id,
             answer: restoredAnswer,
           };
+          setAutoSaveNotice(
+            draft && draft.answer !== restoredAnswer
+              ? "이 브라우저에 자동 저장된 임시 답안을 복원했습니다."
+              : "",
+          );
           setCodeOutput(remote.answer.execution_output ?? null);
 
           if (
@@ -1202,11 +1750,19 @@ export default function WorkbookPage({
           const restoredValue =
             typeof v === "string" ? v : JSON.stringify(v ?? "");
 
-          setUserAnswer(restoredValue);
+          const draft = readAutoSavedDraft(current.pb.id);
+          const visibleAnswer = draft?.answer ?? restoredValue;
+
+          setUserAnswer(visibleAnswer);
           savedAnswerRef.current = {
             problemId: current.pb.id,
             answer: restoredValue,
           };
+          setAutoSaveNotice(
+            draft && draft.answer !== restoredValue
+              ? "이 브라우저에 자동 저장된 임시 답안을 복원했습니다."
+              : "",
+          );
           setGradeResult(
             gradeResultByProblemRef.current[current.pb.id] ?? null,
           );
@@ -1215,11 +1771,19 @@ export default function WorkbookPage({
         }
       } catch {
         if (!cancelled) {
-          setUserAnswer(fallback);
+          const draft = readAutoSavedDraft(current.pb.id);
+          const visibleAnswer = draft?.answer ?? fallback;
+
+          setUserAnswer(visibleAnswer);
           savedAnswerRef.current = {
             problemId: current.pb.id,
             answer: fallback,
           };
+          setAutoSaveNotice(
+            draft && draft.answer !== fallback
+              ? "이 브라우저에 자동 저장된 임시 답안을 복원했습니다."
+              : "",
+          );
           setGradeResult(
             gradeResultByProblemRef.current[current.pb.id] ?? null,
           );
@@ -1235,6 +1799,61 @@ export default function WorkbookPage({
       cancelled = true;
     };
   }, [chapterSlug, current?.pb?.id, isAuthenticated]);
+
+  // 실제 저장본과 다른 답안이 2.5초 동안 더 수정되지 않으면
+  // localStorage의 별도 "임시 답안" 영역에 자동 저장한다.
+  // Supabase에는 자동 저장하지 않으므로 서버 요청은 발생하지 않는다.
+  useEffect(() => {
+    if (!current) return;
+
+    const hasLoadedBaseline =
+      savedAnswerRef.current.problemId === current.pb.id;
+
+    if (!hasLoadedBaseline) return;
+
+    const hasChanges =
+      userAnswer !== savedAnswerRef.current.answer;
+
+    if (!hasChanges) {
+      setAutoSaveNotice("");
+      return;
+    }
+
+    setAutoSaveNotice("자동 저장 대기 중...");
+
+    const timer = window.setTimeout(() => {
+      try {
+        const raw = window.localStorage.getItem(draftStorageKey);
+        const parsed = raw ? JSON.parse(raw) : {};
+        const next =
+          parsed && typeof parsed === "object"
+            ? parsed
+            : {};
+
+        next[current.pb.id] = {
+          answer: userAnswer,
+          updatedAt: new Date().toISOString(),
+        };
+
+        window.localStorage.setItem(
+          draftStorageKey,
+          JSON.stringify(next),
+        );
+
+        setAutoSaveNotice("자동 저장됨");
+      } catch {
+        setAutoSaveNotice("자동 저장 실패");
+      }
+    }, 2500);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [
+    current?.pb?.id,
+    draftStorageKey,
+    userAnswer,
+  ]);
 
 
   // KaTeX 렌더
@@ -1267,7 +1886,7 @@ export default function WorkbookPage({
     const t = window.setTimeout(() => renderMath(), 0);
     return () => window.clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [idx, showAnswer]);
+  }, [idx, showAnswer, equationModalId, showEquationLibrary]);
 
   if (!current) {
     return (
@@ -1341,21 +1960,11 @@ export default function WorkbookPage({
     if (!target) return;
 
     setIdx(safeIdx);
-    setShowAnswer(false);
-    setGradeResult(
-      gradeResultByProblemRef.current[target.pb.id] ?? null,
-    );
-    setCodeOutput(null);
-    setPlotImage(null);
-    setAudioSource(null);
-    setSaved(false);
-    setSaveNotice("");
+    resetProblemViewState(target.pb.id);
 
-    // 새 문제 답안이 restore되기 전에는 이전 문제의 저장 기준을 사용하지 않는다.
-    savedAnswerRef.current = {
-      problemId: null,
-      answer: "",
-    };
+    // 이전/다음/목차 이동은 일반 학습 이동이므로 참고 링크 복귀 상태를 해제한다.
+    setReturnProblemId(null);
+    setReturnProblemTitle(null);
 
     // 문제 이동은 현재 WorkbookPage 내부 상태(idx)로 처리한다.
     // ?p=문제ID는 deep link 용도이므로 Next.js router navigation을 발생시키지 않고
@@ -1398,6 +2007,27 @@ plt.close('all')
     }
 
     await moveToProblemDirect(safeIdx);
+  }
+
+  function returnToOriginalProblem() {
+    if (!returnProblemId) return;
+
+    if (typeof window !== "undefined") {
+      try {
+        window.sessionStorage.removeItem(workbookReturnStorageKey);
+      } catch {
+        // ignore
+      }
+    }
+
+    // 같은 Chapter 참고 이동이면 history.back()으로 즉시 복귀한다.
+    if (returnProblemId.startsWith(chapterPath)) {
+      window.history.back();
+      return;
+    }
+
+    // 다른 Chapter에서 넘어온 경우에는 저장해둔 원래 문제 URL로 이동한다.
+    router.push(returnProblemId);
   }
 
   function buildSubmissionText() {
@@ -1455,6 +2085,8 @@ plt.close('all')
         problemId: current.pb.id,
         answer: userAnswer,
       };
+      clearAutoSavedDraft(current.pb.id);
+      setAutoSaveNotice("");
 
       setProblemProgress(current.pb.id, "saved");
       setSaved(true);
@@ -1493,6 +2125,8 @@ plt.close('all')
       problemId: current.pb.id,
       answer: userAnswer,
     };
+    clearAutoSavedDraft(current.pb.id);
+    setAutoSaveNotice("");
 
     setProblemProgress(
       current.pb.id,
@@ -1595,6 +2229,8 @@ plt.close('all')
           problemId: current.pb.id,
           answer: userAnswer,
         };
+        clearAutoSavedDraft(current.pb.id);
+        setAutoSaveNotice("");
         setProblemProgress(
           current.pb.id,
           normalizedScore >= ANSWER_UNLOCK_SCORE
@@ -2608,12 +3244,44 @@ except Exception:
                     fontSize: 34,
                     fontWeight: 900,
                     margin: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    flexWrap: "wrap",
                   }}
                 >
-                  {current.pb.title}
+                  <span>{current.pb.title}</span>
+
+                  <button
+                    type="button"
+                    onClick={() => toggleBookmark(current.pb.id)}
+                    aria-label={
+                      bookmarkedProblemIds[current.pb.id]
+                        ? "북마크 해제"
+                        : "북마크 추가"
+                    }
+                    title={
+                      bookmarkedProblemIds[current.pb.id]
+                        ? "북마크 해제"
+                        : "나중에 다시 보기"
+                    }
+                    style={{
+                      border: 0,
+                      background: "transparent",
+                      padding: 0,
+                      cursor: "pointer",
+                      fontSize: 27,
+                      lineHeight: 1,
+                      color: bookmarkedProblemIds[current.pb.id]
+                        ? "#f59e0b"
+                        : "#cbd5e1",
+                    }}
+                  >
+                    {bookmarkedProblemIds[current.pb.id] ? "★" : "☆"}
+                  </button>
+
                   <span
                     style={{
-                      marginLeft: 10,
                       padding: "3px 8px",
                       borderRadius: 999,
                       background: "#eef2ff",
@@ -2642,6 +3310,25 @@ except Exception:
                 justifyContent: "flex-end",
               }}
             >
+              {chapterEquations.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowEquationLibrary(true)}
+                  style={{
+                    minHeight: 38,
+                    padding: "8px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #bae6fd",
+                    background: "#f0f9ff",
+                    color: "#075985",
+                    fontWeight: 800,
+                    cursor: "pointer",
+                  }}
+                >
+                  수식 모음 ({chapterEquations.length})
+                </button>
+              )}
+
               <button
                 type="button"
                 onClick={() => setWorkbookTutorialOpen(true)}
@@ -2778,6 +3465,34 @@ except Exception:
             </div>
           )}
 
+          {returnProblemId && (
+            <div
+              style={{
+                marginTop: 16,
+                display: "flex",
+                justifyContent: "flex-start",
+              }}
+            >
+              <button
+                type="button"
+                onClick={returnToOriginalProblem}
+                style={{
+                  minHeight: 40,
+                  padding: "9px 13px",
+                  borderRadius: 10,
+                  border: "1px solid #c7d2fe",
+                  background: "#eef2ff",
+                  color: "#3730a3",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                ← 원래 문제로 돌아가기
+                {returnProblemTitle ? ` (${returnProblemTitle})` : ""}
+              </button>
+            </div>
+          )}
+
           <div
             style={{
               marginTop: 16,
@@ -2793,7 +3508,17 @@ except Exception:
             onContextMenu={(event) => event.preventDefault()}
           >
             <div ref={promptRef} data-tutorial="workbook-prompt">
-              {renderRichText(displayPrompt || "(문제 본문이 비어 있습니다)")}
+              {renderRichText(
+                displayPrompt || "(문제 본문이 비어 있습니다)",
+                (href) => {
+                  void moveToWorkbookLink(href);
+                },
+                (equationId) => {
+                  if (equationById[equationId]) {
+                    setEquationModalId(equationId);
+                  }
+                },
+              )}
             </div>
           </div>
 
@@ -3036,6 +3761,21 @@ except Exception:
                 </span>
               )}
 
+              {autoSaveNotice && (
+                <span
+                  style={{
+                    fontSize: 12,
+                    color:
+                      autoSaveNotice === "자동 저장 실패"
+                        ? "#b91c1c"
+                        : "#6b7280",
+                    fontWeight: 700,
+                  }}
+                >
+                  {autoSaveNotice}
+                </span>
+              )}
+
               {saveNotice && (
                 <div
                   style={{
@@ -3246,7 +3986,17 @@ except Exception:
 
               <div ref={answerRef}>
                 {preparedAnswer ? (
-                  renderRichText(preparedAnswer)
+                  renderRichText(
+                    preparedAnswer,
+                    (href) => {
+                      void moveToWorkbookLink(href);
+                    },
+                    (equationId) => {
+                      if (equationById[equationId]) {
+                        setEquationModalId(equationId);
+                      }
+                    },
+                  )
                 ) : (
                   <div style={{ opacity: 0.7 }}>(사전 정답이 없습니다)</div>
                 )}
@@ -3592,6 +4342,293 @@ except Exception:
         </>
       )}
 
+      {showEquationLibrary && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setShowEquationLibrary(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 11000,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            background: "rgba(15,23,42,0.58)",
+            backdropFilter: "blur(3px)",
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 760,
+              maxHeight: "82vh",
+              overflowY: "auto",
+              padding: 24,
+              borderRadius: 20,
+              background: "#fff",
+              boxShadow: "0 24px 70px rgba(15,23,42,0.30)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div>
+                <h2
+                  style={{
+                    margin: 0,
+                    fontSize: 24,
+                    fontWeight: 900,
+                    color: "#111827",
+                  }}
+                >
+                  {data.title} 수식 모음
+                </h2>
+                <div
+                  style={{
+                    marginTop: 5,
+                    color: "#6b7280",
+                    fontSize: 13,
+                  }}
+                >
+                  번호를 누르면 해당 수식만 크게 볼 수 있습니다.
+                </div>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setShowEquationLibrary(false)}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  border: "1px solid #d1d5db",
+                  background: "#fff",
+                  cursor: "pointer",
+                  fontSize: 20,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              ref={equationLibraryRef}
+              style={{
+                marginTop: 18,
+                display: "flex",
+                flexDirection: "column",
+                gap: 12,
+              }}
+            >
+              {chapterEquations.map((equation) => (
+                <div
+                  key={equation.id}
+                  style={{
+                    padding: 16,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 14,
+                    background: "#f9fafb",
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowEquationLibrary(false);
+                      setEquationModalId(equation.id);
+                    }}
+                    style={{
+                      border: 0,
+                      background: "transparent",
+                      padding: 0,
+                      color: "#4f46e5",
+                      fontWeight: 900,
+                      cursor: "pointer",
+                      fontSize: 14,
+                    }}
+                  >
+                    식 {equation.id}
+                  </button>
+
+                  <div
+                    style={{
+                      marginTop: 10,
+                      overflowX: "auto",
+                    }}
+                  >
+                    <EquationMath latex={equation.latex} />
+                  </div>
+
+                  <div
+                    style={{
+                      marginTop: 8,
+                      color: "#6b7280",
+                      fontSize: 12,
+                    }}
+                  >
+                    출처: 문제 {equation.problemTitle}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {activeEquation && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          onClick={() => setEquationModalId(null)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 11001,
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+            background: "rgba(15,23,42,0.58)",
+            backdropFilter: "blur(3px)",
+          }}
+        >
+          <div
+            onClick={(event) => event.stopPropagation()}
+            style={{
+              width: "100%",
+              maxWidth: 680,
+              padding: 26,
+              borderRadius: 20,
+              background: "#fff",
+              boxShadow: "0 24px 70px rgba(15,23,42,0.30)",
+            }}
+          >
+            <div
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 20,
+                  fontWeight: 900,
+                  color: "#111827",
+                }}
+              >
+                식 {activeEquation.id}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setEquationModalId(null)}
+                style={{
+                  width: 38,
+                  height: 38,
+                  borderRadius: 10,
+                  border: "1px solid #d1d5db",
+                  background: "#fff",
+                  cursor: "pointer",
+                  fontSize: 20,
+                }}
+              >
+                ×
+              </button>
+            </div>
+
+            <div
+              ref={equationModalRef}
+              style={{
+                marginTop: 18,
+                padding: 18,
+                borderRadius: 14,
+                border: "1px solid #dbeafe",
+                background: "#f8fbff",
+                overflowX: "auto",
+                fontSize: 17,
+              }}
+            >
+              <EquationMath latex={activeEquation.latex} />
+            </div>
+
+            <div
+              style={{
+                marginTop: 10,
+                color: "#6b7280",
+                fontSize: 13,
+              }}
+            >
+              출처: 문제 {activeEquation.problemTitle}
+            </div>
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 10,
+                marginTop: 18,
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => {
+                  const targetIdx = equationSourceIndex(activeEquation);
+                  setEquationModalId(null);
+
+                  if (targetIdx != null) {
+                    void moveToProblem(targetIdx);
+                  }
+                }}
+                disabled={equationSourceIndex(activeEquation) == null}
+                style={{
+                  minHeight: 42,
+                  padding: "9px 13px",
+                  borderRadius: 10,
+                  border: "1px solid #c7d2fe",
+                  background: "#eef2ff",
+                  color: "#3730a3",
+                  fontWeight: 900,
+                  cursor:
+                    equationSourceIndex(activeEquation) == null
+                      ? "not-allowed"
+                      : "pointer",
+                  opacity:
+                    equationSourceIndex(activeEquation) == null
+                      ? 0.55
+                      : 1,
+                }}
+              >
+                원문 문제로 이동
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setEquationModalId(null)}
+                style={{
+                  minHeight: 42,
+                  padding: "9px 13px",
+                  borderRadius: 10,
+                  border: "1px solid #d1d5db",
+                  background: "#fff",
+                  color: "#111827",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                닫기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {pendingMoveIdx != null && (
         <div
           role="dialog"
@@ -3687,6 +4724,8 @@ except Exception:
                   const targetIdx = pendingMoveIdx;
                   if (targetIdx == null) return;
 
+                  clearAutoSavedDraft(current.pb.id);
+                  setAutoSaveNotice("");
                   setPendingMoveIdx(null);
                   await moveToProblemDirect(targetIdx);
                 }}

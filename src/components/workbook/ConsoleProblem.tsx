@@ -143,6 +143,16 @@ export default function ConsoleProblem({
   // 같은 문제/같은 Pyodide 인스턴스에서 namespace 초기화를 중복 실행하지 않는다.
   const resetPromiseRef = useRef<Promise<void> | null>(null);
 
+  // Enter 연타/키 반복으로 같은 명령이 중복 실행되는 것을 즉시 차단한다.
+  const runningRef = useRef(false);
+
+  // 명령 실행 후 입력창으로 자동 포커스를 돌려준다.
+  const commandInputRef = useRef<HTMLInputElement | null>(null);
+
+  // 실제 Python Console처럼 ↑/↓ 방향키로 이전 명령을 탐색한다.
+  const historyCursorRef = useRef<number | null>(null);
+  const historyDraftRef = useRef("");
+
   const answer = useMemo(() => parseAnswer(value), [value]);
 
   function updateAnswer(patch: Partial<ConsoleAnswer>) {
@@ -196,6 +206,8 @@ exec(
 
   useEffect(() => {
     setTypedCommand("");
+    historyCursorRef.current = null;
+    historyDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
     setConsoleReady(false);
@@ -211,13 +223,32 @@ exec(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [problem.id, pyReady]);
 
+  // input의 disabled 상태가 실제 DOM에 반영된 뒤 포커스를 복구한다.
+  // requestAnimationFrame보다 React 렌더링 완료 시점에 맞춰져 안정적이다.
+  useEffect(() => {
+    if (pyReady && !running) {
+      commandInputRef.current?.focus();
+    }
+  }, [pyReady, running, problem.id]);
+
   async function runTypedCommand() {
-    if (!pyodide) return;
+    if (!pyodide || runningRef.current) return;
 
     const source = typedCommand.trim();
     if (!source) return;
 
+    // React state가 반영되기 전에 Enter가 다시 들어와도 중복 실행되지 않게
+    // ref를 먼저 잠근다.
+    runningRef.current = true;
     setRunning(true);
+
+    // 실행이 끝날 때까지 이전 명령이 입력창에 남아 보이지 않도록
+    // 실행 시작 즉시 입력창을 비운다.
+    setTypedCommand("");
+
+    // 새 명령을 실행하면 명령 히스토리 탐색 위치를 초기화한다.
+    historyCursorRef.current = null;
+    historyDraftRef.current = "";
 
     try {
       // 문제 진입 직후 namespace 준비가 아직 끝나지 않았다면 여기서 기다린다.
@@ -376,7 +407,6 @@ _console_result
           : [],
       );
 
-      setTypedCommand("");
     } catch (error: any) {
       updateAnswer({
         history: [
@@ -389,9 +419,10 @@ _console_result
         ],
       });
 
-      setTypedCommand("");
     } finally {
+      runningRef.current = false;
       setRunning(false);
+
     }
   }
 
@@ -403,8 +434,12 @@ _console_result
     });
 
     setTypedCommand("");
+    historyCursorRef.current = null;
+    historyDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
+    runningRef.current = false;
+
   }
 
   function clearOutputOnly() {
@@ -515,10 +550,63 @@ _console_result
           </span>
 
           <input
+            ref={commandInputRef}
             value={typedCommand}
             onChange={(event) => setTypedCommand(event.target.value)}
             onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
+              if (
+                event.key === "ArrowUp" &&
+                !event.nativeEvent.isComposing
+              ) {
+                if (answer.history.length === 0) return;
+
+                event.preventDefault();
+
+                if (historyCursorRef.current == null) {
+                  historyDraftRef.current = typedCommand;
+                  historyCursorRef.current = answer.history.length - 1;
+                } else {
+                  historyCursorRef.current = Math.max(
+                    0,
+                    historyCursorRef.current - 1,
+                  );
+                }
+
+                setTypedCommand(
+                  answer.history[historyCursorRef.current].command,
+                );
+                return;
+              }
+
+              if (
+                event.key === "ArrowDown" &&
+                !event.nativeEvent.isComposing
+              ) {
+                if (historyCursorRef.current == null) return;
+
+                event.preventDefault();
+
+                if (
+                  historyCursorRef.current <
+                  answer.history.length - 1
+                ) {
+                  historyCursorRef.current += 1;
+                  setTypedCommand(
+                    answer.history[historyCursorRef.current].command,
+                  );
+                } else {
+                  historyCursorRef.current = null;
+                  setTypedCommand(historyDraftRef.current);
+                }
+                return;
+              }
+
+              if (
+                event.key === "Enter" &&
+                !event.shiftKey &&
+                !event.repeat &&
+                !event.nativeEvent.isComposing
+              ) {
                 event.preventDefault();
                 void runTypedCommand();
               }
@@ -555,7 +643,7 @@ _console_result
               color: "#6b7280",
             }}
           >
-            Enter 실행
+            Enter 실행 · ↑↓ 이전 명령
           </span>
         </div>
       </div>

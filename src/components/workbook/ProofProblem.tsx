@@ -101,6 +101,12 @@ export default function ProofProblem({
   const lastPointRef = useRef<{ x: number; y: number } | null>(null);
   const uploadedDataUrlRef = useRef<string | null>(null);
 
+  // 필기 도구: 펜 / 부분 지우개
+  const [drawingTool, setDrawingTool] = useState<"pen" | "eraser">("pen");
+
+  // 한 획을 시작하기 직전의 Canvas 상태를 저장해 Undo에 사용한다.
+  const undoStackRef = useRef<string[]>([]);
+
   useEffect(() => {
     setRecognizedText(parsed.recognizedText);
     setSourceFileName(parsed.sourceFileName ?? "");
@@ -139,6 +145,51 @@ export default function ProofProblem({
     commit({ inputMethod: nextMethod });
   }
 
+  function pushCanvasSnapshot() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    // 지나치게 많은 메모리를 쓰지 않도록 최근 30단계만 유지한다.
+    const snapshot = canvas.toDataURL("image/png");
+    undoStackRef.current.push(snapshot);
+
+    if (undoStackRef.current.length > 30) {
+      undoStackRef.current.shift();
+    }
+  }
+
+  async function undoCanvas() {
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+
+    const snapshot = undoStackRef.current.pop();
+
+    if (!snapshot) {
+      setRecognitionNotice("되돌릴 이전 필기 내용이 없습니다.");
+      return;
+    }
+
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+
+    await new Promise<void>((resolve, reject) => {
+      const image = new Image();
+
+      image.onload = () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+        resolve();
+      };
+
+      image.onerror = () => reject(new Error("필기 내용을 복원하지 못했습니다."));
+      image.src = snapshot;
+    });
+
+    setRecognitionNotice("직전 필기 동작을 되돌렸습니다.");
+  }
+
   function getCanvasPoint(
     event: React.PointerEvent<HTMLCanvasElement>,
   ) {
@@ -162,6 +213,10 @@ export default function ProofProblem({
     if (!canvas) return;
 
     canvas.setPointerCapture(event.pointerId);
+
+    // 한 획 전체를 Undo 한 단계로 처리한다.
+    pushCanvasSnapshot();
+
     drawingRef.current = true;
     lastPointRef.current = getCanvasPoint(event);
   }
@@ -178,8 +233,16 @@ export default function ProofProblem({
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
-    ctx.strokeStyle = "#111827";
-    ctx.lineWidth = 3;
+    ctx.strokeStyle =
+      drawingTool === "eraser"
+        ? "#ffffff"
+        : "#111827";
+
+    ctx.lineWidth =
+      drawingTool === "eraser"
+        ? 34
+        : 3;
+
     ctx.lineCap = "round";
     ctx.lineJoin = "round";
 
@@ -214,6 +277,8 @@ export default function ProofProblem({
 
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
+
+    pushCanvasSnapshot();
 
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.fillStyle = "#ffffff";
@@ -361,6 +426,10 @@ export default function ProofProblem({
 
     ctx.fillStyle = "#ffffff";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    // 필기 탭을 새로 열면 이전 Canvas Undo 기록은 초기화한다.
+    undoStackRef.current = [];
+    setDrawingTool("pen");
   }, [method]);
 
   useEffect(() => {
@@ -485,7 +554,10 @@ export default function ProofProblem({
               borderRadius: 12,
               background: "#fff",
               touchAction: "none",
-              cursor: "crosshair",
+              cursor:
+                drawingTool === "eraser"
+                  ? "cell"
+                  : "crosshair",
             }}
           />
 
@@ -497,6 +569,81 @@ export default function ProofProblem({
               flexWrap: "wrap",
             }}
           >
+            <button
+              type="button"
+              onClick={() => setDrawingTool("pen")}
+              disabled={recognizing}
+              style={{
+                padding: "9px 12px",
+                borderRadius: 9,
+                border:
+                  drawingTool === "pen"
+                    ? "1px solid #4f46e5"
+                    : "1px solid #d1d5db",
+                background:
+                  drawingTool === "pen"
+                    ? "#eef2ff"
+                    : "#fff",
+                color:
+                  drawingTool === "pen"
+                    ? "#3730a3"
+                    : "#374151",
+                fontWeight: 800,
+                cursor: recognizing
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+            >
+              ✏️ 펜
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setDrawingTool("eraser")}
+              disabled={recognizing}
+              style={{
+                padding: "9px 12px",
+                borderRadius: 9,
+                border:
+                  drawingTool === "eraser"
+                    ? "1px solid #4f46e5"
+                    : "1px solid #d1d5db",
+                background:
+                  drawingTool === "eraser"
+                    ? "#eef2ff"
+                    : "#fff",
+                color:
+                  drawingTool === "eraser"
+                    ? "#3730a3"
+                    : "#374151",
+                fontWeight: 800,
+                cursor: recognizing
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+            >
+              🧽 부분 지우개
+            </button>
+
+            <button
+              type="button"
+              onClick={() => void undoCanvas()}
+              disabled={recognizing}
+              style={{
+                padding: "9px 12px",
+                borderRadius: 9,
+                border: "1px solid #d1d5db",
+                background: "#fff",
+                color: "#374151",
+                fontWeight: 800,
+                cursor: recognizing
+                  ? "not-allowed"
+                  : "pointer",
+              }}
+            >
+              ↶ 실행 취소
+            </button>
+
             <button
               type="button"
               onClick={clearCanvas}
