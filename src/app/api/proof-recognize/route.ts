@@ -79,6 +79,7 @@ ${problemPrompt || "(문제 본문 없음)"}
             {
               type: "input_image",
               image_url: imageDataUrl,
+              detail: "high",
             },
           ],
         },
