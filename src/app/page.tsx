@@ -27,7 +27,7 @@ const PARTS: Array<{
   range: string;
   description: string;
 }> = [
-  { id: 100, label: 'Basic', range: '1장', description: '파이썬 기초' },
+  { id: 100, label: 'Basic', range: '1장', description: '도입부' },
   { id: 1, label: 'Part Ⅰ', range: '2~8장', description: '신호와 시스템' },
   { id: 2, label: 'Part Ⅱ', range: '9~13장', description: '통신시스템' },
   { id: 3, label: 'Part Ⅲ', range: '14~24장', description: '디지털통신' },
@@ -36,8 +36,8 @@ const PARTS: Array<{
 
 const knownChapters: Record<number, Pick<Chapter, 'title' | 'description'>> = {
   1: {
-    title: 'Python Basics',
-    description: '통신시스템과 디지털통신에 사용하는 파이썬의 기본 문법과 기능 기초를 학습합니다.',
+    title: 'Introduction and Basic Tools',
+    description: '온라인 교재의 사용 방법을 익히고 기본 학습 도구를 연습하며, 파이썬의 기본 문법과 기능 기초를 학습합니다.',
   },
   2: {
     title: 'Numerical Integration & Orthogonal Expansion',
@@ -744,9 +744,37 @@ export default function WorkbookHome() {
                   boxSizing: 'border-box',
                 }}
               >
-                <div style={{ fontWeight: 900, fontSize: 17 }}>{part.label}</div>
-                <div style={{ marginTop: 5, fontSize: 13, opacity: 0.85 }}>{part.range}</div>
-                <div style={{ marginTop: 7, fontSize: 12, opacity: 0.68 }}>
+                <div
+                  style={{
+                    fontWeight: 800,
+                    fontSize: 13,
+                    opacity: 0.78,
+                    letterSpacing: '0.01em',
+                  }}
+                >
+                  {part.label}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 4,
+                    fontSize: 12,
+                    opacity: 0.62,
+                  }}
+                >
+                  {part.range}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 11,
+                    fontSize: 19,
+                    lineHeight: 1.3,
+                    fontWeight: 900,
+                    letterSpacing: '-0.3px',
+                    overflowWrap: 'anywhere',
+                  }}
+                >
                   {part.description}
                 </div>
               </button>
@@ -765,9 +793,24 @@ export default function WorkbookHome() {
           }}
         >
           <div>
-            <div style={{ fontSize: 28, fontWeight: 900 }}>{selectedPartInfo.label}</div>
-            <div style={{ marginTop: 7, color: 'rgba(255,255,255,0.65)' }}>
-              {selectedPartInfo.range} · {selectedPartInfo.description}
+            <div
+              style={{
+                fontSize: 13,
+                fontWeight: 800,
+                color: 'rgba(255,255,255,0.62)',
+              }}
+            >
+              {selectedPartInfo.label} · {selectedPartInfo.range}
+            </div>
+            <div
+              style={{
+                marginTop: 6,
+                fontSize: 28,
+                lineHeight: 1.25,
+                fontWeight: 900,
+              }}
+            >
+              {selectedPartInfo.description}
             </div>
           </div>
           <div
