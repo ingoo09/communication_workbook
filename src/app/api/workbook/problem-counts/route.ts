@@ -2,11 +2,11 @@ import { NextResponse } from "next/server";
 
 import { chapter as chapter1 } from "@/app/workbook/ch1/ch1";
 import { chapter as chapter2 } from "@/app/workbook/ch2/ch2";
+import { chapter as chapter3 } from "@/app/workbook/ch3/ch3";
 import { chapter as chapter4 } from "@/app/workbook/ch4/ch4";
 import { chapter as chapter5 } from "@/app/workbook/ch5/ch5";
 import { chapter as chapter6 } from "@/app/workbook/ch6/ch6";
 /*
-import { chapter as chapter3 } from "@/app/workbook/ch3/ch3";
 import { chapter as chapter7 } from "@/app/workbook/ch7/ch7";
 import { chapter as chapter8 } from "@/app/workbook/ch8/ch8";
 import { chapter as chapter9 } from "@/app/workbook/ch9/ch9";
@@ -41,11 +41,11 @@ export const dynamic = "force-dynamic";
 const AVAILABLE_CHAPTERS = {
   1: chapter1,
   2: chapter2,
+  3: chapter3,
   4: chapter4,
   5: chapter5,
   6: chapter6,
   /*
-  3: chapter3,
   7: chapter7,
   8: chapter8,
   9: chapter9,
