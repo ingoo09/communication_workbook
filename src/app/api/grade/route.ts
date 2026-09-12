@@ -33,6 +33,60 @@ function normalizeStudentAnswer(raw?: string) {
   return sanitize(text);
 }
 
+
+type GraphAnswerPayload = {
+  imageDataUrl: string;
+  explanation: string;
+  inputMethod?: "draw" | "upload";
+  sourceFileName?: string;
+};
+
+function parseGraphAnswer(raw?: string): GraphAnswerPayload | null {
+  if (!raw) return null;
+
+  try {
+    const parsed = JSON.parse(String(raw));
+
+    if (parsed?.kind !== "graph") {
+      return null;
+    }
+
+    const imageDataUrl =
+      typeof parsed.imageDataUrl === "string"
+        ? parsed.imageDataUrl.trim()
+        : "";
+
+    const explanation =
+      typeof parsed.explanation === "string"
+        ? parsed.explanation.trim()
+        : "";
+
+    const inputMethod =
+      parsed.inputMethod === "draw" || parsed.inputMethod === "upload"
+        ? parsed.inputMethod
+        : undefined;
+
+    const sourceFileName =
+      typeof parsed.sourceFileName === "string"
+        ? parsed.sourceFileName
+        : undefined;
+
+    // 현재 GraphProblem이 저장하는 PNG/JPEG/WebP data URL만 허용한다.
+    // 임의 URL을 모델에 넘기지 않는다.
+    const validImage =
+      /^data:image\/(?:png|jpeg|jpg|webp);base64,/i.test(imageDataUrl);
+
+    return {
+      imageDataUrl: validImage ? imageDataUrl : "",
+      explanation,
+      inputMethod,
+      sourceFileName,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export async function POST(req: Request) {
   try {
 
@@ -52,7 +106,10 @@ export async function POST(req: Request) {
       prompt,
       referenceSolution,
       userAnswer,
+      graphAnswerRaw,
     } = body;
+
+    const graphAnswer = parseGraphAnswer(graphAnswerRaw);
 
     if (!prompt || !userAnswer) {
       return NextResponse.json(
@@ -85,6 +142,19 @@ ${solutionText}
 [학생 답안]
 ${normalizeStudentAnswer(userAnswer)}
 
+${
+  graphAnswer
+    ? `[그래프 답안 추가 정보]
+입력 방식: ${
+        graphAnswer.inputMethod === "upload"
+          ? "이미지 업로드"
+          : "직접 그리기"
+      }
+학생 설명: ${graphAnswer.explanation || "(설명 없음)"}
+그래프 이미지는 이 텍스트와 함께 별도의 이미지 입력으로 제공된다.`
+    : ""
+}
+
 평가 기준:
 1. 핵심 개념 이해
 2. 논리적 정확성
@@ -116,6 +186,18 @@ ${normalizeStudentAnswer(userAnswer)}
 - Python 실행 확인 문제:
   코드가 요구된 기능을 수행하고 실행 오류가 없으면 높은 점수를 부여한다.
   별도의 자연어 설명이 없다는 이유로 감점하지 않는다.
+
+- 그래프 직접 작성형 문제:
+  학생이 직접 그리거나 업로드한 그래프 이미지가 함께 제공되는 경우,
+  반드시 해당 이미지를 실제 학생 답안으로 보고 채점한다.
+  문제에서 요구한 파형/스펙트럼의 형태, 이동·반전 관계, 주요 위치, 상대적 크기,
+  축과 구간 표현이 문제 의도에 맞는지를 중심으로 평가한다.
+  손그림의 선이 완벽하게 매끄럽지 않거나 눈금이 약간 부정확한 것은
+  개념과 전체 형태가 명확하면 사소한 표현 차이로 본다.
+  학생 설명은 그래프 해석을 보조하는 자료이며,
+  문제에서 설명을 별도로 요구하지 않았다면 설명이 짧거나 없다는 이유만으로 감점하지 않는다.
+  반대로 이미지에서 요구한 그래프가 확인되지 않으면
+  설명만 맞다는 이유로 그래프 작성 요구를 충족한 것으로 판단하지 않는다.
 
 - 그래프 확인 문제:
   정상적으로 Figure가 생성되고 문제에서 요구한 데이터를 사용했다면 높은 점수를 부여한다.
@@ -258,7 +340,25 @@ Python 실행 문제 자체에서 이전 실행 결과에 대한 증거를 요�
 
         model:"gpt-5.6-luna",
 
-        input: gradingPrompt,
+        input:
+          graphAnswer?.imageDataUrl
+            ? [
+                {
+                  role: "user",
+                  content: [
+                    {
+                      type: "input_text",
+                      text: gradingPrompt,
+                    },
+                    {
+                      type: "input_image",
+                      image_url: graphAnswer.imageDataUrl,
+                      detail: "high",
+                    },
+                  ],
+                },
+              ]
+            : gradingPrompt,
 
         text:{
             format:{

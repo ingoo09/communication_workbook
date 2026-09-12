@@ -1,5 +1,5 @@
 /** 온라인 교재 문제 유형 */
-export type ProblemType = "essay" | "python" | "console" | "proof";
+export type ProblemType = "essay" | "python" | "console" | "proof" | "graph";
 
 export type GradingCriterion = {
   id: string;
@@ -55,6 +55,23 @@ export type ProofProblem = BaseProblem & {
   proofInputMode?: "handwriting" | "upload" | "both";
 };
 
+
+export type GraphProblem = BaseProblem & {
+  type: "graph";
+
+  /** 그래프 답안 입력 방식. */
+  graphInputMode?: "draw" | "upload" | "both";
+
+  /** 그래프 좌표축 설정. 지정하지 않으면 -5~5 범위를 사용합니다. */
+  graphXMin?: number;
+  graphXMax?: number;
+  graphYMin?: number;
+  graphYMax?: number;
+  graphXAxisLabel?: string;
+  graphYAxisLabel?: string;
+  graphShowGrid?: boolean;
+};
+
 export type PythonProblem = BaseProblem & {
   type: "python";
   starterCode?: string;
@@ -82,7 +99,7 @@ export type ConsoleProblem = BaseProblem & {
 };
 
 
-export type TypedWorkbookProblem = EssayProblem | PythonProblem | ConsoleProblem | ProofProblem;
+export type TypedWorkbookProblem = EssayProblem | PythonProblem | ConsoleProblem | ProofProblem | GraphProblem;
 
 export type LegacyWorkbookProblem = BaseProblem & {
   type?: undefined;
@@ -112,4 +129,5 @@ export const PROBLEM_TYPE_LABEL: Record<ProblemType, string> = {
   python: "Python 실행형",
   console: "Console 실습형",
   proof: "증명형",
+  graph: "그래프형",
 };

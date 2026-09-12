@@ -6,6 +6,7 @@ import ConsoleProblem from "./ConsoleProblem";
 import EssayProblem from "./EssayProblem";
 import PythonProblem from "./PythonProblem";
 import ProofProblem from "./ProofProblem";
+import GraphProblem from "./GraphProblem";
 import PythonConsoleProblem, { isPythonConsoleProblem } from "./PythonConsoleProblem";
 
 type ProblemRendererProps = {
@@ -19,6 +20,7 @@ type ProblemRendererProps = {
   plotImage: string | null;
   audioSource: string | null;
   onRunPython: () => void;
+  onEnsureWorkbookHelpers?: () => Promise<void>;
 };
 
 export default function ProblemRenderer({
@@ -32,6 +34,7 @@ export default function ProblemRenderer({
   plotImage,
   audioSource,
   onRunPython,
+  onEnsureWorkbookHelpers,
 }: ProblemRendererProps) {
   const type = resolveProblemType(problem);
 
@@ -43,6 +46,7 @@ export default function ProblemRenderer({
         onChange={onChange}
         pyodide={pyodide}
         pyReady={pyReady}
+        onEnsureWorkbookHelpers={onEnsureWorkbookHelpers}
       />
     );
   }
@@ -50,6 +54,16 @@ export default function ProblemRenderer({
   if (type === "proof" && problem.type === "proof") {
     return (
       <ProofProblem
+        problem={problem}
+        value={value}
+        onChange={onChange}
+      />
+    );
+  }
+
+  if (type === "graph" && problem.type === "graph") {
+    return (
+      <GraphProblem
         problem={problem}
         value={value}
         onChange={onChange}

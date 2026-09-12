@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import ProblemRenderer from "./ProblemRenderer";
 import { consoleAnswerToText } from "./ConsoleProblem";
 import { pythonAnswerToCode, pythonAnswerToText } from "./PythonProblem";
+import { graphAnswerToText } from "./GraphProblem";
 import {
   createPythonConsoleInitialValue,
   isPythonConsoleProblem,
@@ -2043,6 +2044,10 @@ plt.close('all')
       return pythonAnswerToText(userAnswer, codeOutput);
     }
 
+    if (currentProblemType === "graph") {
+      return graphAnswerToText(userAnswer);
+    }
+
     return userAnswer;
   }
 
@@ -2160,6 +2165,13 @@ plt.close('all')
           prompt: sanitize(current.pb.prompt),
           referenceSolution: preparedAnswer,
           userAnswer: buildSubmissionText(),
+
+          // graph 문제는 실제 학생 그래프 이미지를 함께 채점기에 전달한다.
+          // 일반 문제에서는 이 필드를 보내지 않는다.
+          graphAnswerRaw:
+            currentProblemType === "graph"
+              ? userAnswer
+              : undefined,
         }),
       });
 
@@ -3699,6 +3711,10 @@ except Exception:
                   plotImage={plotImage}
                   audioSource={audioSource}
                   onRunPython={runPythonCode}
+                  onEnsureWorkbookHelpers={async () => {
+                    const instance = await ensurePyodide();
+                    await ensureWorkbookSoundHelpers(instance);
+                  }}
                 />
               </div>
             </div>

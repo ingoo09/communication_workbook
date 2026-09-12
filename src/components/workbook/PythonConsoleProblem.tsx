@@ -31,6 +31,7 @@ type PythonConsoleProblemProps = {
   onChange: (value: string) => void;
   pyodide: any;
   pyReady: boolean;
+  onEnsureWorkbookHelpers?: () => Promise<void>;
 };
 
 function starterCodeOf(problem: WorkbookProblem) {
@@ -154,6 +155,7 @@ export default function PythonConsoleProblem({
   onChange,
   pyodide,
   pyReady,
+  onEnsureWorkbookHelpers,
 }: PythonConsoleProblemProps) {
   const fallbackCode = starterCodeOf(problem);
 
@@ -221,6 +223,49 @@ if ${reset ? "True" : "False"} or "_workbook_python_console_ns" not in globals()
 
   function hasImportStatement(source: string) {
     return /^\s*(from|import)\s+/m.test(source);
+  }
+
+  function codeUsesWorkbookHelpers(source: string) {
+    return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view)\s*\(/.test(source);
+  }
+
+  function prepareWorkbookHelperCode(source: string) {
+    return source
+      .replace(/(^|\n)([ \t]*)sound_play\s*\(/g, '$1$2await sound_play(')
+      .replace(/(^|\n)([ \t]*)([^#\n]*?=\s*)sound_load\s*\(/g, '$1$2$3await sound_load(')
+      .replace(/(^|\n)([ \t]*)sound_load\s*\(/g, '$1$2await sound_load(')
+      .replace(/(^|\n)([ \t]*)([^#\n]*?=\s*)file_load\s*\(/g, '$1$2$3await file_load(')
+      .replace(/(^|\n)([ \t]*)file_load\s*\(/g, '$1$2await file_load(');
+  }
+
+  async function syncWorkbookHelpersIntoNamespace() {
+    if (!pyodide) return;
+
+    await ensureNamespace(false);
+
+    await pyodide.runPythonAsync(`
+_pc_helper_names = (
+    "file_load",
+    "sound_load",
+    "sound_play",
+    "signal_play",
+    "spectrum_view",
+)
+
+for _pc_helper_name in _pc_helper_names:
+    if _pc_helper_name in globals():
+        _workbook_python_console_ns[_pc_helper_name] = globals()[_pc_helper_name]
+`);
+  }
+
+  async function ensureWorkbookHelpersForSource(source: string) {
+    if (!codeUsesWorkbookHelpers(source)) return;
+
+    if (onEnsureWorkbookHelpers) {
+      await onEnsureWorkbookHelpers();
+    }
+
+    await syncWorkbookHelpersIntoNamespace();
   }
 
   async function collectState() {
@@ -353,13 +398,16 @@ json.dumps({
     setRunningScript(true);
 
     try {
+      const preparedCode = prepareWorkbookHelperCode(parsed.code);
+
       // 실제 import 문이 있을 때만 패키지 분석/로드를 수행한다.
       // 단순 계산 코드에서 불필요한 loadPackagesFromImports 호출을 줄인다.
-      if (hasImportStatement(parsed.code)) {
-        await pyodide.loadPackagesFromImports(parsed.code);
+      if (hasImportStatement(preparedCode)) {
+        await pyodide.loadPackagesFromImports(preparedCode);
       }
 
       await ensureNamespace(true);
+      await ensureWorkbookHelpersForSource(preparedCode);
 
       // matplotlib이 이미 사용 중인 경우에만 이전 Figure를 지운다.
       await pyodide.runPythonAsync(`
@@ -376,17 +424,30 @@ import io
 import json
 import traceback
 
-_pc_source = ${JSON.stringify(parsed.code)}
+_pc_source = ${JSON.stringify(preparedCode)}
 _pc_stdout = io.StringIO()
 _pc_is_error = False
 
 try:
+    import ast
+    import inspect
+
     with contextlib.redirect_stdout(_pc_stdout):
-        exec(
-            compile(_pc_source, "<python-script>", "exec"),
+        _pc_code = compile(
+            _pc_source,
+            "<python-script>",
+            "exec",
+            flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+        )
+
+        _pc_result = eval(
+            _pc_code,
             _workbook_python_console_ns,
             _workbook_python_console_ns,
         )
+
+        if inspect.isawaitable(_pc_result):
+            await _pc_result
 except Exception:
     _pc_is_error = True
     _pc_stdout.write(traceback.format_exc().rstrip())
@@ -427,6 +488,8 @@ json.dumps({
     const source = typedCommand.trim();
     if (!source) return;
 
+    const preparedSource = prepareWorkbookHelperCode(source);
+
     // React state 반영 전 Enter가 다시 들어와도 중복 실행되지 않도록
     // ref를 먼저 잠근다.
     consoleRunningRef.current = true;
@@ -441,11 +504,12 @@ json.dumps({
 
     try {
       // Console에서 실제 import 문이 입력된 경우에만 해당 패키지를 확인한다.
-      if (hasImportStatement(source)) {
-        await pyodide.loadPackagesFromImports(source);
+      if (hasImportStatement(preparedSource)) {
+        await pyodide.loadPackagesFromImports(preparedSource);
       }
 
       await ensureNamespace(false);
+      await ensureWorkbookHelpersForSource(preparedSource);
 
       const result = await pyodide.runPythonAsync(`
 import ast
@@ -454,11 +518,12 @@ import io
 import json
 import traceback
 
-_pc_source = ${JSON.stringify(source)}
+_pc_source = ${JSON.stringify(preparedSource)}
 _pc_stdout = io.StringIO()
 _pc_is_error = False
 
 try:
+    import inspect
     _pc_tree = ast.parse(_pc_source, mode="exec")
 
     with contextlib.redirect_stdout(_pc_stdout):
@@ -471,23 +536,33 @@ try:
                     ast.Expression(_pc_tree.body[0].value),
                     "<python-console>",
                     "eval",
+                    flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
                 ),
                 _workbook_python_console_ns,
                 _workbook_python_console_ns,
             )
 
+            if inspect.isawaitable(_pc_value):
+                _pc_value = await _pc_value
+
             if _pc_value is not None:
                 print(repr(_pc_value))
         else:
-            exec(
-                compile(
-                    _pc_tree,
-                    "<python-console>",
-                    "exec",
-                ),
+            _pc_code = compile(
+                _pc_tree,
+                "<python-console>",
+                "exec",
+                flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+            )
+
+            _pc_result = eval(
+                _pc_code,
                 _workbook_python_console_ns,
                 _workbook_python_console_ns,
             )
+
+            if inspect.isawaitable(_pc_result):
+                await _pc_result
 
 except Exception:
     _pc_is_error = True
