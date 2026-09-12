@@ -40,7 +40,7 @@ export default async function Chapter5Page() {
     return (
       <ChapterUnlockPanel
         chapterId="ch6"
-        chapterNumber={5}
+        chapterNumber={6}
       />
     );
   }

@@ -169,11 +169,11 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
 
-  //const access: Chapter['access'] = id === 1 || id === 2 || id === 14 ? 'sample' : 'locked';
-  const access: Chapter['access'] = //id === 1 || id === 2 || id === 14 ? 'sample' : 'preparing';
+  const access: Chapter['access'] =
     id === 1 || id === 2 || id === 14 ? 'sample' :
     id === 4 || id === 5 || id === 6 ||
-    id === 15 || id === 16 || id === 17 ? 'locked' : 'preparing';
+    id === 15 || id === 16 || id === 17
+    ? 'locked' : 'preparing';
 
   const available = access !== 'preparing';
 
@@ -191,7 +191,7 @@ const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
 });
 
 export default function WorkbookHome() {
-  const [selectedPart, setSelectedPart] = useState<PartId>(3);
+  const [selectedPart, setSelectedPart] = useState<PartId>(100);
   const curriculumRef = useRef<HTMLElement | null>(null);
   const [chapterProgress, setChapterProgress] = useState<Record<number, number>>({});
   const [totalProblemsByChapter, setTotalProblemsByChapter] = useState<Record<number, number>>({});
