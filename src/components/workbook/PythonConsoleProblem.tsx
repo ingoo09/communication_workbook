@@ -286,6 +286,7 @@ except Exception:
       return {
         figures: [] as string[],
         workspace: [] as WorkspaceItem[],
+        audioSource: null as string | null,
       };
     }
 
@@ -499,7 +500,7 @@ json.dumps({
       const state = await collectState();
       setWorkspace(state.workspace);
       setFigures(state.figures);
-      setAudioSource(state.audioSource);
+      setAudioSource(state.audioSource ?? null);
     } catch (error: any) {
       updateAnswer({
         scriptOutput: `에러 발생:\n${String(error?.message ?? error)}`,
@@ -623,7 +624,7 @@ json.dumps({
       const state = await collectState();
       setWorkspace(state.workspace);
       setFigures(state.figures);
-      setAudioSource(state.audioSource);
+      setAudioSource(state.audioSource ?? null);
       setTypedCommand("");
     } catch (error: any) {
       updateAnswer({
