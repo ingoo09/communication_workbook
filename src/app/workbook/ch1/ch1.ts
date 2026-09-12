@@ -64,8 +64,9 @@ Console형 문제에서는 명령을 한 줄씩 직접 입력하고 바로 실�
 코드 입력창에 아래 코드를 입력한 후 [코드 실행] 버튼을 누르고 결과를 확인하시오.
 \`\`\`python
 print("Hello World!")
-\`\`\``,
-          starterCode: `print("Hello World!")`,
+\`\`\`
+실행 결과를 확인한 뒤, 코드 아래에 주석(Comment, '#')을 이용하여 코드의 기능을 간단히 설명하시오.
+`,
           referenceAnswer: `코드를 실행하면 다음과 같이 출력된다.
 \`\`\`text
 Hello World!
