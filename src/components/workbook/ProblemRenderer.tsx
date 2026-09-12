@@ -93,6 +93,7 @@ export default function ProblemRenderer({
         onChange={onChange}
         pyodide={pyodide}
         pyReady={pyReady}
+        onEnsureWorkbookHelpers={onEnsureWorkbookHelpers}
       />
     );
   }

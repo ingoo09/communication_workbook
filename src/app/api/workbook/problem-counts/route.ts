@@ -4,9 +4,9 @@ import { chapter as chapter1 } from "@/app/workbook/ch1/ch1";
 import { chapter as chapter2 } from "@/app/workbook/ch2/ch2";
 import { chapter as chapter4 } from "@/app/workbook/ch4/ch4";
 import { chapter as chapter5 } from "@/app/workbook/ch5/ch5";
+import { chapter as chapter6 } from "@/app/workbook/ch6/ch6";
 /*
 import { chapter as chapter3 } from "@/app/workbook/ch3/ch3";
-import { chapter as chapter6 } from "@/app/workbook/ch6/ch6";
 import { chapter as chapter7 } from "@/app/workbook/ch7/ch7";
 import { chapter as chapter8 } from "@/app/workbook/ch8/ch8";
 import { chapter as chapter9 } from "@/app/workbook/ch9/ch9";
@@ -18,8 +18,8 @@ import { chapter as chapter13 } from "@/app/workbook/ch13/ch13";
 import { chapter as chapter14 } from "@/app/workbook/ch14/ch14";
 import { chapter as chapter15 } from "@/app/workbook/ch15/ch15";
 import { chapter as chapter16 } from "@/app/workbook/ch16/ch16";
-/*
 import { chapter as chapter17 } from "@/app/workbook/ch17/ch17";
+/*
 import { chapter as chapter18 } from "@/app/workbook/ch18/ch18";
 import { chapter as chapter19 } from "@/app/workbook/ch19/ch19";
 import { chapter as chapter20 } from "@/app/workbook/ch20/ch20";
@@ -43,9 +43,9 @@ const AVAILABLE_CHAPTERS = {
   2: chapter2,
   4: chapter4,
   5: chapter5,
+  6: chapter6,
   /*
   3: chapter3,
-  6: chapter6,
   7: chapter7,
   8: chapter8,
   9: chapter9,
@@ -57,8 +57,8 @@ const AVAILABLE_CHAPTERS = {
   14: chapter14,
   15: chapter15,
   16: chapter16,
-  /*
   17: chapter17,
+  /*
   18: chapter18,
   19: chapter19,
   20: chapter20,

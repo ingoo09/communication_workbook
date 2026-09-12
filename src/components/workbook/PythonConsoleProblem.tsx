@@ -169,6 +169,7 @@ export default function PythonConsoleProblem({
   const [typedCommand, setTypedCommand] = useState("");
   const [workspace, setWorkspace] = useState<WorkspaceItem[]>([]);
   const [figures, setFigures] = useState<string[]>([]);
+  const [audioSource, setAudioSource] = useState<string | null>(null);
 
   // 같은 시점에 namespace 초기화가 중복 실행되지 않도록 공유한다.
   const namespacePromiseRef = useRef<Promise<void> | null>(null);
@@ -268,6 +269,18 @@ for _pc_helper_name in _pc_helper_names:
     await syncWorkbookHelpersIntoNamespace();
   }
 
+  async function clearAudioState() {
+    if (!pyodide) return;
+
+    await pyodide.runPythonAsync(`
+try:
+    audio_base64 = ""
+    has_audio = False
+except Exception:
+    pass
+`);
+  }
+
   async function collectState() {
     if (!pyodide) {
       return {
@@ -341,9 +354,18 @@ for _pc_name in sorted(_workbook_python_console_ns.keys()):
         "shape": _pc_shape,
     })
 
+_pc_audio_base64 = ""
+
+try:
+    if "audio_base64" in globals() and isinstance(audio_base64, str):
+        _pc_audio_base64 = audio_base64
+except Exception:
+    _pc_audio_base64 = ""
+
 json.dumps({
     "figures": _pc_figures,
     "workspace": _pc_workspace,
+    "audioBase64": _pc_audio_base64,
 })
 `);
 
@@ -353,6 +375,11 @@ json.dumps({
       figures: Array.isArray(state?.figures)
         ? state.figures.map((item: unknown) => String(item))
         : [],
+      audioSource:
+        typeof state?.audioBase64 === "string" &&
+        state.audioBase64.trim() !== ""
+          ? `data:audio/wav;base64,${state.audioBase64}`
+          : null,
       workspace: Array.isArray(state?.workspace)
         ? state.workspace.map((item: any) => ({
             name: String(item?.name ?? ""),
@@ -370,6 +397,7 @@ json.dumps({
     consoleHistoryDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
+    setAudioSource(null);
     namespacePromiseRef.current = null;
 
     // 새 문제로 이동했을 때 이전 결합형 문제의 변수가 섞이지 않도록 한다.
@@ -408,6 +436,7 @@ json.dumps({
 
       await ensureNamespace(true);
       await ensureWorkbookHelpersForSource(preparedCode);
+      await clearAudioState();
 
       // matplotlib이 이미 사용 중인 경우에만 이전 Figure를 지운다.
       await pyodide.runPythonAsync(`
@@ -470,6 +499,7 @@ json.dumps({
       const state = await collectState();
       setWorkspace(state.workspace);
       setFigures(state.figures);
+      setAudioSource(state.audioSource);
     } catch (error: any) {
       updateAnswer({
         scriptOutput: `에러 발생:\n${String(error?.message ?? error)}`,
@@ -510,6 +540,7 @@ json.dumps({
 
       await ensureNamespace(false);
       await ensureWorkbookHelpersForSource(preparedSource);
+      await clearAudioState();
 
       const result = await pyodide.runPythonAsync(`
 import ast
@@ -592,6 +623,7 @@ json.dumps({
       const state = await collectState();
       setWorkspace(state.workspace);
       setFigures(state.figures);
+      setAudioSource(state.audioSource);
       setTypedCommand("");
     } catch (error: any) {
       updateAnswer({
@@ -604,6 +636,7 @@ json.dumps({
           },
         ],
       });
+      setAudioSource(null);
     } finally {
       consoleRunningRef.current = false;
       setRunningConsole(false);
@@ -638,6 +671,8 @@ if "matplotlib.pyplot" in sys.modules:
     consoleHistoryDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
+    setAudioSource(null);
+    await clearAudioState();
     consoleRunningRef.current = false;
 
   }
@@ -976,6 +1011,28 @@ if "matplotlib.pyplot" in sys.modules:
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: 14,
+            borderRadius: 12,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            minWidth: 0,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 10 }}>
+            Sound
+          </div>
+
+          {!audioSource ? (
+            <div style={{ opacity: 0.6, fontSize: 14 }}>
+              sound_play(...) 또는 signal_play(...)를 실행하면 여기에 오디오 플레이어가 표시됩니다.
+            </div>
+          ) : (
+            <audio controls src={audioSource} style={{ width: "100%" }} />
           )}
         </div>
 

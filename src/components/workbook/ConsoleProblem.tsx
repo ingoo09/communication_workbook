@@ -28,6 +28,7 @@ type ConsoleProblemProps = {
   onChange: (value: string) => void;
   pyodide: any;
   pyReady: boolean;
+  onEnsureWorkbookHelpers?: () => Promise<void>;
 };
 
 function makeEmptyAnswer(): ConsoleAnswer {
@@ -133,11 +134,13 @@ export default function ConsoleProblem({
   onChange,
   pyodide,
   pyReady,
+  onEnsureWorkbookHelpers,
 }: ConsoleProblemProps) {
   const [running, setRunning] = useState(false);
   const [typedCommand, setTypedCommand] = useState("");
   const [workspace, setWorkspace] = useState<WorkspaceItem[]>([]);
   const [figures, setFigures] = useState<string[]>([]);
+  const [audioSource, setAudioSource] = useState<string | null>(null);
   const [consoleReady, setConsoleReady] = useState(false);
 
   // 같은 문제/같은 Pyodide 인스턴스에서 namespace 초기화를 중복 실행하지 않는다.
@@ -162,6 +165,72 @@ export default function ConsoleProblem({
         ...patch,
       }),
     );
+  }
+
+
+  function hasImportStatement(source: string) {
+    return /^\s*(from|import)\s+/m.test(source);
+  }
+
+  function codeUsesWorkbookHelpers(source: string) {
+    return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view)\s*\(/.test(
+      source,
+    );
+  }
+
+  function prepareWorkbookHelperCode(source: string) {
+    return source
+      .replace(/(^|\n)([ \t]*)sound_play\s*\(/g, "$1$2await sound_play(")
+      .replace(
+        /(^|\n)([ \t]*)([^#\n]*?=\s*)sound_load\s*\(/g,
+        "$1$2$3await sound_load(",
+      )
+      .replace(/(^|\n)([ \t]*)sound_load\s*\(/g, "$1$2await sound_load(")
+      .replace(
+        /(^|\n)([ \t]*)([^#\n]*?=\s*)file_load\s*\(/g,
+        "$1$2$3await file_load(",
+      )
+      .replace(/(^|\n)([ \t]*)file_load\s*\(/g, "$1$2await file_load(");
+  }
+
+  async function syncWorkbookHelpersIntoNamespace() {
+    if (!pyodide) return;
+
+    await pyodide.runPythonAsync(`
+_console_helper_names = (
+    "file_load",
+    "sound_load",
+    "sound_play",
+    "signal_play",
+    "spectrum_view",
+)
+
+for _console_helper_name in _console_helper_names:
+    if _console_helper_name in globals():
+        _workbook_console_ns[_console_helper_name] = globals()[_console_helper_name]
+`);
+  }
+
+  async function ensureWorkbookHelpersForSource(source: string) {
+    if (!codeUsesWorkbookHelpers(source)) return;
+
+    if (onEnsureWorkbookHelpers) {
+      await onEnsureWorkbookHelpers();
+    }
+
+    await syncWorkbookHelpersIntoNamespace();
+  }
+
+  async function clearAudioState() {
+    if (!pyodide) return;
+
+    await pyodide.runPythonAsync(`
+try:
+    audio_base64 = ""
+    has_audio = False
+except Exception:
+    pass
+`);
   }
 
   async function resetNamespace() {
@@ -210,6 +279,7 @@ exec(
     historyDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
+    setAudioSource(null);
     setConsoleReady(false);
     resetPromiseRef.current = null;
 
@@ -237,6 +307,8 @@ exec(
     const source = typedCommand.trim();
     if (!source) return;
 
+    const preparedSource = prepareWorkbookHelperCode(source);
+
     // React state가 반영되기 전에 Enter가 다시 들어와도 중복 실행되지 않게
     // ref를 먼저 잠근다.
     runningRef.current = true;
@@ -260,9 +332,12 @@ exec(
 
       // 실제 import 문이 있을 때만 패키지 분석/로드를 수행한다.
       // 일반 산술/변수/배열 명령에서 불필요한 호출을 줄인다.
-      if (/^\s*(from|import)\s+/m.test(source)) {
-        await pyodide.loadPackagesFromImports(source);
+      if (hasImportStatement(preparedSource)) {
+        await pyodide.loadPackagesFromImports(preparedSource);
       }
+
+      await ensureWorkbookHelpersForSource(preparedSource);
+      await clearAudioState();
 
       const result = await pyodide.runPythonAsync(`
 import ast
@@ -272,8 +347,9 @@ import io
 import json
 import traceback
 import types
+import inspect
 
-_source = ${JSON.stringify(source)}
+_source = ${JSON.stringify(preparedSource)}
 _stdout = io.StringIO()
 _is_error = False
 
@@ -287,19 +363,32 @@ try:
                     ast.Expression(_tree.body[0].value),
                     "<console>",
                     "eval",
+                    flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
                 ),
                 _workbook_console_ns,
                 _workbook_console_ns,
             )
 
+            if inspect.isawaitable(_value):
+                _value = await _value
+
             if _value is not None:
                 print(repr(_value))
         else:
-            exec(
-                compile(_tree, "<console>", "exec"),
+            _code = compile(
+                _tree,
+                "<console>",
+                "exec",
+                flags=ast.PyCF_ALLOW_TOP_LEVEL_AWAIT,
+            )
+            _result = eval(
+                _code,
                 _workbook_console_ns,
                 _workbook_console_ns,
             )
+
+            if inspect.isawaitable(_result):
+                await _result
 
 except Exception:
     _is_error = True
@@ -367,11 +456,20 @@ for _name in sorted(_workbook_console_ns.keys()):
         "shape": _shape,
     })
 
+_audio_base64 = ""
+
+try:
+    if "audio_base64" in globals() and isinstance(audio_base64, str):
+        _audio_base64 = audio_base64
+except Exception:
+    _audio_base64 = ""
+
 _console_result = json.dumps({
     "output": _stdout.getvalue().rstrip(),
     "isError": _is_error,
     "figures": _figures,
     "workspace": _workspace,
+    "audioBase64": _audio_base64,
 })
 
 _console_result
@@ -396,6 +494,13 @@ _console_result
           : [],
       );
 
+      setAudioSource(
+        typeof parsed?.audioBase64 === "string" &&
+          parsed.audioBase64.trim() !== ""
+          ? `data:audio/wav;base64,${parsed.audioBase64}`
+          : null,
+      );
+
       setWorkspace(
         Array.isArray(parsed?.workspace)
           ? parsed.workspace.map((item: any) => ({
@@ -418,6 +523,7 @@ _console_result
           },
         ],
       });
+      setAudioSource(null);
 
     } finally {
       runningRef.current = false;
@@ -438,6 +544,8 @@ _console_result
     historyDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
+    setAudioSource(null);
+    await clearAudioState();
     runningRef.current = false;
 
   }
@@ -761,6 +869,30 @@ _console_result
                 </tbody>
               </table>
             </div>
+          )}
+        </div>
+
+        <div
+          style={{
+            padding: 14,
+            borderRadius: 12,
+            background: "#fff",
+            border: "1px solid #e5e7eb",
+            minWidth: 0,
+          }}
+        >
+          <div style={{ fontWeight: 800, marginBottom: 10 }}>Sound</div>
+
+          {!audioSource ? (
+            <div style={{ opacity: 0.6, fontSize: 14 }}>
+              sound_play(...) 또는 signal_play(...)를 실행하면 여기에 오디오 플레이어가 표시됩니다.
+            </div>
+          ) : (
+            <audio
+              controls
+              src={audioSource}
+              style={{ width: "100%" }}
+            />
           )}
         </div>
 
