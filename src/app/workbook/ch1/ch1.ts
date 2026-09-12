@@ -94,9 +94,6 @@ x*y
 x/y
 \`\`\`
 Python 스크립트에서 만든 변수 \`x\`, \`y\`를 Console에서도 그대로 사용할 수 있는지 확인하고, 각 결과를 쓰시오.`,
-          starterCode: `x=10
-y=20
-print(x+y)`,
           referenceAnswer: `Python 스크립트를 실행하면
 \`\`\`text
 30
