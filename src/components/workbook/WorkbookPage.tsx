@@ -439,6 +439,9 @@ function renderRichText(
   // 지원 문법:
   // [[image:/images/ch16/figure16_1.png]]
   // [[image:/images/ch16/figure16_1.png|그림 16.1 설명]]
+  // [[image:/images/ch16/figure16_1.png|그림 16.1 설명|70]]
+  //   - 마지막 숫자는 이미지 너비(%). 예: 50, 70, 100
+  //   - 480px처럼 px 단위도 사용할 수 있음.
   //
   // [[link:/workbook/ch2?p=2-1A1|수치적분(2장 문제 1.A1 참고)]]
   // [[equation:15.3]]
@@ -451,7 +454,7 @@ function renderRichText(
   // ]]
 
   const tokenRegex =
-    /\[\[table:\s*([\s\S]*?)\]\]|\[\[(image|link|equation):([^|\]]+?)(?:\|([^\]]+))?\]\]/g;
+    /\[\[table:\s*([\s\S]*?)\]\]|\[\[(image|link|equation):([^|\]]+?)(?:\|([^|\]]*))?(?:\|([^\]]+))?\]\]/g;
 
   let last = 0;
   let match: RegExpExecArray | null;
@@ -485,8 +488,27 @@ function renderRichText(
     const type = String(match[2] ?? "").trim();
     const target = String(match[3] ?? "").trim();
     const label = String(match[4] ?? "").trim();
+    const option = String(match[5] ?? "").trim();
 
     if (type === "image") {
+      let imageWidth: string | undefined;
+
+      // [[image:path|caption|70]] -> 70%
+      // [[image:path|caption|70%]] -> 70%
+      // [[image:path|caption|480px]] -> 480px
+      if (/^\d+(?:\.\d+)?$/.test(option)) {
+        const percent = Math.max(1, Math.min(100, Number(option)));
+        imageWidth = `${percent}%`;
+      } else if (/^\d+(?:\.\d+)?%$/.test(option)) {
+        const percent = Math.max(
+          1,
+          Math.min(100, Number(option.slice(0, -1))),
+        );
+        imageWidth = `${percent}%`;
+      } else if (/^\d+(?:\.\d+)?px$/.test(option)) {
+        imageWidth = option;
+      }
+
       nodes.push(
         <figure
           key={`rich-image-${key++}`}
@@ -500,7 +522,7 @@ function renderRichText(
             alt={label || "문제 그림"}
             style={{
               display: "block",
-              width: "auto",
+              width: imageWidth ?? "auto",
               maxWidth: "100%",
               height: "auto",
               margin: "0 auto",
@@ -1697,7 +1719,12 @@ plt.close('all')
           const restoredAnswer = isPythonConsoleProblem(current.pb)
             ? (remote.answer.answer || createPythonConsoleInitialValue(current.pb))
             : resolveProblemType(current.pb) === "python"
-              ? pythonAnswerToCode(remote.answer.answer ?? "")
+              ? (
+                  current.pb.type === "python" &&
+                  current.pb.responseEnabled === true
+                    ? remote.answer.answer ?? ""
+                    : pythonAnswerToCode(remote.answer.answer ?? "")
+                )
               : remote.answer.answer ?? "";
 
           const draft = readAutoSavedDraft(current.pb.id);
@@ -2042,7 +2069,15 @@ plt.close('all')
     }
 
     if (currentProblemType === "python") {
-      return pythonAnswerToText(userAnswer, codeOutput);
+      const includeResponse =
+        current.pb.type === "python" &&
+        current.pb.responseEnabled === true;
+
+      return pythonAnswerToText(
+        userAnswer,
+        codeOutput,
+        includeResponse,
+      );
     }
 
     if (currentProblemType === "graph") {
@@ -2061,6 +2096,13 @@ plt.close('all')
     }
 
     if (currentProblemType === "python") {
+      if (
+        current.pb.type === "python" &&
+        current.pb.responseEnabled === true
+      ) {
+        return userAnswer;
+      }
+
       return pythonAnswerToCode(userAnswer);
     }
 
@@ -2400,13 +2442,14 @@ def spectrum_view(
     window_length=1024,
     averages=200,
     overlap_percent=6.25,
-    ymin=-40,
-    ymax=25,
+    ymin=None,
+    ymax=None,
     reference_load=1.0,
+    units="dBm",
+    frequency_limit_hz=None,
 ):
     """
-    교수님 MATLAB Spectrum Analyzer 기본 설정을 기준으로
-    centered Power spectrum을 dBm 단위로 표시한다.
+    MATLAB Spectrum Analyzer와 유사한 centered Power spectrum을 표시한다.
 
     기본 설정:
       - Buffer / Window length: 1024 samples
@@ -2415,15 +2458,34 @@ def spectrum_view(
       - Overlap: 6.25 %
       - Type: Power
       - Units: dBm
-      - Y limits: -40 ~ 25 dBm
       - Reference load: 1 ohm
+      - 실수/복소수 입력 모두 지원
+
+    Chapter 4의 기존 MATLAB Spectrum Viewer와 유사하게 보이게 하려면:
+        spectrum_view(
+            x,
+            fs,
+            units="Watts",
+            frequency_limit_hz=80e3,
+        )
+
+    fs=160e3일 때:
+      - 표시 범위: -80 kHz ~ +80 kHz
+      - RBW ≈ 234.375 Hz (1024-point periodic Hann 기준)
 
     사용 예:
         spectrum_view(x, fs)
     """
     import matplotlib.pyplot as plt
 
-    x = np.asarray(signal, dtype=np.float64).squeeze()
+    raw = np.asarray(signal).squeeze()
+
+    # 복소지수 신호 e^(jwt)의 허수부가 사라지지 않도록
+    # 입력 자료형에 따라 실수/복소수를 구분하여 보존한다.
+    if np.iscomplexobj(raw):
+        x = np.asarray(raw, dtype=np.complex128)
+    else:
+        x = np.asarray(raw, dtype=np.float64)
 
     if x.ndim != 1:
         raise ValueError("Spectrum Viewer 입력 신호는 1차원 배열이어야 합니다.")
@@ -2452,15 +2514,20 @@ def spectrum_view(
     if reference_load <= 0:
         raise ValueError("reference_load는 양수여야 합니다.")
 
+    units_normalized = str(units).strip().lower()
+
+    if units_normalized not in ("dbm", "watts", "w"):
+        raise ValueError('units는 "dBm" 또는 "Watts"를 사용하세요.')
+
     overlap_samples = int(round(window_length * overlap_percent / 100.0))
     hop = window_length - overlap_samples
 
-    # MATLAB Spectrum Analyzer와 유사한 주기형 Hann window 사용.
+    # MATLAB Spectrum Analyzer와 유사한 periodic Hann window 사용.
     win = windows.hann(window_length, sym=False)
 
     # 데이터가 한 window보다 짧으면 0-padding하여 한 프레임을 만든다.
     if x.size < window_length:
-        padded = np.zeros(window_length, dtype=np.float64)
+        padded = np.zeros(window_length, dtype=x.dtype)
         padded[:x.size] = x
         x_for_frames = padded
     else:
@@ -2481,7 +2548,7 @@ def spectrum_view(
         frame = x_for_frames[start:start + window_length]
 
         if frame.size < window_length:
-            temp = np.zeros(window_length, dtype=np.float64)
+            temp = np.zeros(window_length, dtype=x.dtype)
             temp[:frame.size] = frame
             frame = temp
 
@@ -2505,14 +2572,54 @@ def spectrum_view(
 
     freq = np.fft.fftfreq(window_length, d=1.0 / fs)
     freq = np.fft.fftshift(freq)
+    power_watts = np.fft.fftshift(power_watts)
     power_dbm = np.fft.fftshift(power_dbm)
 
+    # 표시 주파수 범위.
+    # 지정하지 않으면 Nyquist 범위, Chapter 4에서는 80e3을 주어
+    # 기존 MATLAB 화면의 -80 kHz ~ +80 kHz와 맞출 수 있다.
+    if frequency_limit_hz is None:
+        display_limit_hz = fs / 2.0
+    else:
+        display_limit_hz = abs(float(frequency_limit_hz))
+        if not np.isfinite(display_limit_hz) or display_limit_hz <= 0:
+            raise ValueError("frequency_limit_hz는 양수여야 합니다.")
+        display_limit_hz = min(display_limit_hz, fs / 2.0)
+
+    # MATLAB Spectrum Analyzer처럼 큰 주파수 범위에서는 kHz로 표시한다.
+    if display_limit_hz >= 1000:
+        freq_plot = freq / 1e3
+        display_limit = display_limit_hz / 1e3
+        xlabel = "Frequency (kHz)"
+    else:
+        freq_plot = freq
+        display_limit = display_limit_hz
+        xlabel = "Frequency (Hz)"
+
+    if units_normalized in ("watts", "w"):
+        y_values = power_watts
+        ylabel = "Magnitude-squared (W)"
+
+        # MATLAB의 Watts/Magnitude-squared 화면처럼 0부터 표시.
+        y_bottom = 0.0 if ymin is None else float(ymin)
+        y_top = None if ymax is None else float(ymax)
+    else:
+        y_values = power_dbm
+        ylabel = "Power (dBm)"
+        y_bottom = -40.0 if ymin is None else float(ymin)
+        y_top = 25.0 if ymax is None else float(ymax)
+
     plt.figure(figsize=(9, 4.8))
-    plt.plot(freq, power_dbm)
-    plt.xlim(-fs / 2.0, fs / 2.0)
-    plt.ylim(float(ymin), float(ymax))
-    plt.xlabel("Frequency (Hz)")
-    plt.ylabel("Power (dBm)")
+    plt.plot(freq_plot, y_values)
+    plt.xlim(-display_limit, display_limit)
+
+    if y_top is None:
+        plt.ylim(bottom=y_bottom)
+    else:
+        plt.ylim(y_bottom, y_top)
+
+    plt.xlabel(xlabel)
+    plt.ylabel(ylabel)
     plt.title("Spectrum Analyzer")
     plt.grid(True)
     plt.tight_layout()
@@ -2520,17 +2627,22 @@ def spectrum_view(
     print(
         "Spectrum Viewer | "
         f"Fs = {fs:g} Hz | "
+        f"range = {-display_limit_hz:g} ~ {display_limit_hz:g} Hz | "
         f"window = {window_length} | "
         f"overlap = {overlap_percent:g}% ({overlap_samples} samples) | "
         f"averages = {len(starts)}/{averages} | "
-        f"RBW ≈ {rbw:.3f} Hz"
+        f"RBW ≈ {rbw:.3f} Hz | "
+        f"units = {'Watts' if units_normalized in ('watts', 'w') else 'dBm'}"
     )
 
     return {
         "frequency": freq,
+        "power_watts": power_watts,
         "power_dbm": power_dbm,
         "rbw": rbw,
         "frames_averaged": len(starts),
+        "frequency_limit_hz": display_limit_hz,
+        "units": "Watts" if units_normalized in ("watts", "w") else "dBm",
     }
 
 

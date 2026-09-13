@@ -74,6 +74,7 @@ export default function ProblemRenderer({
   if (type === "python") {
     return (
       <PythonProblem
+        problem={problem.type === "python" ? problem : undefined}
         value={value}
         onChange={onChange}
         runningCode={runningCode}

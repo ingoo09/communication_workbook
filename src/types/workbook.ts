@@ -77,6 +77,15 @@ export type PythonProblem = BaseProblem & {
   starterCode?: string;
   resultPrompt?: string;
   consoleEnabled?: boolean;
+
+  /** Python 코드 실행과 함께 서술 답안 입력란을 표시합니다. */
+  responseEnabled?: boolean;
+
+  /** 서술 답안 입력란 상단에 표시할 안내 문구입니다. */
+  responsePrompt?: string;
+
+  /** 서술 답안 입력란의 placeholder입니다. */
+  responsePlaceholder?: string;
 };
 
 export type ConsoleValidation =
