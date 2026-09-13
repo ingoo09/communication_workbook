@@ -630,10 +630,11 @@ export default function WorkbookPage({
   const roleReady =
     isAuthenticated !== true ||
     userRole !== null;
-
+  
   const isStudent =
-    isAuthenticated === true &&
+    isAuthenticated === false && //전체화면 임시 해제
     userRole === "student";
+    
   const [focusModeStarted, setFocusModeStarted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);

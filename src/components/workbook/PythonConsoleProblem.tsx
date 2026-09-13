@@ -1030,7 +1030,7 @@ if "matplotlib.pyplot" in sys.modules:
 
           {!audioSource ? (
             <div style={{ opacity: 0.6, fontSize: 14 }}>
-              sound_play(...) 또는 signal_play(...)를 실행하면 여기에 오디오 플레이어가 표시됩니다.
+              signal_play(...)를 실행하면 여기에 오디오 플레이어가 표시됩니다.
             </div>
           ) : (
             <audio controls src={audioSource} style={{ width: "100%" }} />
