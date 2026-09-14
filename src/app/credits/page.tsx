@@ -25,7 +25,7 @@ export default function CreditsPage() {
   const [checkingAuth, setCheckingAuth] = useState(true);
   const [balance, setBalance] = useState<number | null>(null);
   const [selectedProductId, setSelectedProductId] =
-    useState<CreditProductId>("credit_50");
+    useState<CreditProductId>("credit_0");
   const [sdkReady, setSdkReady] = useState(false);
   const [widgetReady, setWidgetReady] = useState(false);
   const [paying, setPaying] = useState(false);
