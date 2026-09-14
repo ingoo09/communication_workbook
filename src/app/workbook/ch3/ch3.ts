@@ -28,13 +28,31 @@ $$
           "title": "1.A1.",
           "type": "essay",
           "prompt": `$T$는 자신의 학번 끝 2자리로 설정하시오. 예를 들어, 학번이 20127123이라면 $T=23$으로 설정한다.`
-        },
+        ,
+          referenceAnswer: `자신의 학번 끝 2자리를 $T$로 설정한다.
+
+예를 들어 학번 끝 2자리가 58이라면
+$$
+T=58
+$$
+이다.`},
         {
           "id": "3-1A2",
           "title": "1.A2.",
           "type": "essay",
           "prompt": `자신이 설정한 $T$를 이용하여 기본 각주파수 $\\omega_0=\\dfrac{2\\pi}{T}$를 계산하시오.`
-        },
+        ,
+          referenceAnswer: `기본 각주파수는
+$$
+\\omega_0=\\frac{2\\pi}{T}
+$$
+이다.
+
+예를 들어 $T=58$이라면
+$$
+\\omega_0=\\frac{2\\pi}{58}\\approx 0.1083\\ \\mathrm{rad/s}
+$$
+이다.`},
         { //문제 1.B
           "id": "3-1B",
           "title": "1.B.",
@@ -51,7 +69,18 @@ $$
 $$
 각 항의 주파수가 기본 각주파수 $\\omega_0$의 몇 배인지 확인하고, 항의 차수가 증가할수록 진폭의 크기가 어떻게 변하는지 설명하시오.
           `
-        },
+        ,
+          referenceAnswer: `처음 네 개 항의 주파수는 각각
+$$
+\\omega_0,\\quad 3\\omega_0,\\quad 5\\omega_0,\\quad 7\\omega_0
+$$
+이므로 기본 각주파수의 1배, 3배, 5배, 7배이다.
+
+각 항의 진폭 계수는
+$$
+\\frac{4}{\\pi},\\quad -\\frac{4}{3\\pi},\\quad \\frac{4}{5\\pi},\\quad -\\frac{4}{7\\pi}
+$$
+이다. 따라서 차수가 증가할수록 진폭의 절댓값은 $1/n$에 비례하여 작아지며, 부호는 항마다 번갈아 바뀐다.`},
         {
           "id": "3-1B2",
           "title": "1.B2.",
@@ -123,13 +152,66 @@ plt.tight_layout()
 \`\`\`
 py 스크립트를 실행하여, 결과 그래프를 확인하시오.
           `
-        },
+        ,
+          referenceAnswer: `아래와 같이 실행하면 $N=1,2,5,8,10$인 부분합을 확인할 수 있다.
+
+\`\`\`python
+import numpy as np
+import matplotlib.pyplot as plt
+
+T = 58  # 예: 학번 끝 2자리
+w0 = 2*np.pi/T
+t = np.arange(0, 2*T, 0.01)
+term_counts = [1, 2, 5, 8, 10]
+
+plt.figure(figsize=(10, 10))
+
+for i, N in enumerate(term_counts):
+    f = np.zeros_like(t)
+
+    for k in range(N):
+        n = 2*k + 1
+        f += (
+            (4/np.pi)
+            * ((-1)**k)
+            / n
+            * np.cos(n*w0*t)
+        )
+
+    plt.subplot(5, 1, i+1)
+    plt.plot(t, f)
+    plt.title(f"N = {N}")
+    plt.grid()
+
+plt.tight_layout()
+\`\`\`
+
+항의 수가 증가할수록 파형은 사각 주기함수에 가까워진다.`},
         {
           "id": "3-1B3",
           "title": "1.B3.",
           "type": "essay",
           "prompt": `자신이 설정한 $T$에 대해 7차 조화성분($-\\dfrac{4}{7\\pi}\\cos(7\\omega_0t)$)의 진폭과 각주파수를 각각 계산하시오.`
-        },
+        ,
+          referenceAnswer: `7차 조화성분은
+$$
+-\\frac{4}{7\\pi}\\cos(7\\omega_0t)
+$$
+이므로 진폭은
+$$
+A_7=-\\frac{4}{7\\pi}\\approx -0.1819
+$$
+이고, 각주파수는
+$$
+\\omega_7=7\\omega_0=7\\frac{2\\pi}{T}
+$$
+이다.
+
+예를 들어 $T=58$이면
+$$
+\\omega_7=7\\frac{2\\pi}{58}\\approx 0.7583\\ \\mathrm{rad/s}
+$$
+이다.`},
         {
           "id": "3-1B4",
           "title": "1.B4.",
@@ -141,7 +223,15 @@ py 스크립트를 실행하여, 결과 그래프를 확인하시오.
 - 평탄한 구간은 어떤 값에 가까워지는가?
 - 불연속점 부근의 모양은 어떻게 변하는가?
 - 항의 수를 증가시켜도 불연속점 근처에 남는 특징이 있는가?`
-        },
+        ,
+          referenceAnswer: `항의 수가 증가할수록 부분합은 전체적으로 사각 주기함수에 가까워진다.
+
+- 평탄한 구간에서는 목표값에 점점 가까워진다.
+- 불연속점 부근의 상승·하강 구간은 더 급격해진다.
+- 불연속점 주변에는 진동과 overshoot가 나타난다.
+- 항의 수를 증가시키면 진동 구간은 더 좁아지지만, 불연속점 부근의 overshoot 자체는 완전히 사라지지 않는다.
+
+이러한 현상을 Gibbs 현상이라고 한다.`},
       ]
     },
     { //문제 2
@@ -161,18 +251,88 @@ f(t)=RC\\frac{dg(t)}{dt}+g(t)
 $$
 [[image:/images/ch3/figure3_2.png|그림 3.2 RC 저역통과필터(LPF, Low Pass Filter)]]
 `,
-        },
+        
+          referenceAnswer: `[그림 3.2]의 RC 직렬회로에서 입력 전압은 저항과 커패시터 전압의 합이다.
+
+$$
+f(t)=v_R(t)+v_C(t)
+$$
+
+출력 전압이 커패시터 전압이므로
+$$
+g(t)=v_C(t)
+$$
+이다.
+
+커패시터 전류는
+$$
+i(t)=C\\frac{dg(t)}{dt}
+$$
+이고 저항 전압은
+$$
+v_R(t)=Ri(t)=RC\\frac{dg(t)}{dt}
+$$
+이다.
+
+따라서 KVL에 의해
+$$
+\\boxed{
+f(t)=RC\\frac{dg(t)}{dt}+g(t)
+}
+$$
+을 얻는다.`},
         { //문제 2.B
           "id": "3-2B",
           "title": "2.B.",
           "type": "proof",
           "prompt": `$H(\\omega)$를 구하기 위해, 문제 2.A의 입출력 미분 방정식에 입력 $f(t)=\\exp(j\\omega t)$, 출력 $g(t)=H(\\omega)\\exp(j\\omega t)$를 대입한 후, 수식을 정리하시오. 정리하면 $H(\\omega)=\\dfrac{1}{1+j\\omega RC}$임을 보이시오.`,
-        },
+        
+          referenceAnswer: `입력과 출력을
+$$
+f(t)=e^{j\\omega t},\\qquad
+g(t)=H(\\omega)e^{j\\omega t}
+$$
+로 두면
+
+$$
+\\frac{dg(t)}{dt}
+=
+j\\omega H(\\omega)e^{j\\omega t}
+$$
+이다.
+
+이를
+$$
+f(t)=RC\\frac{dg(t)}{dt}+g(t)
+$$
+에 대입하면
+
+$$
+e^{j\\omega t}
+=
+RCj\\omega H(\\omega)e^{j\\omega t}
++
+H(\\omega)e^{j\\omega t}
+$$
+
+이므로 $e^{j\\omega t}$를 약분하여
+
+$$
+1=H(\\omega)(1+j\\omega RC)
+$$
+
+따라서
+$$
+\\boxed{
+H(\\omega)=\\frac{1}{1+j\\omega RC}
+}
+$$
+이다.`},
         { //문제 2.C
           "id": "3-2C",
           "title": "2.C.",
           "type": "essay",
-          "prompt": `$R=0.5$㏀, $C=1000+\\text{학번 끝 3자리}$㎌라 하자. (예를 들어, 자신의 학번이 20123465인 경우 $C=1465$㎌) 입력 주파수 $\\omega$가 <표 3.1>의 첫 번째 열과 같을 때, 각 값에 대하여 $\\left| H(\\omega) \\right|$와 $\\angle H(\\omega)$를 계산하여 <표 3.1>을 채우시오.
+          "prompt": `$R=0.5$㏀, $C=(1000+\\text{학번 끝 3자리})$㎌라 하자. (예를 들어, 자신의 학번이 20123465인 경우 $C=1465$㎌) 입력 주파수 $\\omega$가 <표 3.1>의 첫 번째 열과 같을 때, 각 값에 대하여 $\\left| H(\\omega) \\right|$와 $\\angle H(\\omega)$를 계산하여 <표 3.1>을 채우시오.
 [[table:
 caption:표 3.1 [그림 3.2]에 나타낸 저역 통과 필터의 출력의 진폭과 초기 위상
 입력 주파수 $\\omega$[rad/sec] | 출력의 진폭 $｜H(\\omega)｜$ | 출력의 초기 위상 $\\angle H(\\omega)$[rad/sec]
@@ -188,7 +348,40 @@ caption:표 3.1 [그림 3.2]에 나타낸 저역 통과 필터의 출력의 진�
 ]]
 (참고. 출력의 초기 위상 $\\angle H(\\omega)=\\operatorname{arctan}\\left(\\dfrac{\\operatorname{Im}(H(\\omega))}{\\operatorname{Re}(H(\\omega))}\\right)$)
           `,
-        },
+        
+          referenceAnswer: `일반적으로
+$$
+|H(\\omega)|=
+\\frac{1}{\\sqrt{1+(\\omega RC)^2}}
+$$
+
+$$
+\\angle H(\\omega)
+=
+-\\tan^{-1}(\\omega RC)
+$$
+이다.
+
+예를 들어 학번 끝 3자리가 158이면
+$$
+R=500\\ \\Omega,\\qquad C=1158\\times10^{-6}\\ \\mathrm{F}
+$$
+이므로 다음과 같다.
+
+[[table:
+입력 주파수 $\\omega$[rad/sec] | $|H(\\omega)|$ | $\\angle H(\\omega)$[rad]
+-120 | 0.01439 | 1.5564
+-40 | 0.04314 | 1.5276
+-10 | 0.17019 | 1.3998
+-5 | 0.32649 | 1.2382
+0 | 1.00000 | 0
+5 | 0.32649 | -1.2382
+10 | 0.17019 | -1.3998
+40 | 0.04314 | -1.5276
+120 | 0.01439 | -1.5564
+]]
+
+학번 끝 3자리가 다르면 자신의 $C$ 값으로 다시 계산하여야 한다.`},
         { //문제 2.D
           "id": "3-2D",
           "title": "2.D.",
@@ -251,7 +444,18 @@ plt.plot(w,np.angle(Hw))
           "title": "2.F.",
           "type": "essay",
           "prompt": `문제 2.D~2.E의 수행 결과를 바탕으로 이 회로를 저역통과필터(Low Pass Filter)라 부르는 이유를 쓰시오.`,
-        },
+        
+          referenceAnswer: `주파수 전달함수의 크기는
+$$
+|H(\\omega)|
+=
+\\frac{1}{\\sqrt{1+(\\omega RC)^2}}
+$$
+이다.
+
+$\\omega=0$에서는 $|H(0)|=1$이고, $|\\omega|$가 증가할수록 $|H(\\omega)|$는 감소한다. 따라서 낮은 주파수 성분은 비교적 잘 통과하지만 높은 주파수 성분은 크게 감쇠한다.
+
+그러므로 이 회로를 저역통과필터(Low Pass Filter)라고 한다.`},
       ],
     },
     { //문제 3
@@ -288,12 +492,7 @@ def rc_system(t, g):
     return (input_signal(t) - g[0])/(R*C)
 
 t = np.arange(0, 10, 1e-3)
-sol = solve_ivp(
-    rc_system,
-    [t[0], t[-1]],
-    [0],
-    t_eval=t
-)
+sol = solve_ivp(rc_system, [t[0], t[-1]], [0], t_eval=t)
 g = sol.y[0]
 
 plt.figure()
@@ -326,12 +525,7 @@ def rc_system(t, g):
     return (input_signal(t) - g[0])/(R*C)
 
 t = np.arange(0, 10, 1e-3)
-sol = solve_ivp(
-    rc_system,
-    [t[0], t[-1]],
-    [0],
-    t_eval=t
-)
+sol = solve_ivp(rc_system, [t[0], t[-1]], [0], t_eval=t)
 g = sol.y[0]
 
 plt.figure()
@@ -344,13 +538,26 @@ plt.grid()`,
           "prompt": `위 py 스크립트를 실행하여, 입력 $f(t)$와 출력 $g(t)$를 한 그래프에 겹쳐 그린 결과 그래프를 확인하시오.
 
 초기 구간에서는 출력에 과도응답(transient response)이 포함되지만 시간이 충분히 지난 후에는 정상상태(steady-state)에 도달함을 관찰하시오.`
-        },
+        ,
+          referenceAnswer: `코드를 실행하면 입력 $f(t)=\\cos(120t)$는 처음부터 일정한 진폭을 가지지만, 출력 $g(t)$는 초기조건 $g(0)=0$의 영향으로 초기에 과도응답을 포함한다.
+
+시간이 충분히 지나면 과도응답이 감쇠하고, 출력은 입력과 같은 주파수의 정상상태 정현파로 수렴한다.`},
         {
           "id": "3-3A2",
           "title": "3.A2.",
           "type": "essay",
           "prompt": `$f(t), g(t)$ 중 각각 무엇이 RC 회로의 입력과 출력에 해당하는지 쓰고, py 스크립트에서 각각 어떤 변수 또는 함수에 해당하는지 쓰시오.`
-        },
+        ,
+          referenceAnswer: `- $f(t)$: RC 회로의 입력 전압이며 Python에서는 \`input_signal(t)\`에 해당한다.
+- $g(t)$: RC 회로의 출력 전압이며 Python에서는 \`sol.y[0]\`을 저장한 변수 \`g\`에 해당한다.
+
+또한 \`rc_system(t, g)\`는
+$$
+\\frac{dg(t)}{dt}
+=
+\\frac{f(t)-g(t)}{RC}
+$$
+를 구현한 함수이다.`},
         { //문제 3.B
           "id": "3-3B",
           "title": "3.B.",
@@ -363,19 +570,98 @@ plt.grid()`,
           "prompt": `문제 3.A의 py 스크립트를 복사하여 붙여넣으시오.
 
 입력 주파수를 $\\omega=120$[rad/sec]로 설정하고 10초 동안의 출력 $g(t)$를 계산하시오. 입력과 출력 파형을 한 그래프에 겹쳐 그리시오.`
-        },
+        ,
+          referenceAnswer: `예를 들어 학번 끝 3자리가 158인 경우 다음과 같이 실행할 수 있다.
+
+\`\`\`python
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+XXX = 158
+R = 0.5e3
+C = (1000 + XXX)*1e-6
+w = 120
+
+def input_signal(t):
+    return np.cos(w*t)
+
+def rc_system(t, g):
+    return (input_signal(t) - g[0])/(R*C)
+
+t = np.arange(0, 10, 1e-3)
+
+sol = solve_ivp(
+    rc_system,
+    [t[0], t[-1]],
+    [0],
+    t_eval=t
+)
+
+g = sol.y[0]
+
+plt.figure()
+plt.plot(t, input_signal(t), label="input f(t)")
+plt.plot(t, g, label="output g(t)")
+plt.xlabel("t [s]")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid()
+\`\`\`
+
+정상상태에서는 출력이 입력과 같은 각주파수 $120$ rad/s를 갖고, 진폭은 $|H(120)|$만큼 감소한다.`},
         {
           "id": "3-3B2",
           "title": "3.B2.",
           "type": "essay",
           "prompt": `정상상태 출력 $g(t)$의 주파수를 확인하고 입력 주파수와 비교하시오.`
-        },
+        ,
+          referenceAnswer: `정상상태 출력은 입력과 같은 각주파수를 갖는다.
+
+따라서
+$$
+\\boxed{
+\\omega_{\\mathrm{out}}
+=
+\\omega_{\\mathrm{in}}
+=
+120\\ \\mathrm{rad/s}
+}
+$$
+이다.
+
+선형 시불변 시스템에 정현파를 입력하면 정상상태 출력의 주파수는 변하지 않고 진폭과 위상만 변한다.`},
         {
           "id": "3-3B3",
           "title": "3.B3.",
           "type": "essay",
           "prompt": `정상상태에 도달한 이후의 출력 $g(t)$의 진폭을 측정하시오. 그리고, 문제 2.C의 <표 3.1>에서 구한 $\\left|H(120)\\right|$과 비교하시오.`
-        },
+        ,
+          referenceAnswer: `정상상태 출력 진폭은
+$$
+A_{\\mathrm{out}}=|H(120)|
+$$
+이다.
+
+일반적으로
+$$
+|H(120)|
+=
+\\frac{1}{\\sqrt{1+(120RC)^2}}
+$$
+이다.
+
+예를 들어 학번 끝 3자리가 158이면
+$$
+R=500,\\qquad C=1158\\times10^{-6}
+$$
+이므로
+$$
+|H(120)|\\approx0.01439
+$$
+이다.
+
+시간영역 시뮬레이션의 정상상태 진폭도 약 0.0144로 측정되어 문제 2.C의 이론값과 거의 일치한다.`},
         { //문제 3.C
           "id": "3-3C",
           "title": "3.C.",
@@ -389,11 +675,52 @@ plt.grid()`,
 
 다음 입력 주파수에 대하여 문제 3.B를 반복하시오.
 $$
-\\omega=-120, 40, -10, -5, 0, 5, 10, 40, 120
+\\omega=-120, -40, -10, -5, 0, 5, 10, 40, 120
 $$
 (결과를 문제 3.C2의 <표 3.2>에 정리할 것)
 `
-        },
+        ,
+          referenceAnswer: `표 3.2의 주파수들을 반복해서 계산하는 예시는 다음과 같다.
+
+\`\`\`python
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.integrate import solve_ivp
+
+XXX = 158
+R = 0.5e3
+C = (1000 + XXX)*1e-6
+
+w_list = [-120, -40, -10, -5, 0, 5, 10, 40, 120]
+
+for w in w_list:
+
+    def input_signal(t):
+        return np.cos(w*t)
+
+    def rc_system(t, g):
+        return (input_signal(t) - g[0])/(R*C)
+
+    t = np.arange(0, 10, 1e-3)
+
+    sol = solve_ivp(
+        rc_system,
+        [t[0], t[-1]],
+        [0],
+        t_eval=t
+    )
+
+    g = sol.y[0]
+
+    plt.figure()
+    plt.plot(t, input_signal(t), label="input")
+    plt.plot(t, g, label="output")
+    plt.title(f"w = {w} rad/s")
+    plt.legend()
+    plt.grid()
+\`\`\`
+
+각 경우 정상상태 출력의 주파수는 입력과 같고, 진폭은 $|H(\\omega)|$와 일치한다.`},
         {
           "id": "3-3C2",
           "title": "3.C2.",
@@ -412,7 +739,31 @@ caption:표 3.2 문제 3.A에서 설계한 RC 저역 통과 필터의 출력의 
 40 | |
 120 | |
 ]]`
-        },
+        ,
+          referenceAnswer: `일반적으로 정상상태 출력의 각주파수는 입력과 같고, 진폭은
+$$
+|H(\\omega)|
+=
+\\frac{1}{\\sqrt{1+(\\omega RC)^2}}
+$$
+이다.
+
+예를 들어 학번 끝 3자리가 158이면 다음과 같다.
+
+[[table:
+입력 각주파수 $\\omega$[rad/sec] | 출력 각주파수 [rad/sec] | 시뮬레이션 출력 진폭 | 이론값 $|H(\\omega)|$
+-120 | -120 | 약 0.0144 | 0.01439
+-40 | -40 | 약 0.0431 | 0.04314
+-10 | -10 | 약 0.1702 | 0.17019
+-5 | -5 | 약 0.3265 | 0.32649
+0 | 0 | 약 1.0000 | 1.00000
+5 | 5 | 약 0.3265 | 0.32649
+10 | 10 | 약 0.1702 | 0.17019
+40 | 40 | 약 0.0431 | 0.04314
+120 | 120 | 약 0.0144 | 0.01439
+]]
+
+수치해석 오차와 정상상태 진폭 측정 방법에 따라 시뮬레이션 값에는 작은 차이가 있을 수 있다.`},
         { //문제 3.D
           "id": "3-3D",
           "title": "3.D.",
@@ -424,7 +775,13 @@ caption:표 3.2 문제 3.A에서 설계한 RC 저역 통과 필터의 출력의 
 - $\\left|\\omega\\right|$가 증가할 때 출력 진폭의 변화
 - 문제 2에서 구한 전달함수와 시간영역 시뮬레이션 결과가 일치하는지
 - 이 시스템을 저역통과필터라고 부르는 이유`
-        },
+        ,
+          referenceAnswer: `- 정상상태 출력의 주파수는 입력 주파수와 같다.
+- $|\\omega|$가 증가할수록 $|H(\\omega)|$가 감소하므로 출력 진폭도 작아진다.
+- 시간영역 시뮬레이션에서 측정한 정상상태 진폭은 문제 2에서 계산한 $|H(\\omega)|$와 거의 일치한다.
+- 낮은 주파수에서는 출력 진폭이 크지만 높은 주파수에서는 크게 감쇠하므로 이 시스템은 저역통과필터이다.
+
+즉, 주파수 전달함수로 예측한 결과와 미분방정식을 직접 계산한 시간영역 결과가 서로 일치함을 확인할 수 있다.`},
       ]
     },
     { //문제 4
@@ -471,31 +828,124 @@ $$
           "title": "4.A1.",
           "type": "proof",
           "prompt": `입력이 $e^{jn\\omega_0 t}$일 때 출력을 쓰시오. ($e^{jn\\omega_0 t}$의 주파수는 $n\\omega_0$)`,
-        },
+        
+          referenceAnswer: `입력의 주파수는 $n\\omega_0$이므로 주파수 전달함수의 정의에 따라
+
+$$
+\\boxed{
+e^{jn\\omega_0t}
+\\longrightarrow
+H(n\\omega_0)e^{jn\\omega_0t}
+}
+$$
+
+이다.`},
         {
           "id": "3-4A2",
           "title": "4.A2.",
           "type": "proof",
           "prompt": `입력이 $F_ne^{jn\\omega_0 t}$일 때 출력을 쓰시오. (선형성 이용)`,
-        },
+        
+          referenceAnswer: `선형성에 의해 입력에 상수 $F_n$이 곱해지면 출력에도 같은 상수가 곱해진다.
+
+따라서
+$$
+\\boxed{
+F_ne^{jn\\omega_0t}
+\\longrightarrow
+F_nH(n\\omega_0)e^{jn\\omega_0t}
+}
+$$
+이다.`},
         {
           "id": "3-4A3",
           "title": "4.A3.",
           "type": "proof",
           "prompt": `입력이 $F_{-2}e^{-j2\\omega_0 t}+F_{-1}e^{-j\\omega_0 t}+F_0e^{j0\\omega_0 t}+F_1e^{j\\omega_0 t}+F_2e^{j2\\omega_0 t}$일 때 출력을 쓰시오. (선형성 이용)`,
-        },
+        
+          referenceAnswer: `선형성에 의해 각 주파수 성분에 대한 출력을 각각 구한 뒤 더하면 된다.
+
+따라서 출력은
+
+$$
+F_{-2}H(-2\\omega_0)e^{-j2\\omega_0t}
++
+F_{-1}H(-\\omega_0)e^{-j\\omega_0t}
++
+F_0H(0)
++
+F_1H(\\omega_0)e^{j\\omega_0t}
++
+F_2H(2\\omega_0)e^{j2\\omega_0t}
+$$
+
+이다.`},
         {
           "id": "3-4A4",
           "title": "4.A4.",
           "type": "proof",
           "prompt": `입력 $f(t)$가 $\\sum_{n=-\\infty}^{\\infty} F_n e^{jn\\omega_0 t}$로 표현되는 주기함수일 때, 출력 $g(t)=\\sum_{n=-\\infty}^{\\infty} G_n e^{jn\\omega_0 t}$로 표현할 수 있으며 $G_n=H(n\\omega_0)F_n$임을 보이시오.`,
-        },
+        
+          referenceAnswer: `입력이
+$$
+f(t)=
+\\sum_{n=-\\infty}^{\\infty}
+F_ne^{jn\\omega_0t}
+$$
+이면 선형성에 의해 각 성분을 따로 시스템에 입력한 뒤 출력을 더할 수 있다.
+
+$n$번째 입력 성분에 대한 출력은
+$$
+F_nH(n\\omega_0)e^{jn\\omega_0t}
+$$
+이므로 전체 출력은
+
+$$
+g(t)
+=
+\\sum_{n=-\\infty}^{\\infty}
+F_nH(n\\omega_0)e^{jn\\omega_0t}
+$$
+
+이다.
+
+이를
+$$
+g(t)
+=
+\\sum_{n=-\\infty}^{\\infty}
+G_ne^{jn\\omega_0t}
+$$
+와 비교하면
+
+$$
+\\boxed{
+G_n=H(n\\omega_0)F_n
+}
+$$
+이다.`},
         {
           "id": "3-4A5",
           "title": "4.A5.",
           "type": "essay",
           "prompt": `문제 4.A4의 결과를 바탕으로, 주기함수 $f(t)$에 대한 출력 $g(t)$ 역시 주기함수임을 설명하시오.`,
-        },
+        
+          referenceAnswer: `출력은
+$$
+g(t)
+=
+\\sum_{n=-\\infty}^{\\infty}
+G_ne^{jn\\omega_0t}
+$$
+로 표현된다.
+
+모든 주파수 성분은 기본 각주파수 $\\omega_0$의 정수배 $n\\omega_0$이므로, 출력 역시 기본주기
+$$
+T=\\frac{2\\pi}{\\omega_0}
+$$
+를 갖는 주기함수이다.
+
+즉, 선형 시불변 시스템의 정상상태에서 주기 입력에 대한 출력도 같은 기본주기를 갖는 주기신호가 된다.`},
         { //문제 4.B
           "id": "3-4B",
           "title": "4.B.",
@@ -558,13 +1008,297 @@ plt.grid()`,
   - 왜 해당 명령을 수행하는지 설명하시오.
   
 이후, '코드 실행' 버튼을 눌러 py 스크립트를 실행하고, 결과 파형인 $g(t)=\\sum_{n=-\\infty}^{\\infty} G_n e^{jn\\omega_0 t}$ 확인하시오.`
-        },
+        ,
+          referenceAnswer: `예를 들어 학번 끝 3자리가 158이면 다음과 같이 완성할 수 있다.
+
+\`\`\`python
+import numpy as np
+import matplotlib.pyplot as plt
+
+R = 0.5e3
+C = 1158e-6  # XXX=158
+t = np.arange(0, 20, 1/1000)
+
+T = 2
+w0 = (2*np.pi)/T
+
+gt_approx = 0
+
+for n in np.arange(-100, 100, 1):
+
+    if n % 2 == 0:
+        Fn = 0
+    else:
+        Fn = 2/(1j*n*np.pi)
+
+    w = n*w0
+    Hw = 1/(1 + 1j*R*C*w)
+    Gn = Hw*Fn
+
+    gt_approx += Gn*np.exp(1j*n*w0*t)
+
+plt.plot(t, np.real(gt_approx))
+plt.xlabel("t")
+plt.ylabel("g(t)")
+plt.grid()
+\`\`\`
+
+빈칸은
+$$
+\\omega_0=\\frac{2\\pi}{T},\\qquad
+F_n=\\frac{2}{jn\\pi}\\;(n:\\text{odd}),\\qquad
+G_n=H(n\\omega_0)F_n
+$$
+에 따라 채운다.
+
+수치 계산 과정에서 매우 작은 허수부가 남을 수 있으므로 실제 출력 파형을 그릴 때는 \`np.real(gt_approx)\`를 사용할 수 있다.`},
         {
           "id": "3-4B2",
           "title": "4.B2.",
           "type": "essay",
           "prompt": `문제 4.B1의 결과 그래프는, 문제 4.A1~4.A5 중 어떤 문제를 증명할 수 있는 것인지 쓰시오. 이를 바탕으로 알 수 있는, 선형 시스템에서 주기함수 $f(t)$의 정상 상태 응답 $g(t)$는 어떠한 성질을 가지는지 쓰시오.`
+        ,
+          referenceAnswer: `문제 4.B1의 결과는 문제 4.A4와 4.A5의 내용을 수치적으로 확인한다.
+
+각 입력 푸리에 계수 $F_n$에 대하여
+$$
+G_n=H(n\\omega_0)F_n
+$$
+가 되고, 출력은
+$$
+g(t)=\\sum_{n=-\\infty}^{\\infty}G_ne^{jn\\omega_0t}
+$$
+형태의 주기함수로 나타난다.
+
+따라서 선형 시스템의 정상상태에서 주기 입력을 가하면 출력도 같은 기본주파수를 갖는 주기함수가 된다. 다만 각 고조파 성분의 진폭과 위상은 $H(n\\omega_0)$에 의해 달라진다.`},
+        { //문제 4.C
+          "id": "3-4C",
+          "title": "4.C.",
+          "prompt": `문제 4.B에서는 주기함수 $f(t)$를 푸리에 급수로 나타낸 뒤, 각 주파수 성분에 RC 저역통과필터의 주파수 전달함수 $H(\\omega)$를 적용하여 정상상태 출력 $g(t)$를 계산했다.
+
+본 문제에서는 같은 입력 $f(t)$를 RC 시스템의 미분방정식에 직접 입력하여 시간영역 출력 $g(t)$를 계산하고, 문제 4.B에서 구한 결과와 비교한다.
+
+입력은 [[equation:3.3]]과 같이 주기 $T=2$의 사각 주기함수로 한다. RC 저역통과필터의 입출력 관계는 $f(t)=RC\\dfrac{dg(t)}{dt}+g(t)$이므로, $\\dfrac{dg(t)}{dt}=\\dfrac{f(t)-g(t)}{RC}$로 나타낼 수 있다.`
         },
+        {
+          "id": "3-4C1",
+          "title": "4.C1.",
+          "type": "python",
+          responseEnabled: true,
+          starterCode: `import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal
+
+t = np.arange(0, 20, 0.001)
+
+f = signal.square(np.pi*t)
+
+plt.figure()
+plt.plot(t, f)
+plt.xlabel("t")
+plt.ylabel("f(t)")
+plt.grid()`,
+          "prompt": `아래 py 스크립트는 $0\\le t \\le 20$ 구간에서 [[equation:3.3]]을 생성하고 파형을 그린다.
+\`\`\`python          
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal
+
+t = np.arange(0, 20, 0.001)
+
+f = signal.square(np.pi*t)
+
+plt.figure()
+plt.plot(t, f)
+plt.xlabel("t")
+plt.ylabel("f(t)")
+plt.grid()
+\`\`\`
+py 스크립트를 실행하여 결과를 확인하고, 다음을 확인하시오.
+- 신호의 최댓값과 최솟값
+- 한 주기의 길이
+- $0\\le t < 1$, $1\\le t < 2$ 구간에서의 신호값`
+        ,
+          referenceAnswer: `코드를 실행하면
+
+- 최댓값: 약 $1$
+- 최솟값: 약 $-1$
+- 주기: $T=2$
+- $0\\le t<1$: 약 $+1$
+- $1\\le t<2$: 약 $-1$
+
+임을 확인할 수 있다.
+
+이후 같은 형태가 2초마다 반복되므로 [[equation:3.3]]의 사각 주기함수와 일치한다.`},
+        {
+          "id": "3-4C2",
+          "title": "4.C2.",
+          "type": "python",
+          responseEnabled: true,
+          starterCode: `import numpy as np
+import matplotlib.pyplot as plt
+from scipy import signal
+from scipy.integrate import solve_ivp
+
+XXX = 158
+
+R = 0.5e3
+C = (1000 + XXX)*1e-6
+
+def input_signal(t):
+    return signal.square(np.pi*t)
+
+def rc_system(t, g):
+    return (input_signal(t) - g[0])/(R*C)
+    
+t = np.arange(0, 20, 0.001)
+
+sol = solve_ivp(rc_system, [t[0], t[-1]], [0], t_eval=t)
+
+g_time = sol.y[0]
+
+plt.figure()
+
+plt.plot(t, input_signal(t), label="input f(t)")
+plt.plot(t, g_time, label="output g(t)")
+
+plt.xlabel("t")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid()`,
+          "prompt": `문제 2에서 사용한 것과 동일하게 $R=0.5$㏀, $C=(1000+\\text{학번 끝 3자리})$㎌라 하자. RC 시스템의 미분방정식은 아래와 같이 정의할 수 있다.
+\`\`\`python          
+from scipy.integrate import solve_ivp
+
+def input_signal(t):
+    return signal.square(np.pi*t)
+
+def rc_system(t, g):
+    return (input_signal(t) - g[0])/(R*C)
+\`\`\`
+다음으로, 초기조건을 $g(0)=0$으로 두고 $0\\le t \\le20$ 구간에서 미분방정식은 아래와 같이 계산할 수 있다.
+\`\`\`python          
+t = np.arange(0, 20, 0.001)
+
+sol = solve_ivp(rc_system, [t[0], t[-1]], [0], t_eval=t)
+
+g_time = sol.y[0]
+\`\`\`
+마지막으로, 입력과 출력을 한 그래프에 겹쳐 그린다.
+\`\`\`python          
+plt.figure()
+
+plt.plot(t, input_signal(t), label="input f(t)")
+plt.plot(t, g_time, label="output g(t)")
+
+plt.xlabel("t")
+plt.ylabel("Amplitude")
+plt.legend()
+plt.grid()
+\`\`\`
+py 스크립트를 실행하여 결과 그래프를 확인하고, 입력 사각파와 비교하여 출력 파형의 모양이 어떻게 달라졌는지 쓰시오.`
+        ,
+          referenceAnswer: `입력은 $+1$과 $-1$ 사이를 순간적으로 바꾸는 사각파이지만, RC 저역통과필터의 출력은 순간적으로 변하지 않고 완만하게 상승하고 하강한다.
+
+이는 RC 회로가 입력의 급격한 변화에 포함된 높은 주파수 성분을 크게 감쇠시키기 때문이다.
+
+또한 초기에는 $g(0)=0$이라는 초기조건의 영향으로 과도응답이 나타나고, 시간이 충분히 지나면 일정한 주기 형태의 정상상태응답에 가까워진다.`},
+        {
+          "id": "3-4C3",
+          "title": "4.C3.",
+          "type": "python",
+          responseEnabled: true,
+          "prompt": `문제 4.B에서 푸리에 급수와 주파수 전달함수를 이용하여 구한 출력 신호를 $g_{\\mathrm{FS}}(t)$라 하자. 문제 4.B에서 계산한 Python 결과를 'gt_apporx'라는 변수에 저장했다.
+          
+문제 4.C2에서 생성한 시간 영역 시뮬레이션 결과 'g_time'과 푸리에 급수 결과 'gt_approx'를 한 그래프에 겹쳐 그리는 py 스크립트를 작성하시오.
+
+그리고 다음에 답하시오.
+(a) $t=0$에 가까운 초기 구간에서 두 파형이 완전히 일치하는가?
+(b) 시간이 충분히 지난 후 두 파형은 어떻게 되는가?
+(c) 두 결과가 시간이 지남에 따라 가까워지는 이유를 설명하시오.`
+        ,
+          referenceAnswer: `문제 4.B1과 4.C2를 먼저 실행한 뒤 다음과 같이 두 결과를 비교할 수 있다.
+
+\`\`\`python
+plt.figure()
+
+plt.plot(
+    t,
+    g_time,
+    label="Time-domain response"
+)
+
+plt.plot(
+    t,
+    np.real(gt_approx),
+    "--",
+    label="Fourier-series response"
+)
+
+plt.xlabel("t")
+plt.ylabel("g(t)")
+plt.legend()
+plt.grid()
+\`\`\`
+
+(a) 초기 구간에서는 두 파형이 완전히 일치하지 않는다.
+
+(b) 시간이 충분히 지나면 두 파형은 거의 같은 주기적 파형으로 수렴한다.
+
+(c) 시간영역 미분방정식의 해에는 초기조건으로 인한 과도응답이 포함되지만, 푸리에 급수와 주파수 전달함수로 계산한 결과는 정상상태응답만 나타내기 때문이다. 시간이 지날수록 RC 회로의 과도응답이 감쇠하여 두 결과가 가까워진다.`},
+        {
+          "id": "3-4C4",
+          "title": "4.C4.",
+          "type": "essay",
+          "prompt": `시간영역 미분방정식의 출력은 일반적으로 $g(t) = g_{\\mathrm{tr}}(t)+g_{\\mathrm{ss}}(t)$로 나타낼 수 있다. 여기서 $ g_{\\mathrm{tr}}(t)$는 과도응답(transient response), $g_{\\mathrm{ss}}(t)$는 정상상태응답(steady-state response)이다. 문제 4.B에서 푸리에 급수와 주파수 전달함수를 이용해 구한 출력은 주기 입력에 대한 정상상태응답에 해당한다.
+
+다음 질문에 답하시오.
+(a) 문제 4.C2의 시간영역 응답에 과도응답이 나타나는 이유는 무엇인가?
+(b) 시간이 지남에 따라 과도응답은 어떻게 변하는가?
+(c) 문제 4.B에서 구한 출력에는 왜 과도응답이 나타나지 않는가?`
+        ,
+          referenceAnswer: `(a) 시간영역 미분방정식을 풀 때 $g(0)=0$이라는 초기조건이 주어지므로, 이 초기조건에 의해 자연응답 즉 과도응답이 포함된다.
+
+(b) 안정한 RC 회로의 과도응답은 시간에 따라 지수적으로 감쇠하여 결국 거의 0이 된다.
+
+(c) 문제 4.B의 방법은 입력의 각 푸리에 성분에 대해 주파수 전달함수 $H(n\\omega_0)$를 적용하여 정상상태 정현파 응답만 합성한 것이다. 따라서 초기조건에 의해 발생하는 자연응답은 포함되지 않는다.`},
+        {
+          "id": "3-4C5",
+          "title": "4.C5.",
+          "type": "python",
+          responseEnabled: true,
+          "prompt": `전체 구간을 보는 대신, 충분히 시간이 지난 구간(예를 들어, $16\\le t \\le 20$)만 확대하여 두 결과를 비교하시오.
+
+정상상태 구간에서 두 파형의 주기, 최댓값, 최솟값, 전체적인 형태가 서로 일치하는지 설명하시오.`
+        ,
+          referenceAnswer: `예를 들어 다음과 같이 정상상태 구간만 확대할 수 있다.
+
+\`\`\`python
+plt.figure()
+
+plt.plot(
+    t,
+    g_time,
+    label="Time-domain"
+)
+
+plt.plot(
+    t,
+    np.real(gt_approx),
+    "--",
+    label="Fourier-series"
+)
+
+plt.xlim(16, 20)
+plt.xlabel("t")
+plt.ylabel("g(t)")
+plt.legend()
+plt.grid()
+\`\`\`
+
+충분히 시간이 지난 구간에서는 두 파형의 주기가 모두 약 2초로 같고, 최댓값과 최솟값 및 전체적인 파형도 거의 일치한다.
+
+작은 차이가 있다면 \`solve_ivp\`의 수치해석 오차와 푸리에 급수를 유한한 개수의 항으로 근사한 오차 때문이다.`},
       ]
     }
   ]
