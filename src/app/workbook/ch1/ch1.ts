@@ -32,7 +32,7 @@ export const chapter = {
           id: '1-1B',
           title: '1.B.',
           type: 'console',
-          prompt: `Console형 문제 사용 방법을 익혀보자.
+          prompt: `Console 실습형 문제 사용 방법을 익혀보자.
 
 Console 입력창에 아래 명령을 한 줄씩 직접 입력하여 실행하고, 각 명령의 결과를 확인하시오.
 \`\`\`python
@@ -57,13 +57,14 @@ Console형 문제에서는 명령을 한 줄씩 직접 입력하고 바로 실�
           id: '1-1C',
           title: '1.C.',
           type: 'python',
-          prompt: `Python 스크립트형 문제 사용 방법을 익혀보자.
+          responseEnabled: true,
+          prompt: `Python 실행형 문제 사용 방법을 익혀보자.
 
 코드 입력창에 아래 코드를 입력한 후 [코드 실행] 버튼을 누르고 결과를 확인하시오.
 \`\`\`python
 print("Hello World!")
 \`\`\`
-실행 결과를 확인한 뒤, 코드 아래에 주석(Comment, '#')을 이용하여 코드의 기능을 간단히 설명하시오.
+실행 결과를 확인한 뒤, '결과 해석 및 설명' 칸에 코드의 기능을 간단히 설명하시오.
 `,
           referenceAnswer: `코드를 실행하면 다음과 같이 출력된다.
 \`\`\`text
@@ -76,7 +77,7 @@ Hello World!
           title: '1.D.',
           type: 'python',
           consoleEnabled: true,
-          prompt: `Python + Console 결합형 문제 사용 방법을 익혀보자.
+          prompt: `Python 실행형 문제에 Console이 결합된 문제 사용 방법을 익혀보자.
 
 먼저 코드 입력창에 아래 코드를 입력하고 [코드 실행] 버튼을 누르시오.
 \`\`\`python
