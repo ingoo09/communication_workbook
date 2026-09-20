@@ -165,6 +165,20 @@ function getPart(chapterId: number): PartId {
   return 4;
 }
 
+type ChapterResource = {
+  lectureMaterial?: boolean;
+  youtubeUrl?: string;
+};
+
+const chapterResources: Record<number, ChapterResource> = {
+  // 강의자료가 준비된 Chapter만 등록합니다.
+  // YouTube 영상이 올라오면 youtubeUrl만 추가하면 됩니다.
+  4: {
+    lectureMaterial: true,
+    youtubeUrl: 'https://www.youtube.com/watch?v=nDM3qNU9yiM',
+  },
+};
+
 const chapters: Chapter[] = Array.from({ length: 30 }, (_, index) => {
   const id = index + 1;
   const known = knownChapters[id];
@@ -1073,6 +1087,91 @@ export default function WorkbookHome() {
                   >
                     준비 중
                   </button>
+                )}
+
+                {chapter.access === 'unlocked' && chapterResources[chapter.id] && (
+                  <div
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: 'repeat(2, minmax(0, 1fr))',
+                      gap: 10,
+                      marginTop: 10,
+                    }}
+                  >
+                    {chapterResources[chapter.id].lectureMaterial && (
+                      <a
+                        href={`/api/lecture-materials/ch${chapter.id}`}
+                        style={{
+                          minWidth: 0,
+                          minHeight: 44,
+                          padding: '10px 12px',
+                          borderRadius: 13,
+                          boxSizing: 'border-box',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 7,
+                          textDecoration: 'none',
+                          color: '#dbeafe',
+                          background: 'rgba(59,130,246,0.12)',
+                          border: '1px solid rgba(96,165,250,0.22)',
+                          fontSize: 13,
+                          fontWeight: 800,
+                          textAlign: 'center',
+                        }}
+                      >
+                        강의자료 PDF ↓
+                      </a>
+                    )}
+
+                    {chapterResources[chapter.id].youtubeUrl ? (
+                      <a
+                        href={chapterResources[chapter.id].youtubeUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        style={{
+                          minWidth: 0,
+                          minHeight: 44,
+                          padding: '10px 12px',
+                          borderRadius: 13,
+                          boxSizing: 'border-box',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: 7,
+                          textDecoration: 'none',
+                          color: '#fee2e2',
+                          background: 'rgba(239,68,68,0.11)',
+                          border: '1px solid rgba(248,113,113,0.22)',
+                          fontSize: 13,
+                          fontWeight: 800,
+                          textAlign: 'center',
+                        }}
+                      >
+                        강의 영상 ▶
+                      </a>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled
+                        style={{
+                          minWidth: 0,
+                          minHeight: 44,
+                          padding: '10px 12px',
+                          borderRadius: 13,
+                          boxSizing: 'border-box',
+                          border: '1px solid rgba(255,255,255,0.08)',
+                          background: 'rgba(255,255,255,0.04)',
+                          color: 'rgba(255,255,255,0.38)',
+                          fontSize: 13,
+                          fontWeight: 800,
+                          cursor: 'not-allowed',
+                        }}
+                      >
+                        강의 영상 준비 중
+                      </button>
+                    )}
+                  </div>
                 )}
               </div>
             </article>
