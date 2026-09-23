@@ -784,8 +784,8 @@ spectrum_view(
         { //문제 3.D
           "id": "4-3D",
           "title": "3.D.",
-          "prompt": `6 kHz에 위치한 라인스펙트럼 성분만 제거된 신호를 만들어 보자. 즉 [그림 4.5]와 같은 스펙트럼을 갖는 신호를 생성해보자.
-[[image:/images/ch4/figure4_5.png|그림 4.5 생성하고자 하는 라인 스펙트럼|60]]
+          "prompt": `$2n$ kHz($n$은 학번 끝자리)에 위치한 라인스펙트럼 성분만 제거된 신호를 만들어 보자. [그림 4.5]는 학번 끝자리가 3인 경우 생성하고자 하는 라인 스펙트럼이다.
+[[image:/images/ch4/figure4_5.png|그림 4.5 학번 끝자리가 3인 경우 생성하고자 하는 라인 스펙트럼|60]]
           `
         },
         {
@@ -794,7 +794,7 @@ spectrum_view(
           "type": "proof",
           "prompt": `문제 3.A에서 사용한 $x_2(t)$를 $f_T(t)$라 하자. $f_T(t)$의 기본 주파수는 $f_0=2$[kHz]이므로, 6 kHz는 세 번째 고조파, $3f_0$에 해당한다.
           
-푸리에 급수는 $f_T(t)=\\sum_{n=-\\infty}^{\\infty} F_n e^{jn\\omega_0t}$로 나타낼 수 있다. 이때, $g(t)=f_T(t)-F_3e^{j3\\omega_0 t}$로 정의하면 $g(t)$의 스펙트럼에서 +6 kHz 성분이 제거되는 이유를 설명하시오.`
+푸리에 급수는 $f_T(t)=\\sum_{n=-\\infty}^{\\infty} F_n e^{jn\\omega_0t}$로 나타낼 수 있다. 이때, $g(t)=f_T(t)-F_3e^{j3\\omega_0 t}$로 정의하면, [그림 4.5]와 같이 $g(t)$의 스펙트럼에서 +6 kHz 성분이 제거되는 이유를 설명하시오.`
         ,
           referenceAnswer: `의도한 식은
 $$
@@ -821,33 +821,56 @@ $$
           "id": "4-3D2",
           "title": "3.D2.",
           "type": "python",
-          "prompt": `직사각 펄스열의 계수는 $F_n=\\dfrac{\\tau}{T}\\operatorname{sinc}\\left(n\\dfrac{\\tau}{T}\\right)e^{-j\\pi n\\tau /T}$로 계산할 수 있다. $T=5\\times 10^{-4}$[s], $\\tau=5\\times 10^{-5}$[s]일 때 $F_3$를 Python으로 계산하시오. 계산 결과가 대략 $F_3≈0.0505−0.0694j$가 되는지 확인하시오.`
+          "prompt": `직사각 펄스열의 계수는 $F_n=\\dfrac{\\tau}{T}\\operatorname{sinc}\\left(n\\dfrac{\\tau}{T}\\right)e^{-j\\pi n\\tau /T}$로 계산할 수 있다. $T=5\\times 10^{-4}$[s], $\\tau=5\\times 10^{-5}$[s]일 때 $F_3$를 Python으로 계산하면 대략 $F_3≈0.0505−0.0694j$이다.
+          
+$F_n$($n$은 학번 끝자리)를 계산하시오.`
         ,
-          referenceAnswer: `Python에서는 다음과 같이 계산할 수 있다.
+          
+referenceAnswer: `자신의 학번 끝자리 $n$을 대입하여 푸리에 계수 $F_n$을 계산한다.
+
+직사각 펄스열의 푸리에 급수 계수는
+$$
+F_n=
+\\frac{\\tau}{T}
+\\operatorname{sinc}\\left(n\\frac{\\tau}{T}\\right)
+e^{-j\\pi n\\tau/T}
+$$
+이다.
+
+주어진 $T=5\\times10^{-4}$ s,
+$\\tau=5\\times10^{-5}$ s를 대입하면
+$$
+\\boxed{
+F_n=0.1\\operatorname{sinc}(0.1n)e^{-j0.1\\pi n}
+}
+$$
+이다.
+
+Python 코드는 다음과 같다.
 
 \`\`\`python
 import numpy as np
 
 T = 5e-4
 tau = 5e-5
-n = 3
+n = 3  # 자신의 학번 끝자리로 수정
 
-F3 = (
+Fn = (
     (tau/T)
     * np.sinc(n*tau/T)
     * np.exp(-1j*np.pi*n*tau/T)
 )
 
-print(F3)
+print(Fn)
 \`\`\`
 
-결과는 대략
+예를 들어 학번 끝자리가 3이면
 $$
-\\boxed{
-F_3\\approx0.0505-0.0694j
-}
+\\boxed{F_3\\approx0.0505-0.0694j}
 $$
-이다.`},
+이다.
+
+학번 끝자리가 다르면 계산 결과도 달라진다.`},
         {
           "id": "4-3D3",
           "title": "3.D3.",
@@ -862,9 +885,9 @@ tau = 5e-5
 t = np.arange(0, 0.1, 1/fs)
 fT = ((t % T) < tau).astype(float)
 f0 = 1/T
-n = 3
-F3 = ((tau/T) * np.sinc(n*tau/T) * np.exp(-1j*np.pi*n*tau/T))
-g = fT - F3*np.exp(1j*2*np.pi*n*f0*t)
+n = X # 자신의 학번 끝자리를 대입
+Fn = ((tau/T) * np.sinc(n*tau/T) * np.exp(-1j*np.pi*n*tau/T))
+g = fT - Fn*np.exp(1j*2*np.pi*n*f0*t)
 
 spectrum_view(g, fs, units="Watts", frequency_limit_hz=80e3)`,
           "prompt": `[그림 4.6]과 같이 Python으로 문제 3.D1의 $g(t)$를 생성하여 스펙트럼을 관찰하자.
@@ -879,30 +902,55 @@ tau = 5e-5
 t = np.arange(0, 0.1, 1/fs)
 fT = ((t % T) < tau).astype(float)
 f0 = 1/T
-n = 3
-F3 = ((tau/T) * np.sinc(n*tau/T) * np.exp(-1j*np.pi*n*tau/T))
-g = fT - F3*np.exp(1j*2*np.pi*n*f0*t)
+n = X # 자신의 학번 끝자리를 대입
+Fn = ((tau/T) * np.sinc(n*tau/T) * np.exp(-1j*np.pi*n*tau/T))
+g = fT - Fn*np.exp(1j*2*np.pi*n*f0*t)
 
 spectrum_view(g, fs, units="Watts", frequency_limit_hz=80e3)
 \`\`\`
 위 py 스크립트를 실행하여 결과를 확인하고, 다음에 답하시오.
-(a) +6 kHz에 존재하던 spectral line이 제거되었는가?
-(b) -6 kHz의 line도 제거되었는가?
+(a) $+2n$ kHz에 존재하던 spectral line이 제거되었는가?
+(b) $-2n$ kHz의 line도 제거되었는가?
 (c) 두 결과가 서로 다른 이유를 설명하시오.`
         ,
-          referenceAnswer: `(a) $+6$ kHz의 spectral line은 제거된다.
+          
+referenceAnswer: `(a) $n$이 1~9이고 제거하려는 spectral line이 원래 존재한다면, $+2n$ kHz에 해당하는 성분은 제거된다.
 
-(b) $-6$ kHz의 line은 제거되지 않는다.
+푸리에 급수
+$$
+f_T(t)=\\sum_{k=-\\infty}^{\\infty}
+F_k e^{jk\\omega_0t}
+$$
+에서
+$$
+g(t)=f_T(t)-F_ne^{jn\\omega_0t}
+$$
+로 정의하면, $k=n$에 해당하는 항만 상쇄되기 때문이다.
 
-(c) 뺀 항은
+(b) 일반적으로 $-2n$ kHz의 성분은 제거되지 않는다. 단, $n=0$이면 양의 주파수와 음의 주파수가 모두 DC 성분에 해당한다.
+
+(c) 제거한 항은
 $$
-F_3e^{j3\\omega_0t}
+F_ne^{jn\\omega_0t}
 $$
-즉 $n=3$에 해당하는 양의 주파수 성분 하나뿐이기 때문이다. $-6$ kHz 성분은 $n=-3$의
+이므로 $+2n$ kHz에 해당하는 성분만 상쇄한다.
+
+반면 $-2n$ kHz에 해당하는 성분은
 $$
-F_{-3}e^{-j3\\omega_0t}
+F_{-n}e^{-jn\\omega_0t}
 $$
-에 해당하므로 별도로 제거해야 한다.`},
+이므로 별도로 제거하지 않는 한 남아 있다.
+
+예를 들어 학번 끝자리가 3이면
+$$
+g(t)=f_T(t)-F_3e^{j3\\omega_0t}
+$$
+이므로 $+6$ kHz 성분만 제거되고
+$-6$ kHz 성분은 남는다.
+
+단, $n=5$이면 주어진 직사각 펄스열의 $F_5=0$이므로 $+10$ kHz 성분은 이론적으로 처음부터 존재하지 않는다. $n=0$이면 DC 성분을 제거하는 문제가 된다.
+
+실제 Python 실험에서는 연속시간 신호를 유한한 샘플로 근사하므로 이론적인 계수와 약간의 차이가 나타날 수 있다.`},
         {
           "id": "4-3D4",
           "title": "3.D4.",
@@ -1092,7 +1140,7 @@ $$
         { //문제 4.C
           "id": "4-4C",
           "title": "4.C.",
-          "prompt": `아래는 주파수 $\\omega$를 -25,000에서 50 간격으로 25,000까지 증가시켜가면서, 각각의 $\\omega$에서의 $F(\\omega)$를 계산하고, 이 값들을 순서대로 원소로 갖는 벡터 ‘Fw_vector’를 만들고, 진폭(Magnitude) 스펙트럼을 그리는 py 스크립트이다.
+          "prompt": `아래는 주파수 $\\omega$를 -25,000에서 (학번 끝자리 + 1)×10 간격으로 25,000까지 증가시켜가면서, 각각의 $\\omega$에서의 $F(\\omega)$를 계산하고, 이 값들을 순서대로 원소로 갖는 벡터 ‘Fw_vector’를 만들고, 진폭(Magnitude) 스펙트럼을 그리는 py 스크립트이다.
 \`\`\`python          
 import numpy as np
 import matplotlib.pyplot as plt
@@ -1105,7 +1153,7 @@ t_step=t_vector[1]-t_vector[0]
 
 Fw_vector=np.empty(0)
 w_vector=np.empty(0)
-for w in range(-25000, 25000, 50):
+for w in range(-25000, 25000, (X+1)+10): # X는 학번 끝자리
     
     Fw=np.sum(?*np.exp(-1j*w*t_vector))*t_step
     
@@ -1142,7 +1190,7 @@ t_step=t_vector[1]-t_vector[0]
 
 Fw_vector=np.empty(0)
 w_vector=np.empty(0)
-for w in range(-25000, 25000, 50):
+for w in range(-25000, 25000, (X+1)+10): # X는 학번 끝자리
     
     Fw=np.sum(?*np.exp(-1j*w*t_vector))*t_step
     
@@ -1495,25 +1543,82 @@ $$
           "id": "4-4E8",
           "title": "4.E8.",
           "type": "essay",
-          "prompt": `지금까지 실험 결과를 바탕으로, '미분기는 선형 시스템이다.'라고 말할 수 있는 이유를 설명하고, 문제 4.E5의 결과를 토대로 미분기가 고역 통과 필터(High Pass Filter, HPF)의 일종인 이유를 설명하시오.`
+          "prompt": `지금까지 실험 결과를 바탕으로, 미분을 시스템(입출력 단자가 있는 사각 상자)라 생각하고 다음 물음에 답하시오.
+
+(a) 입력이 $x(t)$일 때 출력(=입력의 미분 결과)과, 입력이 $ax(t)$일 때 출력을 각각 쓰고, 이것이 선형 시스템의 2가지 요건 중 어떤 것을 만족하는지(또는 만족하지 않는지)를 설명하시오.
+(b) (a)과 유사한 방식으로, 나머지(두 번째) 선형 시스템의 요건을 만족하는지 따져 보시오.
+(c) (a), (b)를 토대로, '미분기는 선형 시스템이다.'라고 말할 수 있는 이유를 설명하고, 문제 4.E5의 결과를 토대로 미분기가 고역 통과 필터(High Pass Filter, HPF)의 일종인 이유를 설명하시오.`
         ,
-          referenceAnswer: `미분 연산은 임의의 상수 $a,b$와 신호 $x_1,x_2$에 대하여
+          
+referenceAnswer: `(a) 미분 시스템의 입력이 $x(t)$일 때 출력은
 $$
+y(t)=\\frac{dx(t)}{dt}
+$$
+이다.
+
+입력이 $ax(t)$로 바뀌면 출력은
+$$
+\\frac{d[ax(t)]}{dt}
+=a\\frac{dx(t)}{dt}
+=ay(t)
+$$
+이다.
+
+따라서 입력에 상수 $a$를 곱하면 출력에도 동일한 상수가 곱해진다. 이는 선형 시스템의 첫 번째 조건인 **동차성(Homogeneity)**을 만족한다.
+
+(b) 두 입력 $x_1(t)$, $x_2(t)$에 대한 출력을 각각
+$$
+y_1(t)=\\frac{dx_1(t)}{dt},
+\\qquad
+y_2(t)=\\frac{dx_2(t)}{dt}
+$$
+라고 하자.
+
+두 입력을 더한 $x_1(t)+x_2(t)$를 미분 시스템에 입력하면
+$$
+\\begin{aligned}
+y(t)
+&=\\frac{d}{dt}[x_1(t)+x_2(t)]\\\\
+&=\\frac{dx_1(t)}{dt}
++\\frac{dx_2(t)}{dt}\\\\
+&=y_1(t)+y_2(t)
+\\end{aligned}
+$$
+이다.
+
+따라서 두 입력의 합에 대한 출력은 각 입력에 대한 출력의 합과 같다. 이는 선형 시스템의 두 번째 조건인 **가산성(Additivity)**을 만족한다.
+
+(c) 미분 시스템은 (a)의 동차성과 (b)의 가산성을 모두 만족하므로 **선형 시스템**이다.
+
+두 조건을 결합하면 임의의 상수 $a,b$와 신호 $x_1(t),x_2(t)$에 대하여
+$$
+\\boxed{
 \\frac{d}{dt}[ax_1(t)+bx_2(t)]
 =
 a\\frac{dx_1(t)}{dt}
 +
 b\\frac{dx_2(t)}{dt}
+}
 $$
-를 만족하므로 선형 시스템이다.
+가 성립한다.
 
-또한 미분기의 주파수 응답은
+또한 푸리에 변환의 미분 성질에 의해
 $$
-H(\\omega)=j\\omega,
-\\qquad
-|H(\\omega)|=|\\omega|
+Y(\\omega)=j\\omega X(\\omega)
 $$
-이다. $\\omega=0$ 부근의 저주파는 거의 통과시키지 않고 $|\\omega|$가 커질수록 더 크게 전달하므로 미분기는 고역통과 특성을 갖는다.`},
+이므로 미분기의 주파수 전달함수는
+$$
+H(\\omega)=j\\omega
+$$
+이고, 그 크기는
+$$
+\\boxed{|H(\\omega)|=|\\omega|}
+$$
+이다.
+
+문제 4.E5에서 확인한 것처럼 미분한 신호는 원래 신호보다 저주파 성분이 상대적으로 약해지고 고주파 성분이 강조된다.
+
+즉, $\\omega=0$에서는 전달함수의 크기가 0이며, $|\\omega|$가 증가할수록 전달함수의 크기도 증가한다. 따라서 **미분기는 고역통과 특성을 갖는 시스템**이라고 할 수 있다.`},
       ],
     },
     { //문제 5
@@ -1894,6 +1999,31 @@ $$
           referenceAnswer: `특정 보컬 음이 작아지는 순간에도 배경 악기 소리가 완전히 같이 사라지지는 않는다.
 
 이는 시스템이 전체 신호를 제거하는 것이 아니라 특정 주파수 성분을 선택적으로 크게 감쇠시키기 때문이다. 악기의 다른 주파수 성분은 여전히 출력에 남는다.`},
+          {
+          "id": "4-5C3",
+          "title": "5.C3.",
+          "type": "essay",
+          "prompt": `문제 5.B3에서 작성한 자신의 직관과 문제 5.C2에서 확인한 결과가 일치하는지 쓰시오.`,
+          
+referenceAnswer: `문제 5.B3에서 예상한 내용과 문제 5.C2에서 관찰한 결과를 비교한다.
+
+**(1) 예상과 일치한 경우**
+
+반사파가 추가되면 일부 주파수 성분은 상쇄되고 다른 주파수 성분은 남을 수 있다고 예상하였다.
+
+실제로 문제 5.C2에서 특정 보컬 음이 약해지는 순간에도 배경 악기 소리는 완전히 사라지지 않았다.
+
+따라서 반사파에 의해 특정 주파수 성분이 선택적으로 감쇠될 수 있다는 예상과 실제 청취 결과가 일치한다.
+
+**(2) 예상과 일치하지 않은 경우**
+
+처음에는 반사파가 추가되면 모든 소리가 비슷한 정도로 작아지거나 커질 것으로 예상하였다.
+
+그러나 실제로는 특정 보컬 음이 약해지는 순간에도 배경 악기 소리는 남아 있었다.
+
+따라서 처음 예상과 실제 청취 결과는 일치하지 않았으며, 반사파가 주파수에 따라 서로 다른 영향을 미칠 수 있음을 확인하였다.
+
+본 문항은 학생이 문제 5.B3에서 작성한 자신의 예상과 실제 실험 결과를 비교하는 문제이므로, 일치 여부 자체보다는 관찰 결과를 근거로 일관성 있게 설명했는지를 중심으로 평가한다.`},
         { //문제 5.D
           "id": "4-5D",
           "title": "5.D.",
