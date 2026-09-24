@@ -19,9 +19,9 @@ import { chapter as chapter14 } from "@/app/workbook/ch14/ch14";
 import { chapter as chapter15 } from "@/app/workbook/ch15/ch15";
 import { chapter as chapter16 } from "@/app/workbook/ch16/ch16";
 import { chapter as chapter17 } from "@/app/workbook/ch17/ch17";
-/*
 import { chapter as chapter18 } from "@/app/workbook/ch18/ch18";
 import { chapter as chapter19 } from "@/app/workbook/ch19/ch19";
+/*
 import { chapter as chapter20 } from "@/app/workbook/ch20/ch20";
 import { chapter as chapter21 } from "@/app/workbook/ch21/ch21";
 import { chapter as chapter22 } from "@/app/workbook/ch22/ch22";
@@ -58,9 +58,9 @@ const AVAILABLE_CHAPTERS = {
   15: chapter15,
   16: chapter16,
   17: chapter17,
-  /*
   18: chapter18,
   19: chapter19,
+  /*
   20: chapter20,
   21: chapter21,
   22: chapter22,
