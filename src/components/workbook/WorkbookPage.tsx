@@ -1036,6 +1036,29 @@ export default function WorkbookPage({
     });
   }
 
+  // 워크북 내부 영역만 스크롤하고, 바깥 문서가 뒤로 밀려 나타나는 현상을 방지한다.
+  // 다른 페이지로 이동하면 원래 문서 스크롤 설정을 복원한다.
+  useEffect(() => {
+    const html = document.documentElement;
+    const body = document.body;
+    const previousHtmlOverflow = html.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    const previousHtmlOverscroll = html.style.overscrollBehavior;
+    const previousBodyOverscroll = body.style.overscrollBehavior;
+
+    html.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    html.style.overscrollBehavior = "none";
+    body.style.overscrollBehavior = "none";
+
+    return () => {
+      html.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+      html.style.overscrollBehavior = previousHtmlOverscroll;
+      body.style.overscrollBehavior = previousBodyOverscroll;
+    };
+  }, []);
+
   // 로그인 상태와 역할 확인
   // 학생은 AI 점수가 기준 이상일 때 정답을 볼 수 있고,
   // 교수/developer/admin은 즉시 정답 확인이 가능하다.
@@ -1241,7 +1264,7 @@ export default function WorkbookPage({
 
   async function handleLogout() {
     await supabase.auth.signOut();
-    router.push("/");
+    window.location.assign("/");
   }
 
   function requestAuthenticatedAction(actionLabel: string, action: () => void) {
@@ -3190,12 +3213,20 @@ except Exception:
         onLoad={() => renderMath()}
       />
 
-      {/* 전체 레이아웃 */}
+      {/* 전체 레이아웃: 브라우저 페이지 대신 워크북 내부만 스크롤 */}
       <div
         style={{
           display: "flex",
+          position: "fixed",
+          inset: 0,
+          // 워크북 밖에 렌더링된 이미지/페이지 콘텐츠가 학습 화면 위에 겹치지 않게 한다.
+          zIndex: 1000,
+          isolation: "isolate",
+          width: "100%",
           height: "100dvh",
+          boxSizing: "border-box",
           overflow: "hidden",
+          overscrollBehavior: "none",
           background: "#f5f7fb",
         }}
       >
@@ -3210,7 +3241,9 @@ except Exception:
             overflowY: "auto",
             position: "sticky",
             top: 0,
-            height: "100vh",
+            height: "100%",
+            boxSizing: "border-box",
+            overscrollBehavior: "contain",
             flexShrink: 0,
           }}
         >
@@ -3607,7 +3640,7 @@ except Exception:
 
                   <button
                     type="button"
-                    onClick={() => router.push("/")}
+                    onClick={() => window.location.assign("/")}
                     style={{
                       minHeight: 38,
                       padding: "8px 12px",
@@ -3710,6 +3743,7 @@ except Exception:
               flex: "0 1 32%",
               minHeight: 100,
               overflowY: "auto",
+              overscrollBehavior: "contain",
               border: "1px solid #eee",
               borderRadius: 14,
               background: "#fff",
@@ -3736,7 +3770,7 @@ except Exception:
           </div>
 
 
-          <div style={{ flex: "1 1 0", minHeight: 0, overflowY: "auto", marginTop: 12, paddingRight: 4 }}>
+          <div style={{ flex: "1 1 0", minHeight: 0, overflowY: "auto", overscrollBehavior: "contain", marginTop: 12, paddingRight: 4 }}>
           <div
             style={{
               padding: 18,
@@ -4413,7 +4447,7 @@ except Exception:
 
             <button
               type="button"
-              onClick={() => router.push("/")}
+              onClick={() => window.location.assign("/")}
               style={{
                 width: "100%",
                 minHeight: 44,
