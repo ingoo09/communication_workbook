@@ -1697,9 +1697,7 @@ import pickle
 # ==========================================
 # 1. 원본 비트열과 검출된 비트열 불러오기
 # ==========================================
-
 file_load("ch18/data_bits.mat")
-
 mat = loadmat("data_bits.mat", simplify_cells=True)
 
 data_bits = np.asarray(mat["data_bits"]).ravel().astype(np.uint8)
@@ -1783,10 +1781,7 @@ if int(first_30_bits, 2) == 103009:
     # 음악 재생
     player.play()
 
-    print("음악 재생을 멈추려면 >> player.pause() 를 실행하면 됨")
-
-else:
-    print("음악 재생 조건을 만족하지 않습니다.")`,
+    print("음악 재생을 멈추려면 >> player.pause() 를 실행하면 됨")`,
           "prompt": `주어진 py 스크립트 ‘plot_received_image.py’를 실행하여 BER과 수신 이미지를 확인하시오.
 (주의. 브라우저를 새로고침했거나 Chapter를 나갔다가 다시 들어오면 저장된 ‘data_bits_hat.pkl’이 사라지므로, 이 경우 문제 2.B1의 py 스크립트를 다시 실행할 것)
 
@@ -1973,71 +1968,61 @@ import numpy as np
 from PIL import Image
 from scipy.io import savemat
 
-# ==================================================
-# 1. 초기 설정
-# ==================================================
-rng = np.random.default_rng()
+T=1 # M(4)-ary signal duration
+L=32
+tstep=T/L
+tvector=np.arange(tstep,T+tstep,tstep)
 
-T = 1
-L = 32
-
-tstep = T / L
-tvector = np.arange(1, L+1) * tstep
-
-# ==================================================
-# 2. 4진 신호 집합 생성
-# ==================================================
-p1t = np.sqrt(2) * np.cos(3 * np.pi * tvector) # 2차원 벡터 공간의 x축 기저 신호
-p2t = np.sqrt(2) * np.sin(3 * np.pi * tvector) # 2차원 벡터 공간의 y축 기저 신호
+###############4-ary signal set generation####################################
+p1t=np.sqrt(2)*np.cos(3*np.pi*tvector) # 2차원 벡터 공간의 x축 기저 신호
+p2t=np.sqrt(2)*np.sin(3*np.pi*tvector) # 2차원 벡터 공간의 y축 기저 신호
 
 a, b = ?, ?
 c, d = ?, ?
 e, f = ?, ?
 g, h = ?, ?
 
-s1t = a * p1t + b * p2t
-s2t = c * p1t + d * p2t
-s3t = e * p1t + f * p2t
-s4t = g * p1t + h * p2t
+s1t=a*p1t+b*p2t
+s2t=c*p1t+d*p2t
+s3t=e*p1t+f*p2t
+s4t=g*p1t+h*p2t
+###############################################################################
 
-signal_set = np.stack([s1t, s2t, s3t, s4t])
-
-# ==================================================
-# 3. 이미지 → 비트열 변환: 실습과 상관 없는 부분
-# ==================================================
-sp = 2
+######이미지를 비트열로 만드는 과정: 실습과 상관없는 부분#########################
+sp=2
 file_load("ch18/painting.jpg")
-A = np.asarray(Image.open("painting.jpg").convert("RGB"), dtype=np.uint8)
-A = A[::sp, ::sp, :]
-pixel_values = A.ravel(order="F")
-two_bits = pixel_values >> 6
-data_bits = np.empty(2 * len(two_bits), dtype=np.uint8)
-data_bits[0::2] = (two_bits >> 1) & 1
-data_bits[1::2] = two_bits & 1
-Nb = len(data_bits)
-Ns = Nb // 2
+A=np.array(Image.open('painting.jpg'));
+A=A[np.arange(0,194,2),:,:]; A=A[:,np.arange(0,259,2),:]; A=np.array(64*np.round(A/64),'uint8')
+C=np.unpackbits(np.transpose(A)).reshape(-1, 8); D=C[:,:2]; h,w,dd=A.shape; Nbits=np.prod(D.shape)
+data_bits =''.join(map(str, np.transpose(D).flatten()))
+###############################################################################
 
-# ==================================================
-# 4. 비트열 → 송신 신호 매핑
-# ==================================================
+Nb=len(data_bits) #Number of bits in the image file
+Ns=Nb//2
 
-# 00 → s1t
-# 01 → s2t
-# 10 → s3t
-# 11 → s4t
-symbol_indices = (2 * data_bits[0::2] + data_bits[1::2])
-xt = signal_set[symbol_indices].reshape(-1)
-xt_len = len(xt)
+######### Transmitter signal x(t) generation ##################################
+xt=np.empty(0) #송신 신호 벡터 초기화
+for k in range(Ns):
+    ### 2 bits => 4-ary signal Mapping###############
+    if (data_bits[2*k:2*k+2]=='00'):
+        st=s1t
+    elif (data_bits[2*k:2*k+2]=='01'):
+        st=s2t
+    elif (data_bits[2*k:2*k+2]=='10'):
+        st=s3t
+    else:
+        st=s4t
+    xt=np.append(xt, st) #'st' 이어 붙이기
+    
+###############################################################################
 
-# ==================================================
-# 5. AWGN 채널
-# ==================================================
-noise_sample = 3 * rng.standard_normal(xt_len) #AWGN
-rt = xt + noise_sample #Noise addition
+xt_len=len(xt) #vector length of 'xt'
 
-# ==================================================
-# 6. MAT 파일 저장
-# ==================================================
+##########Received signal after AWGN channel###################################
+noise_sample=3*np.random.randn(xt_len) #AWGN
+rt=xt+noise_sample #noise addition
+###############################################################################
+
 savemat("st_and_rt.mat", {
     "L": L,
     "Ns": Ns,
@@ -2176,71 +2161,61 @@ import numpy as np
 from PIL import Image
 from scipy.io import savemat
 
-# ==================================================
-# 1. 초기 설정
-# ==================================================
-rng = np.random.default_rng()
+T=1 # M(4)-ary signal duration
+L=32
+tstep=T/L
+tvector=np.arange(tstep,T+tstep,tstep)
 
-T = 1
-L = 32
-
-tstep = T / L
-tvector = np.arange(1, L+1) * tstep
-
-# ==================================================
-# 2. 4진 신호 집합 생성
-# ==================================================
-p1t = np.sqrt(2) * np.cos(3 * np.pi * tvector) # 2차원 벡터 공간의 x축 기저 신호
-p2t = np.sqrt(2) * np.sin(3 * np.pi * tvector) # 2차원 벡터 공간의 y축 기저 신호
+###############4-ary signal set generation####################################
+p1t=np.sqrt(2)*np.cos(3*np.pi*tvector) # 2차원 벡터 공간의 x축 기저 신호
+p2t=np.sqrt(2)*np.sin(3*np.pi*tvector) # 2차원 벡터 공간의 y축 기저 신호
 
 a, b = ?, ?
 c, d = ?, ?
 e, f = ?, ?
 g, h = ?, ?
 
-s1t = a * p1t + b * p2t
-s2t = c * p1t + d * p2t
-s3t = e * p1t + f * p2t
-s4t = g * p1t + h * p2t
+s1t=a*p1t+b*p2t
+s2t=c*p1t+d*p2t
+s3t=e*p1t+f*p2t
+s4t=g*p1t+h*p2t
+###############################################################################
 
-signal_set = np.stack([s1t, s2t, s3t, s4t])
-
-# ==================================================
-# 3. 이미지 → 비트열 변환: 실습과 상관 없는 부분
-# ==================================================
-sp = 2
+######이미지를 비트열로 만드는 과정: 실습과 상관없는 부분#########################
+sp=2
 file_load("ch18/painting.jpg")
-A = np.asarray(Image.open("painting.jpg").convert("RGB"), dtype=np.uint8)
-A = A[::sp, ::sp, :]
-pixel_values = A.ravel(order="F")
-two_bits = pixel_values >> 6
-data_bits = np.empty(2 * len(two_bits), dtype=np.uint8)
-data_bits[0::2] = (two_bits >> 1) & 1
-data_bits[1::2] = two_bits & 1
-Nb = len(data_bits)
-Ns = Nb // 2
+A=np.array(Image.open('painting.jpg'));
+A=A[np.arange(0,194,2),:,:]; A=A[:,np.arange(0,259,2),:]; A=np.array(64*np.round(A/64),'uint8')
+C=np.unpackbits(np.transpose(A)).reshape(-1, 8); D=C[:,:2]; h,w,dd=A.shape; Nbits=np.prod(D.shape)
+data_bits =''.join(map(str, np.transpose(D).flatten()))
+###############################################################################
 
-# ==================================================
-# 4. 비트열 → 송신 신호 매핑
-# ==================================================
+Nb=len(data_bits) #Number of bits in the image file
+Ns=Nb//2
 
-# 00 → s1t
-# 01 → s2t
-# 10 → s3t
-# 11 → s4t
-symbol_indices = (2 * data_bits[0::2] + data_bits[1::2])
-xt = signal_set[symbol_indices].reshape(-1)
-xt_len = len(xt)
+######### Transmitter signal x(t) generation ##################################
+xt=np.empty(0) #송신 신호 벡터 초기화
+for k in range(Ns):
+    ### 2 bits => 4-ary signal Mapping###############
+    if (data_bits[2*k:2*k+2]=='00'):
+        st=s1t
+    elif (data_bits[2*k:2*k+2]=='01'):
+        st=s2t
+    elif (data_bits[2*k:2*k+2]=='10'):
+        st=s3t
+    else:
+        st=s4t
+    xt=np.append(xt, st) #'st' 이어 붙이기
+    
+###############################################################################
 
-# ==================================================
-# 5. AWGN 채널
-# ==================================================
-noise_sample = 6 * rng.standard_normal(xt_len) #AWGN
-rt = xt + noise_sample #Noise addition
+xt_len=len(xt) #vector length of 'xt'
 
-# ==================================================
-# 6. MAT 파일 저장
-# ==================================================
+##########Received signal after AWGN channel###################################
+noise_sample=3*np.random.randn(xt_len) #AWGN
+rt=xt+noise_sample #noise addition
+###############################################################################
+
 savemat("st_and_rt.mat", {
     "L": L,
     "Ns": Ns,
@@ -2405,9 +2380,7 @@ import pickle
 # ==========================================
 # 1. 원본 비트열과 검출된 비트열 불러오기
 # ==========================================
-
 file_load("ch18/data_bits.mat")
-
 mat = loadmat("data_bits.mat", simplify_cells=True)
 
 data_bits = np.asarray(mat["data_bits"]).ravel().astype(np.uint8)
@@ -2443,10 +2416,11 @@ h, w, channels = original_small.shape
 N = len(data_bits_hat)
 if N != h * w * 3 * 2:
     raise ValueError("비트열 길이와 이미지 크기가 일치하지 않습니다.")
+half = N // 2
+first_bits = data_bits_hat[:half]
+second_bits = data_bits_hat[half:]
 
-first_bits = data_bits_hat[0::2]
-second_bits = data_bits_hat[1::2]
-
+# 각 비트 쌍을 0, 1, 2, 3으로 변환
 pixel_values = (2 * first_bits + second_bits) * 64
 Bhat = pixel_values.reshape((h, w, 3), order="F").astype(np.uint8)
 
@@ -2490,10 +2464,7 @@ if int(first_30_bits, 2) == 103009:
     # 음악 재생
     player.play()
 
-    print("음악 재생을 멈추려면 >> player.pause() 를 실행하면 됨")
-
-else:
-    print("음악 재생 조건을 만족하지 않습니다.")`,
+    print("음악 재생을 멈추려면 >> player.pause() 를 실행하면 됨")`,
           "prompt": `주어진 py 스크립트 ‘plot_received_image.py’를 실행하여 BER과 수신 이미지를 확인하시오.
 (주의. 브라우저를 새로고침했거나 Chapter를 나갔다가 다시 들어오면 저장된 ‘data_bits_hat.pkl’이 사라지므로, 이 경우 문제 2.D2의 py 스크립트를 다시 실행할 것)
            `,
@@ -2639,6 +2610,7 @@ import pickle
 # ==========================================
 # 1. 원본 비트열과 검출된 비트열 불러오기
 # ==========================================
+file_load("ch18/data_bits.mat")
 mat = loadmat("data_bits.mat", simplify_cells=True)
 
 data_bits = np.asarray(mat["data_bits"]).ravel().astype(np.uint8)
@@ -2674,10 +2646,11 @@ h, w, channels = original_small.shape
 N = len(data_bits_hat)
 if N != h * w * 3 * 2:
     raise ValueError("비트열 길이와 이미지 크기가 일치하지 않습니다.")
+half = N // 2
+first_bits = data_bits_hat[:half]
+second_bits = data_bits_hat[half:]
 
-first_bits = data_bits_hat[0::2]
-second_bits = data_bits_hat[1::2]
-
+# 각 비트 쌍을 0, 1, 2, 3으로 변환
 pixel_values = (2 * first_bits + second_bits) * 64
 Bhat = pixel_values.reshape((h, w, 3), order="F").astype(np.uint8)
 
@@ -2721,10 +2694,7 @@ if int(first_30_bits, 2) == 103009:
     # 음악 재생
     player.play()
 
-    print("음악 재생을 멈추려면 >> player.pause() 를 실행하면 됨")
-
-else:
-    print("음악 재생 조건을 만족하지 않습니다.")`,
+    print("음악 재생을 멈추려면 >> player.pause() 를 실행하면 됨")`,
           "prompt": `주어진 py 스크립트 ‘plot_received_image.py’를 실행하여 BER과 수신 이미지를 확인하시오.
 (주의. 브라우저를 새로고침했거나 Chapter를 나갔다가 다시 들어오면 저장된 ‘data_bits_hat.pkl’이 사라지므로, 이 경우 문제 2.D4의 py 스크립트를 다시 실행할 것)
            `,
@@ -2761,14 +2731,12 @@ Bhat = pixel_values.reshape(
 
 따라서 문제 2.D3에서 얻은 BER과 이번 문제에서 얻은 BER은 동일해야 하며, 복원 이미지도 동일하게 나타나야 한다.
 
-실제 BER 값은 새로 생성한 잡음과 문제 2.C에서 설정한 송신 신호 좌표에 따라 달라지므로, Python에서 출력한 값을 확인한다.
-
-단, 두 검출 결과를 올바르게 비교하려면 동일한 수신 신호와 동일한 송신 비트열을 사용해야 한다.`,
+실제 BER 값은 새로 생성한 잡음과 문제 2.C에서 설정한 송신 신호 좌표에 따라 달라지므로, Python에서 출력한 값을 확인한다.`,
         },
         {
           "id": "19-2D6",
           "title": "2.D6.",
-          "type": "python",
+          "type": "essay",
           "prompt": `문제 2.D5의 결과와 문제 2.D3의 결과로부터 내릴 수 있는 결론을 쓰시오.`,
           referenceAnswer: `문제 2.D3의 유클리드 거리 기반 ML 검출 결과와 문제 2.D5의 상관기 기반 검출 결과를 비교하면, 두 방법의 BER은 동일하며 복원된 수신 이미지도 동일하게 나타난다.
 
@@ -2815,7 +2783,7 @@ $$
         {
           "id": "19-2D7",
           "title": "2.D7.",
-          "type": "python",
+          "type": "essay",
           "prompt": `상관기 기반 검출 방법이 ML 검출 방법과 같은 동작을 하기 위한 조건을 정리하시오.`,
           
 referenceAnswer: `상관기 기반 검출이 유클리드 거리 기반 ML 검출과 동일하게 동작하기 위해서는 **모든 송신 후보 신호의 에너지가 동일해야 한다.**

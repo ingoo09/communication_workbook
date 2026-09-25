@@ -5,12 +5,13 @@ import Script from "next/script";
 import { useRouter } from "next/navigation";
 import ProblemRenderer from "./ProblemRenderer";
 import { consoleAnswerToText } from "./ConsoleProblem";
-import { pythonAnswerToCode, pythonAnswerToText } from "./PythonProblem";
+import { pythonAnswerToCode, pythonAnswerToResponse, serializePythonAnswer, pythonAnswerToText } from "./PythonProblem";
 import { graphAnswerToText } from "./GraphProblem";
 import {
   createPythonConsoleInitialValue,
   isPythonConsoleProblem,
   pythonConsoleAnswerToText,
+  parsePythonConsoleAnswer,
 } from "./PythonConsoleProblem";
 import { saveAnswer } from "@/lib/answers/saveAnswer";
 import { loadAnswer } from "@/lib/answers/loadAnswer";
@@ -710,6 +711,9 @@ export default function WorkbookPage({
   }, [chapterSlug, workbookReturnStorageKey]);
 
   const [userAnswer, setUserAnswer] = useState("");
+  const [importSourceId, setImportSourceId] = useState("");
+  const [importNotice, setImportNotice] = useState("");
+  const [importingAnswer, setImportingAnswer] = useState(false);
   const [saved, setSaved] = useState(false);
   const [saveNotice, setSaveNotice] = useState("");
   const [autoSaveNotice, setAutoSaveNotice] = useState("");
@@ -1448,6 +1452,79 @@ export default function WorkbookPage({
   }, [idToIndex, flat]);
 
   const current = flat[idx];
+  const earlierPythonProblems = flat.slice(0, idx).filter(
+    (item) => resolveProblemType(item.pb) === "python",
+  );
+  const selectedImportId = earlierPythonProblems.some(
+    (item) => item.pb.id === importSourceId,
+  )
+    ? importSourceId
+    : (earlierPythonProblems[earlierPythonProblems.length - 1]?.pb.id ?? "");
+
+  async function importEarlierPythonCode() {
+    if (!current || !selectedImportId || importingAnswer) return;
+    const source = earlierPythonProblems.find(
+      (item) => item.pb.id === selectedImportId,
+    );
+    if (!source) return;
+    if (!window.confirm(`${source.pb.title}의 저장된 코드를 현재 편집기로 가져올까요?\n현재 작성 중인 코드는 교체되며, 서술형 답안은 유지됩니다.`)) return;
+
+    setImportingAnswer(true);
+    setImportNotice("");
+    try {
+      let sourceAnswer = "";
+      // 자동 저장된 미제출 초안이 있다면 그 코드를 가장 먼저 사용한다.
+      const draft = readAutoSavedDraft(source.pb.id);
+      if (draft?.answer) sourceAnswer = draft.answer;
+
+      if (!sourceAnswer && isAuthenticated) {
+        const remote = await loadAnswer({
+          chapterId: chapterSlug,
+          problemId: source.pb.id,
+        });
+        if (remote.success && remote.answer?.answer) {
+          sourceAnswer = remote.answer.answer;
+        }
+      }
+
+      if (!sourceAnswer) {
+        const local = window.localStorage.getItem(storageKey);
+        const saved = local ? JSON.parse(local) : {};
+        sourceAnswer = typeof saved?.[source.pb.id] === "string"
+          ? saved[source.pb.id] : "";
+      }
+      if (!sourceAnswer) {
+        setImportNotice("선택한 문제에 저장된 코드가 없습니다.");
+        return;
+      }
+
+      const importedCode = isPythonConsoleProblem(source.pb)
+        ? parsePythonConsoleAnswer(sourceAnswer).code
+        : pythonAnswerToCode(sourceAnswer);
+      if (!importedCode.trim()) {
+        setImportNotice("선택한 문제에 작성된 Python 코드가 없습니다.");
+        return;
+      }
+
+      if (isPythonConsoleProblem(current.pb)) {
+        const existing = parsePythonConsoleAnswer(userAnswer);
+        setUserAnswer(JSON.stringify({ ...existing, code: importedCode }));
+      } else if (current.pb.type === "python" && current.pb.responseEnabled) {
+        setUserAnswer(serializePythonAnswer(
+          importedCode, pythonAnswerToResponse(userAnswer),
+        ));
+      } else {
+        setUserAnswer(importedCode);
+      }
+      setImportNotice(`${source.pb.title}의 Python 코드를 가져왔습니다. 저장하려면 저장 버튼을 누르세요.`);
+    } catch (error) {
+      console.error("이전 Python 코드 가져오기 실패:", error);
+      setImportNotice("코드를 가져오지 못했습니다. 다시 시도해 주세요.");
+    } finally {
+      setImportingAnswer(false);
+    }
+  }
+
 
   function resetProblemViewState(targetProblemId: string) {
     setShowAnswer(false);
@@ -1459,6 +1536,7 @@ export default function WorkbookPage({
     setAudioSource(null);
     setSaved(false);
     setSaveNotice("");
+    setImportNotice("");
 
     // 새 문제 답안이 restore되기 전에는 이전 문제의 저장 기준을 사용하지 않는다.
     savedAnswerRef.current = {
@@ -3116,7 +3194,8 @@ except Exception:
       <div
         style={{
           display: "flex",
-          minHeight: "100vh",
+          height: "100dvh",
+          overflow: "hidden",
           background: "#f5f7fb",
         }}
       >
@@ -3334,9 +3413,15 @@ except Exception:
         <div
           style={{
             flex: 1,
-            padding: 24,
+            minWidth: 0,
+            height: "100dvh",
+            boxSizing: "border-box",
+            padding: "14px 20px",
             maxWidth: 1050,
             margin: "0 auto",
+            display: "flex",
+            flexDirection: "column",
+            overflow: "hidden",
           }}
         >
           <div
@@ -3620,8 +3705,11 @@ except Exception:
 
           <div
             style={{
-              marginTop: 16,
+              marginTop: 12,
               padding: 18,
+              flex: "0 1 32%",
+              minHeight: 100,
+              overflowY: "auto",
               border: "1px solid #eee",
               borderRadius: 14,
               background: "#fff",
@@ -3648,9 +3736,9 @@ except Exception:
           </div>
 
 
+          <div style={{ flex: "1 1 0", minHeight: 0, overflowY: "auto", marginTop: 12, paddingRight: 4 }}>
           <div
             style={{
-              marginTop: 18,
               padding: 18,
               border: "1px solid #eee",
               borderRadius: 14,
@@ -3810,6 +3898,31 @@ except Exception:
                       브라우저의 Python 작업공간에만 보관됩니다. 새로고침하거나
                       Chapter를 나가면 다시 가져와야 합니다.
                     </div>
+                  </div>
+                )}
+
+                {currentProblemType === "python" && earlierPythonProblems.length > 0 && (
+                  <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+                    <label htmlFor="python-import-source" style={{ fontSize: 13, fontWeight: 800 }}>이전 코드:</label>
+                    <select
+                      id="python-import-source"
+                      value={selectedImportId}
+                      onChange={(event) => setImportSourceId(event.target.value)}
+                      style={{ padding: "8px 10px", borderRadius: 8, border: "1px solid #d1d5db", background: "#fff" }}
+                    >
+                      {earlierPythonProblems.map((item) => (
+                        <option key={item.pb.id} value={item.pb.id}>{item.pb.title}</option>
+                      ))}
+                    </select>
+                    <button
+                      type="button"
+                      onClick={() => { void importEarlierPythonCode(); }}
+                      disabled={importingAnswer}
+                      style={{ padding: "9px 12px", borderRadius: 9, border: "1px solid #c7d2fe", color: "#3730a3", background: "#eef2ff", fontWeight: 800 }}
+                    >
+                      {importingAnswer ? "가져오는 중..." : "이전 코드 가져오기"}
+                    </button>
+                    {importNotice && <span role="status" style={{ fontSize: 12, color: "#475569" }}>{importNotice}</span>}
                   </div>
                 )}
 
@@ -4133,10 +4246,15 @@ except Exception:
             </div>
           )}
 
+          </div>{/* 답안 영역 독립 스크롤 끝 */}
+
           <div
             data-tutorial="workbook-navigation"
             style={{
-              marginTop: 18,
+              flexShrink: 0,
+              paddingTop: 10,
+              background: "#f5f7fb",
+              marginTop: 0,
               display: "grid",
               gridTemplateColumns: "1fr 1fr",
               gap: 12,

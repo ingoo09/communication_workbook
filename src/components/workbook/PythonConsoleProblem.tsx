@@ -170,6 +170,7 @@ export default function PythonConsoleProblem({
   const [workspace, setWorkspace] = useState<WorkspaceItem[]>([]);
   const [figures, setFigures] = useState<string[]>([]);
   const [audioSource, setAudioSource] = useState<string | null>(null);
+  const [expandedFigure, setExpandedFigure] = useState<number | null>(null);
 
   // 같은 시점에 namespace 초기화가 중복 실행되지 않도록 공유한다.
   const namespacePromiseRef = useRef<Promise<void> | null>(null);
@@ -398,6 +399,7 @@ json.dumps({
     consoleHistoryDraftRef.current = "";
     setWorkspace([]);
     setFigures([]);
+    setExpandedFigure(null);
     setAudioSource(null);
     namespacePromiseRef.current = null;
 
@@ -792,6 +794,9 @@ if "matplotlib.pyplot" in sys.modules:
         <pre
           style={{
             margin: 0,
+            maxHeight: 260,
+            overflowY: "auto",
+            overflowX: "auto",
             whiteSpace: "pre-wrap",
             lineHeight: 1.55,
             fontFamily:
@@ -920,168 +925,93 @@ if "matplotlib.pyplot" in sys.modules:
         </div>
       </div>
 
-      <div
-        style={{
-          marginTop: 14,
-          display: "grid",
-          gridTemplateColumns:
-            "repeat(auto-fit, minmax(280px, 1fr))",
-          gap: 14,
-        }}
-      >
-        <div
-          style={{
-            padding: 14,
-            borderRadius: 12,
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            minWidth: 0,
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>
-            Workspace
-          </div>
-
-          {workspace.length === 0 ? (
-            <div style={{ opacity: 0.6, fontSize: 14 }}>
-              Script를 실행하면 생성된 변수가 여기에 표시됩니다.
-            </div>
-          ) : (
-            <div style={{ overflowX: "auto" }}>
-              <table
-                style={{
-                  width: "100%",
-                  borderCollapse: "collapse",
-                  fontSize: 13,
-                }}
+      {/* Figure는 전체 너비로 표시하고 클릭 시 확대한다. */}
+      <section style={{ marginTop: 14, padding: 14, borderRadius: 12, background: "#fff", border: "1px solid #e5e7eb", minWidth: 0 }}>
+        <div style={{ fontWeight: 800, marginBottom: 10 }}>Figure {figures.length > 0 ? `(${figures.length})` : ""}</div>
+        {figures.length === 0 ? (
+          <div style={{ opacity: 0.6, fontSize: 14 }}>그래프가 생성되면 여기에 표시됩니다.</div>
+        ) : (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {figures.map((figure, index) => (
+              <button
+                key={`${figure.slice(0, 24)}-${index}`}
+                type="button"
+                onClick={() => setExpandedFigure(index)}
+                title="클릭하여 Figure 크게 보기"
+                aria-label={`Figure ${index + 1} 확대`}
+                style={{ display: "block", width: "100%", padding: 0, border: "1px solid #e5e7eb", borderRadius: 10, background: "#fff", cursor: "zoom-in" }}
               >
-                <thead>
-                  <tr
-                    style={{
-                      textAlign: "left",
-                      background: "#f8fafc",
-                    }}
-                  >
-                    <th style={{ padding: 8 }}>변수</th>
-                    <th style={{ padding: 8 }}>자료형</th>
-                    <th style={{ padding: 8 }}>값</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {workspace.map((item) => (
-                    <tr key={item.name}>
-                      <td
-                        style={{
-                          padding: 8,
-                          borderTop: "1px solid #f1f5f9",
-                          fontWeight: 700,
-                          verticalAlign: "top",
-                        }}
-                      >
-                        {item.name}
-                      </td>
-                      <td
-                        style={{
-                          padding: 8,
-                          borderTop: "1px solid #f1f5f9",
-                          verticalAlign: "top",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {item.type}
-                        {item.shape ? ` ${item.shape}` : ""}
-                      </td>
-                      <td
-                        style={{
-                          padding: 8,
-                          borderTop: "1px solid #f1f5f9",
-                          verticalAlign: "top",
-                        }}
-                      >
-                        <code
-                          style={{
-                            whiteSpace: "pre-wrap",
-                            wordBreak: "break-word",
-                          }}
-                        >
-                          {item.preview}
-                        </code>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        <div
-          style={{
-            padding: 14,
-            borderRadius: 12,
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            minWidth: 0,
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>
-            Sound
-          </div>
-
-          {!audioSource ? (
-            <div style={{ opacity: 0.6, fontSize: 14 }}>
-              signal_play(...)를 실행하면 여기에 오디오 플레이어가 표시됩니다.
-            </div>
-          ) : (
-            <audio controls src={audioSource} style={{ width: "100%" }} />
-          )}
-        </div>
-
-        <div
-          style={{
-            padding: 14,
-            borderRadius: 12,
-            background: "#fff",
-            border: "1px solid #e5e7eb",
-            minWidth: 0,
-          }}
-        >
-          <div style={{ fontWeight: 800, marginBottom: 10 }}>
-            Figure
-          </div>
-
-          {figures.length === 0 ? (
-            <div style={{ opacity: 0.6, fontSize: 14 }}>
-              그래프가 생성되면 여기에 표시됩니다.
-            </div>
-          ) : (
-            <div
-              style={{
-                display: "flex",
-                flexDirection: "column",
-                gap: 12,
-              }}
-            >
-              {figures.map((figure, index) => (
                 <img
-                  key={`${figure.slice(0, 24)}-${index}`}
                   src={`data:image/png;base64,${figure}`}
                   alt={`Matplotlib Figure ${index + 1}`}
-                  style={{
-                    display: "block",
-                    width: "100%",
-                    maxHeight: 520,
-                    objectFit: "contain",
-                    borderRadius: 10,
-                    border: "1px solid #e5e7eb",
-                    background: "#fff",
-                  }}
+                  style={{ display: "block", width: "100%", height: "auto", maxHeight: 640, objectFit: "contain", borderRadius: 10 }}
                 />
-              ))}
-            </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* Sound는 전체 폭을 차지하지 않으면서도 재생 컨트롤을 충분히 확보한다. */}
+      <section style={{ marginTop: 14, padding: 14, borderRadius: 12, background: "#fff", border: "1px solid #e5e7eb" }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Sound</div>
+        {audioSource ? (
+          <audio controls src={audioSource} style={{ display: "block", width: "100%", maxWidth: 560 }} />
+        ) : (
+          <div style={{ opacity: 0.6, fontSize: 14 }}>signal_play(...)를 실행하면 오디오 플레이어가 표시됩니다.</div>
+        )}
+      </section>
+
+      {/* 변수가 많아도 답안 영역이 밀리지 않게 기본 접힘 + 내부 스크롤. */}
+      <details style={{ marginTop: 14, padding: 14, borderRadius: 12, background: "#fff", border: "1px solid #e5e7eb", minWidth: 0 }}>
+        <summary style={{ fontWeight: 800, cursor: "pointer", userSelect: "none" }}>
+          Workspace ({workspace.length}개 변수) · 펼쳐서 보기
+        </summary>
+        <div style={{ marginTop: 12, maxHeight: 240, overflow: "auto", border: "1px solid #e5e7eb", borderRadius: 8 }}>
+          {workspace.length === 0 ? (
+            <div style={{ padding: 12, opacity: 0.6, fontSize: 14 }}>Script를 실행하면 생성된 변수가 여기에 표시됩니다.</div>
+          ) : (
+            <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
+              <thead style={{ position: "sticky", top: 0, background: "#f8fafc", zIndex: 1 }}>
+                <tr>
+                  <th style={{ padding: 8, textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>변수</th>
+                  <th style={{ padding: 8, textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>자료형</th>
+                  <th style={{ padding: 8, textAlign: "left", borderBottom: "1px solid #e5e7eb" }}>값</th>
+                </tr>
+              </thead>
+              <tbody>
+                {workspace.map((item) => (
+                  <tr key={item.name}>
+                    <td style={{ padding: 8, borderBottom: "1px solid #f1f5f9", fontWeight: 700, verticalAlign: "top" }}>{item.name}</td>
+                    <td style={{ padding: 8, borderBottom: "1px solid #f1f5f9", verticalAlign: "top", whiteSpace: "nowrap" }}>
+                      {item.type}{item.shape ? ` ${item.shape}` : ""}
+                    </td>
+                    <td style={{ padding: 8, borderBottom: "1px solid #f1f5f9", verticalAlign: "top" }}>
+                      <code style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>{item.preview}</code>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           )}
         </div>
-      </div>
+      </details>
+
+      {/* 확대 화면은 원본 Figure 비율을 유지한다. */}
+      {expandedFigure !== null && figures[expandedFigure] && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-label={`Figure ${expandedFigure + 1} 확대 보기`}
+          onClick={() => setExpandedFigure(null)}
+          style={{ position: "fixed", inset: 0, zIndex: 9999, padding: 24, background: "rgba(15, 23, 42, 0.88)", display: "flex", alignItems: "center", justifyContent: "center" }}
+        >
+          <div onClick={(event) => event.stopPropagation()} style={{ position: "relative", width: "100%", maxWidth: 1200, maxHeight: "100%", display: "flex", flexDirection: "column", gap: 10 }}>
+            <button type="button" onClick={() => setExpandedFigure(null)} style={{ alignSelf: "flex-end", padding: "8px 14px", borderRadius: 8, border: 0, background: "#fff", color: "#111827", fontWeight: 800, cursor: "pointer" }}>닫기 ✕</button>
+            <img src={`data:image/png;base64,${figures[expandedFigure]}`} alt={`확대한 Figure ${expandedFigure + 1}`} style={{ display: "block", width: "100%", maxHeight: "calc(100vh - 110px)", objectFit: "contain", background: "#fff", borderRadius: 8 }} />
+          </div>
+        </div>
+      )}
 
       <div style={{ marginTop: 18 }}>
         <label
@@ -1103,7 +1033,8 @@ if "matplotlib.pyplot" in sys.modules:
           }
           placeholder="여기에 답안을 작성하세요."
           style={{
-            width: "97.5%",
+            width: "100%",
+            boxSizing: "border-box",
             minHeight: 160,
             padding: 14,
             borderRadius: 12,
