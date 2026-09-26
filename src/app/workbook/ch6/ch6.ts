@@ -1043,7 +1043,9 @@ plt.figure()
 plt.semilogy(f,Pxx)
 plt.grid()
 del f`,
-          "prompt": `위 py 스크립트를 수행한 후, ‘xt’의 PSD 결과를 확인하시오. 결과 그래프를 바탕으로, 더해진 사인파의 주파수가 얼마인지 최대한 정확히 쓰시오. (관심 영역 확대를 위해 'plt.axis([?, ?, -1, -1])'를 이용할 수 있음)`
+          "prompt": `위 py 스크립트를 수행한 후, ‘xt’의 PSD 결과를 확인하시오. 결과 그래프를 바탕으로, 더해진 사인파의 주파수가 얼마인지 최대한 정확히 쓰시오. (관심 영역 확대를 위해 'plt.axis([?, ?, -1, -1])'를 이용할 수 있음)
+          
+(참고. PSD 그래프를 보면 양수의 주파수 영역에서만 주파수 스펙트럼을 보여주는 것을 알 수 있다. 실수 함수의 주파수 스펙트럼 모양은 y축에 대하여 대칭이기 때문이다.) `
         ,
           referenceAnswer: `tone 주파수는
 \`\`\`python
@@ -1230,7 +1232,7 @@ $$
           "title": "4.C.",
           "prompt": `문제 4.A에서 생성한 ‘ht’와 같은 길이를 갖는 3kHz 코사인 파형 벡터 ‘cos3000’을 생성하기 위해, 주어진 py 스크립트를 실행 후, Console에서 아래를 계속 수행하자. ‘ht’와 ‘cos3000’을 곱하여 ‘ht_times_cos’를 생성하고 ‘ht_times_cos’의 PSD를 관찰하시오.
 \`\`\`python
->>> cos3000=np.cos(2*np.pi*3000*t)
+>>> cos3000=2*np.cos(2*np.pi*3000*t)
 >>> ht_times_cos=ht*cos3000
 >>> plt.psd(ht_times_cos,NFFT=8192*2,Fs=8192)
 \`\`\``

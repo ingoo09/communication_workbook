@@ -885,7 +885,7 @@ $$
           "type": "python",
           "prompt": `문제 2.E에서 $f_1(-\\tau)$의 샘플링 벡터 ‘f1mirror’를 생성하여 사용한다.
           
-문제 2.E의 py 스크립트를 복사하여 붙여넣은 후, 6번째 라인 ‘f1mirror=0.5*((tau>-1)&(tau<0))’을 ‘f1mirror=1/tau_step*(round(tau,2)==0)’로 수정하면, $f_2(t)$와 문제 3.A1에서 확인한 $f_1(t)$의 컨볼루션 결과를 얻을 수 있다. 수정한 py 스크립트를 실행하고, 컨볼루션 결과 그래프를 확인하시오.`
+문제 2.E의 py 스크립트를 복사하여 붙여넣은 후, 6번째 라인 ‘f1mirror=0.5*((tau>-1)&(tau<0))’을 ‘f1mirror=1/tau_step*(round(tau,2)==0)’로 수정하면, [그림 5.2]의 $f_2(t)$와 문제 3.A1에서 확인한 $f_1(t)$의 컨볼루션 결과를 얻을 수 있다. 수정한 py 스크립트를 실행하고, 컨볼루션 결과 그래프를 확인하시오.`
         ,
           referenceAnswer: `수정한 \`f1mirror\`를 사용하여 컨볼루션을 계산하면 결과 파형은 $f_2(t)$와 거의 같은 모양으로 나타난다.
 
@@ -1579,12 +1579,8 @@ B는 시간축으로 늘어나 가장 천천히 변하고, C는 압축되어 가
         { //문제 5.B
           "id": "5-5B",
           "title": "5.B.",
-          "prompt": `$x(t)$의 magnitude spectrum을 확인하자.`
-        },
-        {
-          "id": "5-5B1",
-          "title": "5.B1.",
           "type": "python",
+          responseEnabled: true,
           starterCode: `import numpy as np
 import matplotlib.pyplot as plt
 from scipy.io import loadmat
@@ -1609,28 +1605,22 @@ xC = np.interp(t, zt[0], zt[1])
 xD = np.interp(t, wt[0], wt[1])
 
 #문제 5.A의 py 스크립트에 아래를 추가.
-spectrum_view(xA, fs, units="Watts", frequency_limit_hz=8e3)`,
-          "prompt": `문제 5.A의 py 스크립트에, A 신호에 대하여 아래를 추가하여 실행하고, 결과를 확인하시오.
+spectrum_view(xA, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])`,
+          "prompt": `$x(t)$의 magnitude spectrum을 확인하자.
+  
+문제 5.A의 py 스크립트에, A 신호에 대하여 아래를 추가하여 실행하고, 결과를 확인하시오.
 \`\`\`python  
 #문제 5.A의 py 스크립트에 아래를 추가.
 spectrum_view(xA, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])
 \`\`\`
+스펙트럼에서 신호의 크기가 급격히 작아지는 양쪽 끝의 주파수를 관찰하여, 그 값을 쓰시오.
 `
         ,
           referenceAnswer: `\`spectrum_view()\`를 실행하면 A 신호의 magnitude spectrum이 원점을 중심으로 나타난다.
 
-주요 성분은 대략
-$$
--0.5\\text{ kHz}\\sim+0.5\\text{ kHz}
-$$
-범위에 존재하는 형태로 관찰된다.`},
-        {
-          "id": "5-5B2",
-          "title": "5.B2.",
-          "type": "essay",
-          "prompt": `문제 5.B1의 스펙트럼에서 신호의 크기가 급격히 작아지는 양쪽 끝의 주파수를 관찰하여, 그 값을 쓰시오.`
-        ,
-          referenceAnswer: `스펙트럼의 크기가 급격히 작아지는 양쪽 끝 주파수는 대략
+스펙트럼의 크기가 급격히 작아지는 양쪽 끝 주파수는 대략
 $$
 \\boxed{-0.5\\text{ kHz},\\quad+0.5\\text{ kHz}}
 $$
@@ -1645,107 +1635,90 @@ $$
         {
           "id": "5-5C1",
           "title": "5.C1.",
-          "type": "python",
-          responseEnabled: true,
-          "prompt": `B는 $x_B(t)=x(t/2)$이다. B의 스펙트럼을 예측하시오.
-예측한 후 실제로 문제 5.A의 py 스크립트에 아래를 추가하여 실행하고, 결과를 확인하시오.
-\`\`\`python  
-#문제 5.A의 py 스크립트에 아래를 추가.
-spectrum_view(xB, fs, units="Watts", frequency_limit_hz=8e3)
-\`\`\``
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.A1에서 답한 B의 표현을 근거로, B의 스펙트럼을 예측하여 그리시오.`
         ,
-          referenceAnswer: `B는
-$$
-x_B(t)=x(t/2)
-$$
-이다.
-
-시간 scaling 성질
-$$
-x(at)
-\\longleftrightarrow
-\\frac1{|a|}X\\left(\\frac{f}{a}\\right)
-$$
-에서 $a=1/2$이므로
-$$
-X_B(f)=2X(2f)
-$$
-이다.
-
-따라서 원래 $\\pm0.5$ kHz였던 끝 주파수는
-$$
-\\boxed{\\pm0.25\\text{ kHz}}
-$$
-가 된다.
-
-실험 결과도 약 $\\pm0.25$ kHz로 나타나 예측과 일치한다.`},
+          referenceAnswer: ``},
         {
           "id": "5-5C2",
           "title": "5.C2.",
           "type": "python",
           responseEnabled: true,
-          "prompt": `C는 $x_B(t)=x(2t)$이다. C의 스펙트럼을 예측하시오.
-예측한 후 실제로 문제 5.A의 py 스크립트에 아래를 추가하여 실행하고, 결과를 확인하시오.
+          "prompt": `문제 5.A의 py 스크립트에, B 신호에 대하여 아래를 추가하여 실행하고, 결과를 확인하시오.
 \`\`\`python  
 #문제 5.A의 py 스크립트에 아래를 추가.
-spectrum_view(xC, fs, units="Watts", frequency_limit_hz=8e3)
-\`\`\``
+spectrum_view(xB, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])
+\`\`\`
+문제 5.C1에서 그린 본인의 스펙트럼 예측과 일치하는지 설명하시오.`
         ,
-          referenceAnswer: `C는
-$$
-x_C(t)=x(2t)
-$$
-이다.
-
-따라서
-$$
-X_C(f)
-=
-\\frac12X(f/2)
-$$
-이고 주파수축 폭은 2배 넓어진다.
-
-따라서 끝 주파수는
-$$
-\\boxed{\\pm1\\text{ kHz}}
-$$
-로 예상되며 실험 결과도 약 $\\pm1$ kHz로 나타난다.`},
+          referenceAnswer: ``},
         {
           "id": "5-5C3",
           "title": "5.C3.",
-          "type": "python",
-          responseEnabled: true,
-          "prompt": `D는 $x_D(t)=x(t-0.05)$이다. D의 스펙트럼을 예측하시오.
-예측한 후 실제로 문제 5.A의 py 스크립트에 아래를 추가하여 실행하고, 결과를 확인하시오.
-\`\`\`python  
-#문제 5.A의 py 스크립트에 아래를 추가.
-spectrum_view(xD, fs, units="Watts", frequency_limit_hz=8e3)
-\`\`\``
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.A1에서 답한 C의 표현을 근거로, C의 스펙트럼을 예측하여 그리시오.`
         ,
-          referenceAnswer: `D는
-$$
-x_D(t)=x(t-0.05)
-$$
-이다.
-
-시간 이동 성질에 의해
-$$
-X_D(f)=X(f)e^{-j2\\pi f(0.05)}
-$$
-이고
-$$
-|X_D(f)|=|X(f)|
-$$
-이다.
-
-따라서 magnitude spectrum의 끝 주파수는 A와 같은
-$$
-\\boxed{\\pm0.5\\text{ kHz}}
-$$
-이며 실험 결과도 일치한다.`},
+          referenceAnswer: ``},
         {
           "id": "5-5C4",
           "title": "5.C4.",
+          "type": "python",
+          responseEnabled: true,
+          "prompt": `문제 5.A의 py 스크립트에, C 신호에 대하여 아래를 추가하여 실행하고, 결과를 확인하시오.
+\`\`\`python  
+#문제 5.A의 py 스크립트에 아래를 추가.
+spectrum_view(xC, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])
+\`\`\`
+문제 5.C3에서 그린 본인의 스펙트럼 예측과 일치하는지 설명하시오.`
+        ,
+          referenceAnswer: ``},
+          {
+          "id": "5-5C5",
+          "title": "5.C5.",
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.A1에서 답한 D의 표현을 근거로, D의 스펙트럼을 예측하여 그리시오.`
+        ,
+          referenceAnswer: ``},
+        {
+          "id": "5-5C6",
+          "title": "5.C6.",
+          "type": "python",
+          responseEnabled: true,
+          "prompt": `문제 5.A의 py 스크립트에, D 신호에 대하여 아래를 추가하여 실행하고, 결과를 확인하시오.
+\`\`\`python  
+#문제 5.A의 py 스크립트에 아래를 추가.
+spectrum_view(xD, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])
+\`\`\`
+문제 5.C5에서 그린 본인의 스펙트럼 예측과 일치하는지 설명하시오.`
+        ,
+          referenceAnswer: ``},
+        {
+          "id": "5-5C7",
+          "title": "5.C7.",
           "type": "essay",
           "prompt": `A~D의 시간파형과 스펙트럼 결과를 함께 고려하면, 시간축에서 신호가 빠르게 변화하는 정도와 주파수영역의 대역폭 사이에는 어떤 관계가 있는가?`
         ,
@@ -1822,8 +1795,15 @@ J | $x(t)e^{j2\\pi f_0t}$
         {
           "id": "5-5E1",
           "title": "5.E1.",
-          "type": "essay",
-          "prompt": `문제 5.D의 표에서 자신이 작성한 I의 식을 바탕으로, I의 스펙트럼을 예측하시오.`
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.D의 표에서 자신이 작성한 I의 식을 바탕으로, I의 스펙트럼을 예측하여 그리시오.`
         ,
           referenceAnswer: `I는
 $$
@@ -1890,7 +1870,7 @@ xK = np.conj(xJ)
 
 #문제 5.D의 py 스크립트에 아래를 추가.
 spectrum_view(xI, fs, units="Watts", frequency_limit_hz=8e3)`,
-          "prompt": `I의 스펙트럼을 확인하시오.
+          "prompt": `I의 스펙트럼을 확인하고, 본인의 스펙트럼 예측과 일치하는지 설명하시오.
 \`\`\`python  
 #문제 5.D의 py 스크립트에 아래를 추가.
 spectrum_view(xI, fs, units="Watts", frequency_limit_hz=8e3)
@@ -1907,8 +1887,15 @@ $$
         {
           "id": "5-5E3",
           "title": "5.E3.",
-          "type": "essay",
-          "prompt": `문제 5.D의 표에서 자신이 작성한 J의 식을 바탕으로, J의 스펙트럼을 예측하시오.`
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.D의 표에서 자신이 작성한 J의 식을 바탕으로, J의 스펙트럼을 예측하여 그리시오.`
         ,
           referenceAnswer: `J는
 $$
@@ -1980,11 +1967,13 @@ xJ = xA*xI
 xK = np.conj(xJ)
 
 #문제 5.D의 py 스크립트에 아래를 추가.
-spectrum_view(xJ, fs, units="Watts", frequency_limit_hz=8e3)`,
-          "prompt": `J의 스펙트럼을 확인하시오.
+spectrum_view(xJ, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])`,
+          "prompt": `J의 스펙트럼을 확인하고, 본인의 스펙트럼 예측과 일치하는지 설명하시오.
 \`\`\`python  
 #문제 5.D의 py 스크립트에 아래를 추가.
 spectrum_view(xJ, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])
 \`\`\`
           `
         ,
@@ -1998,8 +1987,15 @@ $$
         {
           "id": "5-5E5",
           "title": "5.E5.",
-          "type": "essay",
-          "prompt": `문제 5.D의 표에서 자신이 작성한 G의 식을 바탕으로, G의 스펙트럼을 예측하시오.`
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.D의 표에서 자신이 작성한 G의 식을 바탕으로, G의 스펙트럼을 예측하여 그리시오.`
         ,
           referenceAnswer: `G는
 $$
@@ -2068,7 +2064,7 @@ xK = np.conj(xJ)
 
 #문제 5.D의 py 스크립트에 아래를 추가.
 spectrum_view(xG, fs, units="Watts", frequency_limit_hz=8e3)`,
-          "prompt": `G의 스펙트럼을 확인하시오.
+          "prompt": `G의 스펙트럼을 확인하고, 본인의 스펙트럼 예측과 일치하는지 설명하시오.
 \`\`\`python  
 #문제 5.D의 py 스크립트에 아래를 추가.
 spectrum_view(xG, fs, units="Watts", frequency_limit_hz=8e3)
@@ -2085,8 +2081,15 @@ $$
         {
           "id": "5-5E7",
           "title": "5.E7.",
-          "type": "essay",
-          "prompt": `문제 5.D의 표에서 자신이 작성한 H의 식을 바탕으로, H의 스펙트럼을 예측하시오.`
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.D의 표에서 자신이 작성한 H의 식을 바탕으로, H의 스펙트럼을 예측하여 그리시오.`
         ,
           referenceAnswer: `H는
 $$
@@ -2166,11 +2169,13 @@ xJ = xA*xI
 xK = np.conj(xJ)
 
 #문제 5.D의 py 스크립트에 아래를 추가.
-spectrum_view(xH, fs, units="Watts", frequency_limit_hz=8e3)`,
-          "prompt": `H의 스펙트럼을 확인하시오.
+spectrum_view(xH, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.001])`,
+          "prompt": `H의 스펙트럼을 확인하고, 본인의 스펙트럼 예측과 일치하는지 설명하시오.
 \`\`\`python  
 #문제 5.D의 py 스크립트에 아래를 추가.
 spectrum_view(xH, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.001])
 \`\`\`
           `
         ,
@@ -2237,8 +2242,15 @@ $$
         {
           "id": "5-5F2",
           "title": "5.F2.",
-          "type": "essay",
-          "prompt": `문제 5.D의 py 스크립트에 따르면, K는 J의 conjuage(공액) 신호임을 알 수 있다. K의 스펙트럼을 예측하시오.`
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.D의 py 스크립트에 따르면, K는 J의 conjuage(공액) 신호임을 알 수 있다. K의 스펙트럼을 예측하여 그리시오.`
         ,
           referenceAnswer: `K는
 $$
@@ -2312,11 +2324,13 @@ xJ = xA*xI
 xK = np.conj(xJ)
 
 #문제 5.D의 py 스크립트에 아래를 추가.
-spectrum_view(xK, fs, units="Watts", frequency_limit_hz=8e3)`,
-          "prompt": `K의 스펙트럼을 확인하시오.
+spectrum_view(xK, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])`,
+          "prompt": `K의 스펙트럼을 확인하고, 본인의 스펙트럼 예측과 일치하는지 설명하시오.
 \`\`\`python  
 #문제 5.D의 py 스크립트에 아래를 추가.
 spectrum_view(xK, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.005])
 \`\`\`
           `
         ,
@@ -2377,8 +2391,15 @@ $$
         {
           "id": "5-5G3",
           "title": "5.G3.",
-          "type": "essay",
-          "prompt": `문제 5.D의 표에서 자신이 작성한 F의 식, 문제 5.B1에서 확인한 $x(t)$의 스펙트럼, [[equation:5.3]]을 바탕으로, F의 스펙트럼을 예측하시오.`
+          "type": "graph",
+          graphInputMode: 'both',
+          graphXMin: -8,
+          graphXMax: 8,
+          graphYMin: 0,
+          graphYMax: 0.005,
+          graphXAxisLabel: 'x',
+          graphYAxisLabel: 'y',
+          "prompt": `문제 5.D의 표에서 자신이 작성한 F의 식, 문제 5.B1에서 확인한 $x(t)$의 스펙트럼, [[equation:5.3]]을 바탕으로, F의 스펙트럼을 예측하여 그리시오.`
         ,
           referenceAnswer: `F는
 $$
@@ -2457,12 +2478,14 @@ xK = np.conj(xJ)
 
 #문제 5.D의 py 스크립트에 아래를 추가.
 xF_no_dc = xF - np.mean(xF) # 제곱으로 인해 발생한 DC 성분 제거
-spectrum_view(xF_no_dc, fs, units="Watts", frequency_limit_hz=8e3)`,
-          "prompt": `F의 스펙트럼을 확인하시오.
+spectrum_view(xF_no_dc, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.0005])`,
+          "prompt": `F의 스펙트럼을 확인하고, 본인의 스펙트럼 예측과 일치하는지 설명하시오.
 \`\`\`python  
 #문제 5.D의 py 스크립트에 아래를 추가.
 xF_no_dc = xF - np.mean(xF) # 제곱으로 인해 발생한 DC 성분 제거
 spectrum_view(xF_no_dc, fs, units="Watts", frequency_limit_hz=8e3)
+plt.axis([-8, 8, 0, 0.0005])
 \`\`\`
 (참고. $x^2(t)$는 양의 평균값을 가지므로 $f=0$에서 큰 DC 성분이 나타날 수 있다. 본 문제에서는 convolution에 의해 형성되는 스펙트럼의 전체적인 모양을 관찰하기 위해 평균값을 제거한 신호를 사용한다.)
           `
