@@ -67,7 +67,7 @@ ${problemPrompt || "(문제 본문 없음)"}
 `;
 
     const response = await client.responses.create({
-      model: "gpt-5.6-luna",
+      model: "gpt-6-luna",
       input: [
         {
           role: "user",

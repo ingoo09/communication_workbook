@@ -174,7 +174,7 @@ export default function ConsoleProblem({
   }
 
   function codeUsesWorkbookHelpers(source: string) {
-    return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view)\s*\(/.test(
+    return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view|rcosdesign)\s*\(/.test(
       source,
     );
   }
@@ -204,6 +204,7 @@ _console_helper_names = (
     "sound_play",
     "signal_play",
     "spectrum_view",
+    "rcosdesign",
 )
 
 for _console_helper_name in _console_helper_names:

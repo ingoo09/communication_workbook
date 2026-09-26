@@ -338,7 +338,7 @@ Python 실행 문제 자체에서 이전 실행 결과에 대한 증거를 요�
     const response =
     await client.responses.create({
 
-        model:"gpt-5.6-luna",
+        model:"gpt-6-luna",
 
         input:
           graphAnswer?.imageDataUrl

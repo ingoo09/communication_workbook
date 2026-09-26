@@ -2407,7 +2407,7 @@ plt.close('all')
 
   async function installWorkbookSoundHelpers(pyodide: any) {
     // Workbook 공통 파일/Sound/Spectrum helper.
-    // 학생 코드는 file_load(...), sound_load(...), sound_play(...), signal_play(...), spectrum_view(...)만 사용하고
+    // 학생 코드는 file_load(...), sound_load(...), sound_play(...), signal_play(...), spectrum_view(...), rcosdesign(...) 등을 사용하고
     // WAV/Base64 변환 등 내부 구현은 숨긴다.
     await pyodide.loadPackage(["numpy", "scipy"]);
 
@@ -2535,6 +2535,69 @@ def signal_play(signal, fs):
         signal_play(y, fs)
     """
     return _workbook_signal_to_audio_base64(signal, fs)
+
+
+def rcosdesign(r, span, L, shape="normal"):
+    """MATLAB rcosdesign에 대응하는 단위 에너지 RC/SRRC FIR 펄스.
+
+    r: roll-off factor (0~1)
+    span: 심볼 단위 필터 길이 (양의 정수)
+    L: 심볼당 샘플 수 (양의 정수)
+    shape: "normal"(Raised Cosine) 또는 "sqrt"(Root Raised Cosine)
+
+    반환 길이: span * L + 1 (span * L은 짝수)
+    """
+    r = float(r)
+    if not np.isfinite(r) or not 0 <= r <= 1:
+        raise ValueError("r은 0 이상 1 이하의 유한한 값이어야 합니다.")
+    if (isinstance(span, (bool, np.bool_)) or
+            not isinstance(span, (int, np.integer)) or span <= 0):
+        raise ValueError("span은 양의 정수여야 합니다.")
+    if (isinstance(L, (bool, np.bool_)) or
+            not isinstance(L, (int, np.integer)) or L <= 0):
+        raise ValueError("L은 양의 정수여야 합니다.")
+    if span * L % 2:
+        raise ValueError("span * L은 짝수여야 합니다.")
+    if shape not in ("normal", "sqrt"):
+        raise ValueError('shape는 "normal" 또는 "sqrt"여야 합니다.')
+
+    t = np.arange(-span * L // 2, span * L // 2 + 1,
+                  dtype=np.float64) / L
+
+    if r == 0:
+        h = np.sinc(t)
+    elif shape == "normal":
+        # RC(t) = sinc(t) * cos(pi*r*t) / (1 - (2*r*t)^2)
+        den = 1.0 - (2.0 * r * t)**2
+        singular = np.isclose(den, 0.0, atol=1e-12, rtol=0.0)
+        h = np.empty_like(t)
+        h[~singular] = (np.sinc(t[~singular]) *
+                        np.cos(np.pi * r * t[~singular]) /
+                        den[~singular])
+        # t = +/-1/(2*r)의 제거 가능한 특이점
+        h[singular] = (r / 2.0) * np.sin(np.pi / (2.0 * r))
+    else:
+        # SRRC(t) = [sin(pi*t*(1-r)) + 4*r*t*cos(pi*t*(1+r))]
+        #           / [pi*t*(1-(4*r*t)^2)]
+        h = np.empty_like(t)
+        at_zero = np.isclose(t, 0.0, atol=1e-12, rtol=0.0)
+        at_edge = np.isclose(np.abs(4.0*r*t), 1.0,
+                             atol=1e-12, rtol=0.0)
+        regular = ~(at_zero | at_edge)
+        tr = t[regular]
+        h[regular] = (
+            (np.sin(np.pi*tr*(1.0-r)) +
+             4.0*r*tr*np.cos(np.pi*tr*(1.0+r))) /
+            (np.pi*tr*(1.0-(4.0*r*tr)**2))
+        )
+        h[at_zero] = 1.0 + r*(4.0/np.pi - 1.0)
+        h[at_edge] = (r/np.sqrt(2.0)) * (
+            (1.0+2.0/np.pi)*np.sin(np.pi/(4.0*r)) +
+            (1.0-2.0/np.pi)*np.cos(np.pi/(4.0*r))
+        )
+
+    # MATLAB rcosdesign과 마찬가지로 이산 FIR 계수의 에너지를 1로 정규화
+    return h / np.sqrt(np.sum(h*h))
 
 
 def spectrum_view(
@@ -2988,7 +3051,7 @@ has_audio = False
   }
 
   function codeUsesWorkbookHelpers(code: string) {
-    return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view)\s*\(/.test(
+    return /\b(file_load|sound_load|sound_play|signal_play|spectrum_view|rcosdesign)\s*\(/.test(
       code,
     );
   }
