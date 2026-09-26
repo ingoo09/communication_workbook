@@ -1348,7 +1348,7 @@ $$
           "id": "6-4D",
           "title": "4.D.",
           "prompt": `[그림 6.1]과 같이 입력 신호에서 주파수가 $B_L$보다 크고 $B_H$보다 작은 성분만을 추출하는 시스템을 BPF(Band Pass Filter, 대역통과필터)라고 한다.
-[[image:/images/ch6/figure6_1.png|그림 6.1 BDF(Band Pass Filter, 대역통과필터)|50]]`
+[[image:/images/ch6/figure6_1.png|그림 6.1 BPF(Band Pass Filter, 대역통과필터)|50]]`
         },
         {
           "id": "6-4D1",
