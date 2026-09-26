@@ -894,6 +894,7 @@ $$
           "id": "16-2A2",
           "title": "2.A2.",
           "type": "python",
+          responseEnabled: true,
           "prompt": `위 py 스크립트를 통해, $a_1$, $a_2$, $\\sigma_0^2$의 값을 여러 가지 다른 조합으로 설정하여 실험을 수행하고자 한다. 따라서, 각 ?가 $a_1$, $a_2$, $\\sigma_0^2$의 값에 따라 적절히 바뀔 수 있도록 ?를 채워 완성하시오. 완성한 py 스크립트를 최소 3회 이상 실행하여 결과를 확인하시오.`,
           "starterCode": `import numpy as np
 
@@ -915,6 +916,7 @@ z=z_nonoise+n0 # = (식 16.3)에서 z
 if (z>?): d_estimate=1 # (식 16.9)의 ML 검출 규칙에 따른 데이터 판별
 if (z<?): d_estimate=? # (식 16.9)의 ML 검출 규칙에 따른 데이터 판별, 채워야 할 부분 (2)
 decision_check=(d_estimate==?) # 판별이 올바른 경우에는 decision_check가 True가 되고, 잘못된 경우에는 decision_check가 False가 됨, 채워야 할 부분 (3)
+print(decision_check)
 ######################`,
         
           referenceAnswer: `빈칸은 다음과 같이 채운다.
@@ -943,12 +945,8 @@ if (z>threshold): d_estimate=1
 if (z<threshold): d_estimate=0
 
 decision_check=(d_estimate==d)
+print(decision_check)
 ######################
-
-print("d =", d)
-print("z =", z)
-print("d_estimate =", d_estimate)
-print("decision_check =", decision_check)
 \`\`\`
 
 즉,
@@ -1876,7 +1874,7 @@ $$
           "id": "16-3E2",
           "title": "3.E2.",
           "type": "essay",
-          "prompt": `문제 3.E1에서 캡쳐한 히스토그램이 문제 3.A1에서 그린 $n_0$의 PDF와 같은가?`
+          "prompt": `문제 3.E1에서 확인한 히스토그램이 문제 3.A1에서 그린 $n_0$의 PDF와 같은가?`
         ,
           referenceAnswer: `표본 수가 충분히 크면 히스토그램의 전체적인 모양은 문제 3.A1의 PDF와 거의 같아야 한다.
 
@@ -1910,7 +1908,16 @@ $$
         { //문제 3.F
           "id": "16-3F",
           "title": "3.F.",
-          "prompt": `문제 3.E3에서 수정한 py 스크립트에서 24번째 라인 ‘d_estimate[z > ?] = ...’와 25번째 라인 ‘d_estimate[z < ?] = ...’를 문제 3.C1, 3.C2에서 구한 $z$의 영역에 따라 ML 검출하도록 py 스크립트를 추가로 수정하시오.`
+          "prompt": `문제 3.C1, 3.C2에서 구한 $z$의 영역에 따라 ML 검출하도록, 문제 3.E3의 py 스크립트의 수신 비트 판정 부분을 아래와 같이 수정하자.
+\`\`\`python
+# 수신 비트 판정
+d_estimate=np.zeros(Nbits, dtype=np.uint8)
+R1 = ?? # 문제 3.C1에서 구한 판별 영역
+R2 = ?? # 문제 3.C2에서 구한 판별 영역
+d_estimate[R1] = 1
+d_estimate[R2] = 0
+\`\`\`
+          `
         },
         {
           "id": "16-3F1",
