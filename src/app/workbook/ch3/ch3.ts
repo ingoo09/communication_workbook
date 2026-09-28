@@ -13,7 +13,9 @@ export const chapter = {
           "title": "1.A.",
           "prompt": `주기가 $T$인 사각 주기함수는 다음과 같이 푸리에 급수로 나타낼 수 있다.
 $$
-f_T​(t)=\\frac{\\pi}{4}\\left​(\\cos\\omega_0​t−\\frac{1}{3}\\​cos3\\omega_0​t+\\frac{1}{5}\\​cos5\\omega_0​t-\\cdots\\right)
+f_T(t)=\\frac{\\pi}{4}
+\\left(\\cos \\omega_0 t - \\frac{1}{3}\\cos 3\\omega_0 t
++ \\frac{1}{5}\\cos 5 \\omega_0 t - \\cdots \\right)
 \\qquad \\text{where}
 \\qquad \\omega_0=\\frac{2\\pi}{T}
 \\qquad \\text{(식 3.1)}
