@@ -587,6 +587,18 @@ $$
           "id": "17-3A",
           "title": "3.A.",
           "type": "python",
+          starterCode: `import numpy as np
+
+Ts=1
+tstep=Ts/10000
+tvector=np.arange(0,Ts,tstep)
+
+Delta_f=1/Ts
+f2=2*Delta_f
+
+x2t=np.cos(2*np.pi*f2*tvector)
+E2=sum(x2t**2)*tstep # 수치적분(2장의 문제 1 참고)
+p2t=x2t/np.sqrt(E2) # ψ_2(t)의 샘플 벡터 `,
           "prompt": `아래 py 스크립트는 [[equation:17.2]]에서 유도한 $\\psi_2(t)$의 Python 샘플 벡터 ‘p2t’를 생성하기 위해 작성된 것이다. 아래 py 스크립트에서는, $x_2(t)$의 에너지를 수치적분([[link:/workbook/ch2?p=2-1A1|2장의 문제 1]] 참고)을 이용해 계산한다.
 \`\`\`python      
 import numpy as np
