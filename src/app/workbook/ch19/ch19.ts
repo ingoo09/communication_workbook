@@ -1664,9 +1664,6 @@ for n in range(1, Ns + 1):
 # 복조 비트열 저장
 with open("data_bits_hat.pkl", "wb") as f:
     pickle.dump(data_bits_hat, f)
-
-# 처음 30비트 출력
-print(data_bits_hat[0:30])
 \`\`\`
 
 검출 규칙은 다음과 같다.
@@ -2489,16 +2486,6 @@ print("BER =", BER)
 
 이후 복조된 비트열에서 각 픽셀의 상위 2비트를 복원하여 수신 이미지를 출력한다.
 
-\`\`\`python
-first_bits = data_bits_hat[0::2]
-second_bits = data_bits_hat[1::2]
-
-pixel_values = (2 * first_bits + second_bits) * 64
-Bhat = pixel_values.reshape(
-    (h, w, 3), order="F"
-).astype(np.uint8)
-\`\`\`
-
 복원된 이미지는 빈센트 반 고흐의 **The Starry Night(별이 빛나는 밤)**이다. AWGN으로 인해 일부 비트 오류가 발생하면 원본 이미지와 비교했을 때 특정 픽셀의 색상이 달라질 수 있다.
 
 이번 실험에서 얻은 BER과 복원 이미지는 다음 문제에서 수행할 상관기 기반 검출의 결과와 비교하는 기준이 된다.
@@ -2509,7 +2496,7 @@ Bhat = pixel_values.reshape(
           "id": "19-2D4",
           "title": "2.D4.",
           "type": "python",
-          "prompt": `문제 2.B1에서 완성한 py 스크립트를 복사하여 붙여넣은 후 3번째 라인 'file_load("ch18/st_and_rt.mat")'을 제거하시오. 이후, py 스크립트를 실행하여, 새롭게 생성한 ‘rt’에 대해, 새로 생성한 ‘s1t’, ‘s2t’, ‘s3t’, ‘s4t’를 이용하여 상관기 기반 검출을 수행하시오.`,
+          "prompt": `문제 2.B1에서 완성한 py 스크립트를 복사하여 붙여넣은 후 4번째 라인 'file_load("ch18/st_and_rt.mat")'을 제거하시오. 이후, py 스크립트를 실행하여, 새롭게 생성한 ‘rt’에 대해, 새로 생성한 ‘s1t’, ‘s2t’, ‘s3t’, ‘s4t’를 이용하여 상관기 기반 검출을 수행하시오.`,
           
 referenceAnswer: `문제 2.D1에서 생성한 새로운 \`st_and_rt.mat\`을 사용하여 상관기 기반 검출을 수행한다.
 
@@ -2714,16 +2701,6 @@ print("BER =", BER)
 \`\`\`
 
 이후 복조 비트열의 연속된 두 비트를 하나의 픽셀 값으로 변환하여 수신 이미지를 복원한다.
-
-\`\`\`python
-first_bits = data_bits_hat[0::2]
-second_bits = data_bits_hat[1::2]
-
-pixel_values = (2 * first_bits + second_bits) * 64
-Bhat = pixel_values.reshape(
-    (h, w, 3), order="F"
-).astype(np.uint8)
-\`\`\`
 
 복원되는 이미지는 빈센트 반 고흐의 **The Starry Night(별이 빛나는 밤)**이다.
 
