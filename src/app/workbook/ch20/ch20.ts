@@ -921,7 +921,7 @@ plt.show()
 \`\`\`
 ?를 채워 'tx_sig_gen.py'를 완성하고 실행하여 eye diagram이 그려지는 과정을 살펴보자.
 
-31번째 라인 'num_segments'를 3, 10, 30으로 바꿔가면서 결과 그래플를 각각 확인하시오.`,
+31번째 라인 'num_segments'를 3, 10, 30으로 바꿔가면서 결과 그래프를 각각 확인하시오.`,
           "referenceAnswer": `Raised Cosine 펄스의 Roll-off factor는 $0.25$이고, 'Ns'는 문제 2.C의 지시에 따라 자신의 학번 끝 3자리를 이용한 '1XXX'로 설정한다.
 
 예를 들어 학번 끝 3자리가 123이면
@@ -1007,7 +1007,7 @@ $$
           "id": "20-2C6",
           "title": "2.C6.",
           "type": "essay",
-          "prompt": `문제 2.C4에서 생선한 eye diagram이 자신이 작성한 문제 1.C의 답과 일치하는지 쓰시오.`,
+          "prompt": `문제 2.C4에서 생성한 eye diagram이 자신이 작성한 문제 1.C의 답과 일치하는지 쓰시오.`,
           "referenceAnswer": `문제 2.C4에서 관찰한 eye diagram의 결과는 문제 1.C에서 분석한 Raised Cosine 펄스의 특성과 일치한다.
 
 문제 1.C에서 Raised Cosine 펄스는
@@ -1029,7 +1029,7 @@ $$
           "title": "2.C7.",
           "type": "python",
           responseEnabled: true,
-          "prompt": `문제 2.C4의 py 스크립트를 복사하여 붙여넣은 후, 34~35번째 라인의 심벌당 샘플 수를 가리키는 변수 'L'을 모두 '(L+1)'로 수정하고(총 3군데), py 스크립트를 다시 실행하고 출력한 eye diagram을 확인하시오.
+          "prompt": `문제 2.C4의 py 스크립트를 복사하여 붙여넣은 후, 34~35번째 라인의 심벌당 샘플 수를 가리키는 변수 'L'을 모두 '(L+1)'로 수정하고(총 3군데), 33번째 라인을 'for k in range(2, 300):'로 수정한 후, py 스크립트를 다시 실행하고 출력한 eye diagram을 확인하시오.
           
 수정한 코드는 원하는 eye diagram을 얻지 못하는 이유를 쓰시오.`,
           "referenceAnswer": `원하는 eye diagram을 얻지 못하는 이유는 실제 송신 신호 'tx_signal'에서 하나의 심벌이 여전히 $L$개의 샘플로 표현되어 있기 때문이다.
@@ -1777,7 +1777,7 @@ Binary PAM에서는 $+1,-1$, 4-ary PAM에서는 $-3,-1,1,3$을 기준으로 이�
         { //문제 3.I
           "id": "20-3I",
           "title": "3.I.",
-          "type": "python",
+          "type": "essay",
           "prompt": `이론적으로는 SRRC 펄스를 사용하여 정합 필터링을 수행 하면, 정합 필터의 출력은 Raised cosine 펄스와 동일하므로, Roll-off factor와 상관없이 ISI가 존재하지 않아야 한다. 하지만 문제 3.H에서 확인한 eye diagram을 보면, Roll-off factor가 감소함에 따라 정합 필터의 출력에서 Binary 신호의 경우에 $1$ 또는 $–1$(4-ary PAM 신호의 경우에는 $–3, -1, 1, 3$)을 정확히 지나지 않는다. 즉, ISI가 존재한다.
 
 문제 1.B와 1.D로부터, 이상적인 SRRC 펄스와 py 스크립트에서 구현하여 사용하고 있는 SRRC 펄스의 차이점을 찾을 수 있다. 이를 바탕으로, ISI가 존재하는 이유를 설명하시오. 특히, Roll-off factor가 작은 경우에 대해 설명하시오.`,
