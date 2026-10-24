@@ -14,13 +14,12 @@ export const chapter = {
           "prompt": `아래 py 스크립트는 전산 모의 실험을 통해 주사위 눈의 분포를 그린다.
 \`\`\`python
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 
 Nsim=6
 count=np.zeros(6)
 for n in range(0,Nsim):
-  x=math.ceil(np.random.rand()*6)
+  x=np.ceil(np.random.rand()*6)
   if x==1:
     count[0]=count[0]+1
   elif x==2:
@@ -40,8 +39,8 @@ plt.stem([1,2,3,4,5,6],Px)
           "id": "14-1A1",
           "title": "1.A1.",
           "type": "essay",
-          "prompt": `함수 ‘math.ceil(np.random.rand*6)’을 사용하면, 주사위를 던졌을 때 나오는 주사위 눈의 실험값을 얻을 수 있다. ‘math.ceil(np.random.rand*6)’이 어떻게 주사위 눈과 같은 확률 변수가 되는지 설명하시오.`,
-          "referenceAnswer": `np.random.rand()는 0 이상 1 미만의 구간에서 균등하게 분포하는 난수를 생성한다. 이 값에 6을 곱하면 0 이상 6 미만의 실수가 되고, math.ceil()을 적용하면 그 값은 1, 2, 3, 4, 5, 6 중 하나가 된다.
+          "prompt": `함수 ‘np.ceil(np.random.rand*6)’을 사용하면, 주사위를 던졌을 때 나오는 주사위 눈의 실험값을 얻을 수 있다. ‘np.ceil(np.random.rand*6)’이 어떻게 주사위 눈과 같은 확률 변수가 되는지 설명하시오.`,
+          "referenceAnswer": `np.random.rand()는 0 이상 1 미만의 구간에서 균등하게 분포하는 난수를 생성한다. 이 값에 6을 곱하면 0 이상 6 미만의 실수가 되고, np.ceil()을 적용하면 그 값은 1, 2, 3, 4, 5, 6 중 하나가 된다.
 
 예를 들어,
 - 0 < 6·np.random.rand() ≤ 1 이면 x=1,
@@ -51,22 +50,21 @@ plt.stem([1,2,3,4,5,6],Px)
 
 이 된다. 각 구간의 길이는 모두 1로 같고 np.random.rand()가 균등분포를 따르므로, x가 1부터 6까지의 각 값을 가질 확률은 모두 약 1/6이다. 따라서 x는 이상적인 6면체 주사위의 눈과 같은 이산 균등 확률 변수로 볼 수 있다.
 
-단, np.random.rand()가 정확히 0을 생성하는 경우 math.ceil(0)=0이 될 수 있으나, 연속 균등분포의 관점에서는 그 확률이 0이며 실제 난수 생성에서도 극히 드문 경계 경우이다.`
+단, np.random.rand()가 정확히 0을 생성하는 경우 np.ceil(0)=0이 될 수 있으나, 연속 균등분포의 관점에서는 그 확률이 0이며 실제 난수 생성에서도 극히 드문 경계 경우이다.`
         },
         {
           "id": "14-1A2",
           "title": "1.A2.",
           "type": "python",
-          "prompt": `이 py 스크립트에서는 ‘x=math.ceil(np.random.rand*6)’을 ‘Nsim’번 반복 실행하여 실행할 때마다 값이 바뀌는 랜덤 변수 ‘x’를 생성한다. 한편, 매번 실행하면서, 현재까지 ‘x’가 1인 횟수를 ‘count[0]’에, ‘x’가 2인 횟수를 ‘count[1]’에, …, ‘x’가 6인 횟수를 ‘count[5]’에 저장한다. ‘Px’는 각 사건(주사위의 눈)이 발생한 확률의 실험치를 원소로 갖는 벡터이다. 예를 들어, ‘Px[2]’는 ‘x’가 3인 확률의 실험치이다.
+          "prompt": `이 py 스크립트에서는 ‘x=np.ceil(np.random.rand*6)’을 ‘Nsim’번 반복 실행하여 실행할 때마다 값이 바뀌는 랜덤 변수 ‘x’를 생성한다. 한편, 매번 실행하면서, 현재까지 ‘x’가 1인 횟수를 ‘count[0]’에, ‘x’가 2인 횟수를 ‘count[1]’에, …, ‘x’가 6인 횟수를 ‘count[5]’에 저장한다. ‘Px’는 각 사건(주사위의 눈)이 발생한 확률의 실험치를 원소로 갖는 벡터이다. 예를 들어, ‘Px[2]’는 ‘x’가 3인 확률의 실험치이다.
 
 py 스크립트 파일의 미완성된 부분을 마저 채워 완성하고, '코드 실행'을 여러 번 클릭하여 결과 그래프를 확인하시오.`,
-          "starterCode": `import math
-import matplotlib.pyplot as plt
+          "starterCode": `import matplotlib.pyplot as plt
 
 Nsim=6
 count=np.zeros(6)
 for n in range(0,Nsim):
-  x=math.ceil(np.random.rand()*6)
+  x=np.ceil(np.random.rand()*6)
   if x==1:
     count[0]=count[0]+1
   elif x==2:
@@ -78,13 +76,12 @@ plt.stem([1,2,3,4,5,6],Px)`,
           "referenceAnswer": `
 \`\`\`python          
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 
 Nsim=6
 count=np.zeros(6)
 for n in range(0,Nsim):
-  x=math.ceil(np.random.rand()*6)
+  x=np.ceil(np.random.rand()*6)
   if x==1:
     count[0]=count[0]+1
   elif x==2:
@@ -133,13 +130,12 @@ plt.stem([1,2,3,4,5,6],Px)
           "referenceAnswer": `
 \`\`\`python
 import numpy as np
-import math
 import matplotlib.pyplot as plt
 
 Nsim = 1000 + XXX # 본인의 학번 끝 3자리로 수정
 count = np.zeros(6)
 for n in range(Nsim):
-  x = math.ceil(np.random.rand() * 6)
+  x = np.ceil(np.random.rand() * 6)
 
   if x == 1:
     count[0] += 1
