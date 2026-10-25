@@ -122,26 +122,24 @@ function makeNgrams(text: string, n = 3) {
   return grams;
 }
 
-function calculateAnswerSimilarity(a: string, b: string) {
-  const left = normalizeSimilarityText(a);
-  const right = normalizeSimilarityText(b);
-
-  // 너무 짧은 답안은 우연한 일치 가능성이 높아서 비교하지 않는다.
-  if (left.length < 20 || right.length < 20) {
-    return null;
-  }
-
-  const leftGrams = makeNgrams(left, 3);
-  const rightGrams = makeNgrams(right, 3);
-
+function calculateNgramSimilarity(
+  leftGrams: Set<string>,
+  rightGrams: Set<string>,
+) {
   if (leftGrams.size === 0 || rightGrams.size === 0) {
     return null;
   }
 
+  // 더 작은 Set을 순회하면 긴 답안끼리 비교할 때도 불필요한 조회를 줄일 수 있다.
+  const [smaller, larger] =
+    leftGrams.size <= rightGrams.size
+      ? [leftGrams, rightGrams]
+      : [rightGrams, leftGrams];
+
   let intersection = 0;
 
-  for (const gram of leftGrams) {
-    if (rightGrams.has(gram)) {
+  for (const gram of smaller) {
+    if (larger.has(gram)) {
       intersection += 1;
     }
   }
@@ -636,6 +634,31 @@ export default function ProfessorStudentsPage() {
     return map;
   }, [profiles]);
 
+  // 답안 유사도 계산용 데이터를 한 번만 전처리한다.
+  // 기존 구현은 모든 답안마다 전체 답안을 다시 순회하면서
+  // normalize + n-gram 생성을 반복했기 때문에 전체 답안 수 N에 대해 O(N²)에 가까웠다.
+  const similarityIndex = useMemo(() => {
+    const answersByProblem = new Map<string, AnswerRow[]>();
+    const gramsByAnswerId = new Map<number | string, Set<string> | null>();
+
+    for (const answer of answers) {
+      const problemKey = `${answer.chapter_id}\u0000${answer.problem_id}`;
+      const problemAnswers = answersByProblem.get(problemKey) ?? [];
+      problemAnswers.push(answer);
+      answersByProblem.set(problemKey, problemAnswers);
+
+      const normalized = normalizeSimilarityText(answer.answer);
+
+      // 너무 짧은 답안은 우연한 일치 가능성이 높아서 비교하지 않는다.
+      gramsByAnswerId.set(
+        answer.id,
+        normalized.length >= 20 ? makeNgrams(normalized, 3) : null,
+      );
+    }
+
+    return { answersByProblem, gramsByAnswerId };
+  }, [answers]);
+
   const similarityByAnswerId = useMemo(() => {
     const result = new Map<
       number | string,
@@ -646,7 +669,28 @@ export default function ProfessorStudentsPage() {
       } | null
     >();
 
-    for (const answer of answers) {
+    if (!selectedStudentId) {
+      return result;
+    }
+
+    // 화면에는 선택한 학생의 답안만 표시하므로 그 학생의 답안에 대해서만
+    // 동일 문제의 다른 학생 답안을 비교한다.
+    // 일반적인 answers 테이블 구조(학생당 문제별 답안 1개)에서는
+    // 문제별 그룹들이 서로 겹치지 않아 전체 비교량이 답안 수에 거의 선형으로 증가한다.
+    const targetAnswers = answersByUser.get(selectedStudentId) ?? [];
+
+    for (const answer of targetAnswers) {
+      const leftGrams = similarityIndex.gramsByAnswerId.get(answer.id) ?? null;
+
+      if (!leftGrams || leftGrams.size === 0) {
+        result.set(answer.id, null);
+        continue;
+      }
+
+      const problemKey = `${answer.chapter_id}\u0000${answer.problem_id}`;
+      const candidates =
+        similarityIndex.answersByProblem.get(problemKey) ?? [];
+
       let best:
         | {
             score: number;
@@ -655,12 +699,15 @@ export default function ProfessorStudentsPage() {
           }
         | null = null;
 
-      for (const other of answers) {
+      for (const other of candidates) {
         if (other.user_id === answer.user_id) continue;
-        if (other.chapter_id !== answer.chapter_id) continue;
-        if (other.problem_id !== answer.problem_id) continue;
 
-        const score = calculateAnswerSimilarity(answer.answer, other.answer);
+        const rightGrams =
+          similarityIndex.gramsByAnswerId.get(other.id) ?? null;
+
+        if (!rightGrams || rightGrams.size === 0) continue;
+
+        const score = calculateNgramSimilarity(leftGrams, rightGrams);
         if (score == null) continue;
 
         if (!best || score > best.score) {
@@ -676,7 +723,12 @@ export default function ProfessorStudentsPage() {
     }
 
     return result;
-  }, [answers, profileById]);
+  }, [
+    selectedStudentId,
+    answersByUser,
+    similarityIndex,
+    profileById,
+  ]);
 
   useEffect(() => {
     setChapterFilter('all');

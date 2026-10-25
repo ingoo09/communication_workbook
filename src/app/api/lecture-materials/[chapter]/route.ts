@@ -9,6 +9,10 @@ const LECTURE_FILES: Record<
     downloadName: string;
   }
 > = {
+  ch2: {
+    storagePath: 'ch2/Chapter2.pdf',
+    downloadName: 'Chapter2.pdf',
+  },
   ch4: {
     storagePath: 'ch4/chapter4_fourier_transform_online_lecture.pdf',
     downloadName: 'Chapter4_Fourier_Transform_Lecture.pdf',
@@ -30,49 +34,53 @@ export async function GET(
     );
   }
 
-  // 현재 프로젝트의 src/lib/supabase/server.ts는 async createClient() 구조이므로
-  // 반드시 await createClient()로 호출한다.
-  const supabase = await createClient();
+  // 무료 공개 Chapter는 로그인/해금 여부와 관계없이 강의자료 다운로드를 허용한다.
+  const PUBLIC_CHAPTERS = new Set(['ch1', 'ch2', 'ch14']);
 
-  const {
-    data: { user },
-    error: userError,
-  } = await supabase.auth.getUser();
+  if (!PUBLIC_CHAPTERS.has(chapter)) {
+    // 현재 프로젝트의 src/lib/supabase/server.ts는 async createClient() 구조이므로
+    // 반드시 await createClient()로 호출한다.
+    const supabase = await createClient();
 
-  if (userError) {
-    console.error('사용자 조회 실패:', userError);
-  }
+    const {
+      data: { user },
+      error: userError,
+    } = await supabase.auth.getUser();
 
-  if (!user) {
-    return NextResponse.json(
-      { error: '로그인이 필요합니다.' },
-      { status: 401 },
-    );
-  }
+    if (userError) {
+      console.error('사용자 조회 실패:', userError);
+    }
 
-  // 화면에서 버튼을 숨기는 것만으로는 보호되지 않으므로
-  // 서버에서도 실제 Chapter 해금 여부를 다시 확인한다.
-  const { data: access, error: accessError } = await supabase
-    .from('chapter_access')
-    .select('chapter_id')
-    .eq('user_id', user.id)
-    .eq('chapter_id', chapter)
-    .maybeSingle();
+    if (!user) {
+      return NextResponse.json(
+        { error: '로그인이 필요합니다.' },
+        { status: 401 },
+      );
+    }
 
-  if (accessError) {
-    console.error('Chapter access 확인 실패:', accessError);
+    // 유료 Chapter는 서버에서도 실제 해금 여부를 다시 확인한다.
+    const { data: access, error: accessError } = await supabase
+      .from('chapter_access')
+      .select('chapter_id')
+      .eq('user_id', user.id)
+      .eq('chapter_id', chapter)
+      .maybeSingle();
 
-    return NextResponse.json(
-      { error: '강의자료 접근 권한을 확인하지 못했습니다.' },
-      { status: 500 },
-    );
-  }
+    if (accessError) {
+      console.error('Chapter access 확인 실패:', accessError);
 
-  if (!access) {
-    return NextResponse.json(
-      { error: '해금한 Chapter에서만 강의자료를 받을 수 있습니다.' },
-      { status: 403 },
-    );
+      return NextResponse.json(
+        { error: '강의자료 접근 권한을 확인하지 못했습니다.' },
+        { status: 500 },
+      );
+    }
+
+    if (!access) {
+      return NextResponse.json(
+        { error: '해금한 Chapter에서만 강의자료를 받을 수 있습니다.' },
+        { status: 403 },
+      );
+    }
   }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;

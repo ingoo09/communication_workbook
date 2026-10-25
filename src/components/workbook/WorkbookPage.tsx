@@ -654,10 +654,16 @@ export default function WorkbookPage({
     isAuthenticated !== true ||
     userRole !== null;
   
+  // 로그인한 student 여부는 제출기한/권한 판정에도 사용하므로
+  // 전체화면 기능을 끄기 위해 이 값을 변형하지 않는다.
   const isStudent =
-    isAuthenticated === false && //전체화면 임시 해제
+    isAuthenticated === true &&
     userRole === "student";
-    
+
+  // 전체화면 집중 학습 기능만 임시로 비활성화한다.
+  // 제출기한 기능과 학생 판정은 계속 정상 동작한다.
+  const focusModeEnabled = false;
+
   const [focusModeStarted, setFocusModeStarted] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isBrowserFullscreen, setIsBrowserFullscreen] = useState(false);
@@ -1329,6 +1335,7 @@ export default function WorkbookPage({
     // 학생 계정에서 최초 가림막 상태로 F11을 눌러 전체화면에 진입하면
     // 집중 학습 모드를 시작한 것으로 처리한다.
     if (
+      focusModeEnabled &&
       userRole === "student" &&
       !focusModeStarted &&
       isBrowserFullscreen
@@ -1338,14 +1345,14 @@ export default function WorkbookPage({
       setPageHidden(false);
       setFullscreenError("");
     }
-  }, [userRole, focusModeStarted, isBrowserFullscreen]);
+  }, [focusModeEnabled, userRole, focusModeStarted, isBrowserFullscreen]);
 
   useEffect(() => {
     // 학생 이외의 역할에서는 집중 학습 강제를 사용하지 않는다.
-    if (roleReady && !isStudent && focusModeStarted) {
+    if (roleReady && (!focusModeEnabled || !isStudent) && focusModeStarted) {
       setFocusModeStarted(false);
     }
-  }, [roleReady, isStudent, focusModeStarted]);
+  }, [roleReady, focusModeEnabled, isStudent, focusModeStarted]);
 
   async function enterFocusMode() {
     setFullscreenError("");
@@ -1383,6 +1390,7 @@ export default function WorkbookPage({
     isFullscreen || isBrowserFullscreen;
 
   const focusModeBlocked =
+    focusModeEnabled &&
     isStudent &&
     focusModeStarted &&
     (!fullscreenAccepted || pageHidden || windowBlurred);
@@ -2047,6 +2055,11 @@ plt.close('all')
     Number.isFinite(deadlineTimestamp) &&
     deadlineNow > deadlineTimestamp;
 
+  // 마감기한 조회가 끝나기 전에는 학생이 저장/채점을 먼저 실행하지 못하게 한다.
+  // DB trigger가 최종 방어선이지만, 화면에서도 동일한 정책을 즉시 반영한다.
+  const submissionBlocked =
+    isStudent && (deadlineLoading || isDeadlinePassed);
+
   const formattedChapterDeadline =
     chapterDeadline != null
       ? new Intl.DateTimeFormat("ko-KR", {
@@ -2211,6 +2224,11 @@ plt.close('all')
   }
 
   async function saveMyAnswer(): Promise<boolean> {
+    if (isStudent && deadlineLoading) {
+      setSaveNotice("제출 기한을 확인하는 중입니다. 잠시 후 다시 시도해 주세요.");
+      return false;
+    }
+
     if (isDeadlinePassed) {
       setSaveNotice("제출 기한이 종료되어 답안을 저장할 수 없습니다.");
       return false;
@@ -2291,6 +2309,14 @@ plt.close('all')
   }
 
   async function gradeWithAI() {
+    if (isStudent && deadlineLoading) {
+      setGradeResult({
+        error: "제출 기한을 확인하는 중입니다.",
+        feedback: "제출 기한 확인이 끝난 뒤 채점할 수 있습니다.",
+      });
+      return;
+    }
+
     if (isDeadlinePassed) {
       setGradeResult({ error: "제출 기한이 종료되었습니다.", feedback: "마감 이후에는 답안 채점 및 채점 결과 저장을 할 수 없습니다." });
       return;
@@ -3652,7 +3678,7 @@ except Exception:
                 사용법
               </button>
 
-              {isStudent && (
+              {focusModeEnabled && isStudent && (
                 <button
                   type="button"
                   onClick={focusModeStarted ? exitFocusMode : enterFocusMode}
@@ -4055,16 +4081,20 @@ except Exception:
               <button
                 data-tutorial="workbook-save"
                 onClick={saveMyAnswer}
-                disabled={isDeadlinePassed}
+                disabled={submissionBlocked}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #ddd",
-                  cursor: isDeadlinePassed ? "not-allowed" : "pointer",
-                  opacity: isDeadlinePassed ? 0.55 : 1,
+                  cursor: submissionBlocked ? "not-allowed" : "pointer",
+                  opacity: submissionBlocked ? 0.55 : 1,
                 }}
               >
-                {isDeadlinePassed ? "마감됨" : "저장"}
+                {deadlineLoading && isStudent
+                  ? "기한 확인 중"
+                  : isDeadlinePassed
+                    ? "마감됨"
+                    : "저장"}
               </button>
 
               <button
@@ -4073,7 +4103,7 @@ except Exception:
                 onClick={() =>
                   requestAuthenticatedAction("내 답안 채점하기", gradeWithAI)
                 }
-                disabled={grading || isDeadlinePassed}
+                disabled={grading || submissionBlocked}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -4081,11 +4111,17 @@ except Exception:
                   background: "#4f46e5",
                   color: "#fff",
                   fontWeight: 800,
-                  opacity: grading || isDeadlinePassed ? 0.6 : 1,
-                  cursor: grading || isDeadlinePassed ? "not-allowed" : "pointer",
+                  opacity: grading || submissionBlocked ? 0.6 : 1,
+                  cursor: grading || submissionBlocked ? "not-allowed" : "pointer",
                 }}
               >
-                {isDeadlinePassed ? "제출 마감" : grading ? "채점 중..." : "내 답안 채점하기"}
+                {deadlineLoading && isStudent
+                  ? "기한 확인 중"
+                  : isDeadlinePassed
+                    ? "제출 마감"
+                    : grading
+                      ? "채점 중..."
+                      : "내 답안 채점하기"}
               </button>
 
               {/* 저장 표시 */}
@@ -4423,7 +4459,7 @@ except Exception:
         </div>
       )}
 
-      {roleReady && isStudent && !focusModeStarted && (
+      {roleReady && focusModeEnabled && isStudent && !focusModeStarted && (
         <div
           role="dialog"
           aria-modal="true"

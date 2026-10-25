@@ -173,6 +173,9 @@ type ChapterResource = {
 const chapterResources: Record<number, ChapterResource> = {
   // 강의자료가 준비된 Chapter만 등록합니다.
   // YouTube 영상이 올라오면 youtubeUrl만 추가하면 됩니다.
+  2: {
+    lectureMaterial: true,
+  },
   4: {
     lectureMaterial: true,
     youtubeUrl: 'https://www.youtube.com/watch?v=nDM3qNU9yiM',
@@ -1090,7 +1093,8 @@ export default function WorkbookHome() {
                   </button>
                 )}
 
-                {chapter.access === 'unlocked' && chapterResources[chapter.id] && (
+                {(chapter.access === 'sample' || chapter.access === 'unlocked') &&
+                  chapterResources[chapter.id] && (
                   <div
                     style={{
                       display: 'grid',
