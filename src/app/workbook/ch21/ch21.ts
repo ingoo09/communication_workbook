@@ -744,7 +744,7 @@ $$
           "type": "python",
           "prompt": `문제 1의 py 스크립트는 [그림 21.1]의 수신신호의 샘플 백터 $\\cdots, r[k-1], r[k], r[k+1], \\cdots$를 생성하는 것까지 구현한 것이다. [그림 21.1]의 우측(샘플링 후)은 샘플링된 신호에 대한 정합 필터(Matched filter)의 과정이다.
           
-문제 1.D1에서 완성한 py 스크립트를 복사하여 붙여넣은 후, 아래와 같이 정합 필터의 출력 샘플 벡터 $\\cdots, z[k-1], z[k], z[k+1], \\cdots$(Python 변수 = ‘z_samples)을 생성하는 라인을 추가하시오. 적절한 Python의 numpy 함수와 변수 이름을 넣어 완성하시오. ([[link:/workbook/ch20?p=20-3B|20장의 문제 3.B]] 참고)
+문제 1.D1에서 완성한 py 스크립트를 복사하여 붙여넣은 후, 아래와 같이 정합 필터의 출력 샘플 벡터 $\\cdots, z[k-1], z[k], z[k+1], \\cdots$(Python 변수 = ‘z_samples’)을 생성하는 라인을 추가하시오. 적절한 Python의 numpy 함수와 변수 이름을 넣어 완성하시오. ([[link:/workbook/ch20?p=20-3B|20장의 문제 3.B]] 참고)
 \`\`\`python
 z_samples = np.??(r_samples, ??)
 \`\`\``,
@@ -999,6 +999,7 @@ data_bit[:5]
           "prompt": `아래 코드를 통해 ‘data_bit’ 벡터의 ‘Ns’개의 모든 비트들을 검출할 수 있다. 문제 2.A의 py 스크립트에 아래를 추가하시오.
 \`\`\`python
 # 문제 2.A의 py 스크립트에 아래를 추가.
+estimated_data_bit = np.zeros(Ns, dtype=bool)
 for k in range(Ns):
     estimated_data_bit[k] = (z_samples[(N - 1) + k * L] > 0)
 
@@ -1141,7 +1142,7 @@ BER = sum_Ne / Total_bit
           "id": "21-3A1",
           "title": "3.A1.",
           "type": "essay",
-          "prompt": `한 프레임 동안 보내지는 비트수는 얼마인가? 위 py 스크립트에서 수행되는 총 프레임 수는 얼마인가? 결국 위 py 스크립트을 통해 전송되는 비트수는 얼마인가?`,
+          "prompt": `한 프레임 동안 보내지는 비트수는 얼마인가? 위 py 스크립트에서 수행되는 총 프레임 수는 얼마인가? 결국 위 py 스크립트를 통해 전송되는 비트수는 얼마인가?`,
           // 21-3A1
 "referenceAnswer": `한 프레임에서 전송하는 비트 수는 변수 'Ns'에 저장된 값이다.
 
@@ -1306,7 +1307,8 @@ for frame_number in range(N_frame):
 ######### <BER calculation> ##################################
 # BER = 전체 비트 에러 발생 개수 / 전송된 전체 비트 수
 Total_bit = ? * ?
-BER = sum_Ne / Total_bit`,
+BER = sum_Ne / Total_bit
+print(BER)`,
           "prompt": `py 스크립트를 완성하고, 수행하여 얻은 BER 결과를 확인하시오.`,
           // 21-3A4
 "referenceAnswer": `주요 빈칸과 Step 7을 완성하면 다음과 같다.
@@ -1382,6 +1384,7 @@ for frame_number in range(N_frame):
 ######### <BER calculation> ##################################
 Total_bit = Ns * N_frame
 BER = sum_Ne / Total_bit
+print(BER)
 \`\`\`
 
 $E_b/N_0=0$ dB에서 실행할 때 랜덤 비트와 랜덤 노이즈를 사용하므로 실제 'BER' 값은 실행할 때마다 조금씩 달라질 수 있다.`
@@ -1492,7 +1495,7 @@ $$
           "title": "3.C1.",
           "type": "python",
           consoleEnabled: true,
-          "prompt": `시뮬레이션 BER과 이론치 BER을 구한 결과를 캡쳐하여 보이시오. 시뮬레이션 BER과 이론치 BER이 같은지 확인하시오.`,
+          "prompt": `시뮬레이션 BER과 이론치 BER을 구한 결과를 확인하시오. 시뮬레이션 BER과 이론치 BER이 같은지 확인하시오.`,
           // 21-3C1
 "referenceAnswer": `$E_b/N_0=9$ dB에서 시뮬레이션 BER과 이론적인 BER을 각각 확인한다.
 
@@ -1556,6 +1559,8 @@ from scipy.special import erfc
 Total_bit = ? * ? # 문제 3.A3의 답과 동일
 BER = sum_Ne / Total_bit
 BER_exact = 0.5 * erfc(?) # 문제 3.B1 (a)의 답과 동일
+print("BER= ", BER)
+print("BER_exact= ", BER_exact)
 \`\`\``
         },
         {
@@ -2118,7 +2123,6 @@ r_samples_pass = passband_tx_signal + n_samples
           consoleEnabled: true,
           "prompt": `‘EbN0dB_vector = np.array([2, 4, 6, 8, 10])’ 라인을 ‘EbN0dB_vector = np.array([10])’으로 수정하고, ‘while sum_Ne < 25:’ 라인을 ‘while sum_Ne < 1:’ 로 수정하시오. py 스크립트를 실행한 후 Cosole에서 아래를 실행하여 결과 그래프를 확인하시오.
 \`\`\`python
->>> import matplotlib.pyplot as plt
 >>> BW_v = np.fft.fft(passband_tx_signal, 1024)
 >>> plt.figure()
 >>> plt.plot(np.arange(-512, 512) / 1024 * L, np.abs(np.fft.fftshift(BW_v)))
@@ -2192,7 +2196,6 @@ mult_out = r_samples_pass * local_carrier
 \`\`\`
 수정한 py 스크립트를 수행하시오. 수행이 끝나면, Console에서 아래를 수행하시오.
 \`\`\`python
->>> import matplotlib.pyplot as plt
 >>> BW_v = np.fft.fft(mult_out, 1024)
 >>> plt.figure()
 >>> plt.plot(np.arange(-512, 512) / 1024 * L, np.abs(np.fft.fftshift(BW_v)))
@@ -2290,7 +2293,6 @@ $$
           consoleEnabled: true,
           "prompt": `py 스크립트에서 ‘mult_out’에 정합 필터링을 곧장 수행하기 위해 ‘z_samples = np.convolve(r_samples, pt)’ 라인의 ‘r_samples’를 ‘mult_out’으로 수정하시오. 수정한 py 스크립트를 수행한 후, Console에서 아래를 실행하고 결과 그림을 확인하시오.
 \`\`\`python
->>> import matplotlib.pyplot as plt
 >>> BW_v = np.fft.fft(z_samples, 1024)
 >>> plt.figure()
 >>> plt.plot(np.arange(-512, 512) / 1024 * L, np.abs(np.fft.fftshift(BW_v)))
@@ -2336,7 +2338,7 @@ $$
           "id": "21-5E",
           "title": "5.E.",
           "type": "python",
-          "prompt": `‘EbN0dB_vector = np.array([10])’ 라인을 ‘EbN0dB_vector = np.array([2, 4, 6, 8, 10])’으로 복원하고, ‘while sum_Ne < 1:’ 라인을 ‘while sum_Ne < 25:’ 로 복원하시오. py 스크립트를 실행한 후 BER 커브 결과를 확인하시오.`,
+          "prompt": `‘EbN0dB_vector = np.array([10])’ 라인을 ‘EbN0dB_vector = np.array([1, 3, 5, 7, 9])’로 변경하고, ‘while sum_Ne < 1:’ 라인을 ‘while sum_Ne < 25:’ 로 복원하시오. py 스크립트를 실행한 후 BER 커브 결과를 확인하시오.`,
           // 21-5E
 "referenceAnswer": `통과대역 BPSK 시스템으로 BER 시뮬레이션을 수행하면 $E_b/N_0$가 증가할수록 BER이 감소하는 결과를 얻는다.
 
@@ -2530,7 +2532,7 @@ carrier_wave = (
           "id": "21-5F4",
           "title": "5.F4.",
           "type": "essay",
-          "prompt": `‘local_carrier’에는 ‘carrier_wave’에서 한 것과 같이 ‘sqrt(2)’를 곱해주지 않아도 되는 이유를 설명하시오.`,
+          "prompt": `‘local_carrier’에는 ‘carrier_wave’에서 한 것과 같이 ‘np.sqrt(2)’를 곱해주지 않아도 되는 이유를 설명하시오.`,
           // 21-5F4
 "referenceAnswer": `'carrier_wave'에 $\\sqrt{2}$를 곱한 이유는 실제 채널을 통해 전송되기 전에 통과대역 변환으로 인해 송신 비트 에너지가 절반으로 감소하는 것을 방지하기 위해서이다.
 
