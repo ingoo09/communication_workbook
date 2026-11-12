@@ -12,6 +12,7 @@ export const chapter = {
           "id": "23-1A",
           "title": "1.A.",
           "type": "python",
+          "prompt": ``,
         }
       ]
     }
