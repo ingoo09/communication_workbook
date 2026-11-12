@@ -1983,5 +1983,2305 @@ $$
     },
   ]
 },
+    { // 문제 5
+  "id": "22-5",
+  "title": "5. QPSK BER Simulation",
+  "problems": [
+    { // 문제 5.A
+      "id": "22-5A",
+      "title": "5.A.",
+      "type": "essay",
+      "prompt": `문제 4에서는 QPSK 신호에 AWGN을 더하고 constellation의 변화를 관찰하였다.
+
+이번에는 송신한 I/Q 데이터 비트와 수신기에서 검출한 비트를 직접 비교하여 QPSK 시스템의 BER(Bit Error Rate)을 측정해 보자.
+
+Python에서는 다음과 같은 구조로 BER simulation을 수행한다.
+[[image:/images/ch22/figure22_5.png|그림 22.5 QPSK BER simulation 구조|80]]
+각 과정은 다음과 같다.
+
+1. I/Q binary data $b_I$, $b_Q$를 서로 독립적으로 생성한다.
+2. 문제 2에서 구현한 방법과 동일하게 QPSK 송신신호를 생성한다.
+3. 원하는 $E_b/N_0$에 맞는 AWGN을 송신신호에 더한다.
+4. 문제 3의 상관기와 동일한 방법으로 I/Q correlation 값을 계산한다.
+5. correlation 값이 0보다 큰지 비교하여 $\\hat b_I$, $\\hat b_Q$를 결정한다.
+6. 송신 비트와 검출 비트를 비교하여 error bit의 수를 누적한다.
+7. 누적 error bit의 수가 $N_{errs}$ 이상이 될 때까지 simulation을 반복한다.
+8. I/Q 채널에서 발생한 전체 error bit 수를 전체 전송 bit 수로 나누어 평균 BER을 계산한다.
+
+원래 수신기에서는 Integrate-and-Dump 출력이 한 심벌 뒤에 표시되었지만, Python에서는 각 심벌에서 계산된 'corr_I[k]', 'corr_Q[k]'를 해당 심벌의 $b_I[k]$, $b_Q[k]$와 직접 비교한다. 따라서, BER 계산에서는 별도의 한 심벌 receive delay를 추가하지 않아도 되는 이유를 설명하시오.`,
+        referenceAnswer: `원래 Integrate-and-Dump의 파형 출력에서는 한 심벌 구간의 sample이 모두 입력된 후 계산된 값을 다음 심벌 구간 동안 표시하므로 한 심벌의 지연이 존재한다.
+
+그러나 BER simulation에서는 표시용 파형인 \`corr_I_hold\`, \`corr_Q_hold\`를 사용하지 않고, 각 $k$번째 심벌에서 직접 계산된
+
+\`\`\`python
+corr_I[k]
+corr_Q[k]
+\`\`\`
+
+를 같은 $k$번째 송신 비트
+
+\`\`\`python
+bI[k]
+bQ[k]
+\`\`\`
+
+와 비교한다.
+
+즉, $k$번째 심벌의 상관값과 $k$번째 송신 비트가 직접 대응하므로 BER 계산에서는 별도의 한 심벌 receive delay가 필요하지 않다.`,
+    },
+    { // 문제 5.B
+      "id": "22-5B",
+      "title": "5.B.",
+      "type": "python",
+      "starterCode": `import numpy as np
+import matplotlib.pyplot as plt
+from scipy.special import erfc
+
+def simulate_qpsk_ber(
+    EbN0dB,
+    Nerrs=50,
+    phase_error=0,
+    seed_I=XX,
+    batch_symbols=500
+):
+    # -------------------------------------------------
+    # QPSK system parameters
+    # -------------------------------------------------
+    Eb = 16
+    Ts = 1
+    L = 256
+    t_step = Ts / L
+    fc = 30
+
+    # -------------------------------------------------
+    # Eb/N0 -> AWGN variance
+    # -------------------------------------------------
+    EbN0 = 10 ** (EbN0dB / 10)
+    N0 = Eb / EbN0
+
+    v_n = N0 / (2 * t_step)
+
+    # -------------------------------------------------
+    # Random number generators
+    # -------------------------------------------------
+    rng_I = np.random.default_rng(seed_I)
+    rng_Q = np.random.default_rng(seed_I + 1)
+    rng_noise = np.random.default_rng(seed_I + 2)
+
+    # -------------------------------------------------
+    # One-symbol carrier samples
+    # -------------------------------------------------
+    t_symbol = np.arange(L) * t_step
+
+    psi1_tx = np.sqrt(2 / Ts) * np.cos(
+        2 * np.pi * fc * t_symbol
+    )
+
+    psi2_tx = np.sqrt(2 / Ts) * np.sin(
+        2 * np.pi * fc * t_symbol
+    )
+
+    # Receiver basis with phase error
+    psi1_rx = np.sqrt(2 / Ts) * np.cos(
+        2 * np.pi * fc * t_symbol + phase_error
+    )
+
+    psi2_rx = np.sqrt(2 / Ts) * np.sin(
+        2 * np.pi * fc * t_symbol + phase_error
+    )
+
+    # -------------------------------------------------
+    # BER counters
+    # -------------------------------------------------
+    error_I = 0
+    error_Q = 0
+    total_symbols = 0
+
+    # -------------------------------------------------
+    # Repeat until enough errors are observed
+    # -------------------------------------------------
+    while (error_I + error_Q) < Nerrs:
+
+        # Binary data
+        bI = rng_I.integers(
+            0, 2, batch_symbols
+        )
+
+        bQ = rng_Q.integers(
+            0, 2, batch_symbols
+        )
+
+        # 0 -> -1, 1 -> +1
+        aI = 2 * bI - 1
+        aQ = 2 * bQ - 1
+
+        # QPSK waveform
+        tx_signal = np.sqrt(Eb) * (
+            aI[:, None] * psi1_tx[None, :]
+            +
+            aQ[:, None] * psi2_tx[None, :]
+        )
+
+        # AWGN
+        noise = np.sqrt(v_n) * (
+            rng_noise.standard_normal(
+                tx_signal.shape
+            )
+        )
+
+        r = tx_signal + noise
+
+        # Correlator receiver
+        corr_I = np.sum(
+            r * psi1_rx[None, :],
+            axis=1
+        )
+
+        corr_Q = np.sum(
+            r * psi2_rx[None, :],
+            axis=1
+        )
+
+        # Binary decision
+        bI_hat = (corr_I ?? 0).astype(int)
+        bQ_hat = (corr_Q ?? 0).astype(int)
+
+        # Error count
+        error_I += np.count_nonzero(
+            bI_hat != bI
+        )
+
+        error_Q += np.count_nonzero(
+            bQ_hat != bQ
+        )
+
+        total_symbols += batch_symbols
+
+    # QPSK carries two bits per symbol
+    total_bits = 2 * total_symbols
+
+    BER = (
+        error_I + error_Q
+    ) / total_bits
+
+    return BER, error_I, error_Q, total_bits`,
+      "prompt": `위 코드는 하나의 $E_b/N_0$ 환경에서 QPSK BER을 측정하는 함수이다.
+
+문제 3.C에서 사용한 binary decision 방법을 참고하여 다음 두 코드의 '??'를 채우시오.
+\`\`\`python
+bI_hat = (corr_I ?? 0).astype(int)
+bQ_hat = (corr_Q ?? 0).astype(int)
+\`\`\`
+완성된 'simulate_qpsk_ber()' 함수는 누적 오류 비트 수가 $N_{errs}$ 이상이 될 때까지 QPSK transmission을 반복한다. (브라우저에서 너무 큰 배열을 한 번에 생성하지 않도록 여러 심벌을 batch 단위로 처리한다)`,
+      responseEnabled: true,
+      referenceAnswer: `두 빈칸에는 모두 \`>\`가 들어간다.
+
+\`\`\`python
+bI_hat = (corr_I > 0).astype(int)
+bQ_hat = (corr_Q > 0).astype(int)
+\`\`\`
+
+본 Python 실습에서는
+
+$$
+0\\rightarrow-1,
+\\qquad
+1\\rightarrow+1
+$$
+
+mapping을 사용하므로 correlation 값이 양수이면 bit 1, 음수이면 bit 0으로 판정한다.`,
+    },
+    { // 문제 5.C
+  "id": "22-5C",
+  "title": "5.C.",
+  "prompt": `문제 5.B에서 완성한 'simulate_qpsk_ber()' 함수를 이용하여 여러 $E_b/N_0$ 환경에서 QPSK 시스템의 BER 성능을 실험해 보자.
+
+특정한 $E_b/N_0$에서 BER을 구하기 위해서는 먼저 $\\frac{E_b}{N_0}=10^{E_b/N_0[\\mathrm{dB}]/10}$을 이용하여 dB 값을 linear scale로 변환한다. 비트 에너지 $E_b$가 주어졌을 때 $N_0=\\dfrac{E_b}{E_b/N_0}$이고, 문제 4에서 사용한 것과 같이 noise sample의 분산은 $v_n=\\dfrac{N_0}{2t_{step}}$로 설정한다.
+
+문제 5.B의 BER simulation에서는 각 $E_b/N_0$에 대해 I/Q 데이터를 생성하고, QPSK 송신신호에 AWGN을 더한 후 상관 수신기와 binary decision을 거쳐 송신 비트와 검출 비트를 비교한다. 이 과정을 누적 error bit 수가 설정한 $N_{errs}$ 이상이 될 때까지 반복하여 simulated BER을 구한다. 이후 여러 $E_b/N_0$ 값에서 얻은 simulated BER을 theoretical BER과 비교하고, 송수신기 사이에 위상오차가 존재할 때 BER 성능이 어떻게 달라지는지도 확인해 보자.`,
+},
+    { // 문제 5.C1
+      "id": "22-5C1",
+      "title": "5.C1.",
+      "type": "python",
+      "starterCode": `# 문제 5.B의 simulate_qpsk_ber()를
+# 먼저 실행한다.
+
+EbN0dB_vector = [0, 1, 3, 5, 7]
+
+Nerrs = 50
+
+BER_simulated = []
+BER_theory = []
+
+for EbN0dB in EbN0dB_vector:
+
+    BER, error_I, error_Q, total_bits = (
+        simulate_qpsk_ber(
+            EbN0dB,
+            Nerrs=Nerrs,
+            phase_error=0,
+            seed_I=XX
+        )
+    )
+
+    # dB -> linear
+    EbN0 = ??
+
+    # simulated BER
+    BER_simulated.append(BER)
+
+    # theoretical BPSK BER
+    BER_theory.append(
+        0.5 * erfc(np.sqrt(EbN0))
+    )
+
+    print(
+        f"Eb/N0 = {EbN0dB} dB, "
+        f"BER = {BER:.6g}, "
+        f"errors = {error_I + error_Q}, "
+        f"bits = {total_bits}"
+    )
+
+
+plt.figure(figsize=(8, 6))
+
+plt.semilogy(
+    EbN0dB_vector,
+    BER_simulated,
+    'o-',
+    label='Simulated QPSK'
+)
+
+plt.semilogy(
+    EbN0dB_vector,
+    BER_theory,
+    's-',
+    label='Theory'
+)
+
+plt.xlabel('Eb/N0 [dB]')
+plt.ylabel('BER')
+
+plt.grid(True, which='both')
+plt.legend()
+plt.show()`,
+      "prompt": `$E_b/N_0=$ 0, 1, 3, 5, 7 dB에서 QPSK BER simulation을 수행한다. 다음 코드의 '??'를 채워 $E_b/N_0$를 dB scale에서 linear scale로 변환하시오.
+\`\`\`python
+EbN0 = ??
+\`\`\`
+Simulation 결과와 $P_b=\\dfrac{1}{2}\\operatorname{erfc}\\left(\\sqrt{\\dfrac{E_b}{N_0}}\\right)$로 주어지는 theoretical BER을 같은 그래프에 나타내시오.`,
+      responseEnabled: true,
+      referenceAnswer: `dB scale의 $E_b/N_0$를 linear scale로 변환하는 코드는
+
+\`\`\`python
+EbN0 = 10 ** (EbN0dB / 10)
+\`\`\`
+
+이다.
+
+따라서 완성된 부분은
+
+\`\`\`python
+# dB -> linear
+EbN0 = 10 ** (EbN0dB / 10)
+\`\`\`
+
+이다.
+
+각 $E_b/N_0$에서 simulated BER은 theoretical BER
+
+$$
+P_b
+=
+\\frac{1}{2}
+\\operatorname{erfc}
+\\left(
+\\sqrt{\\frac{E_b}{N_0}}
+\\right)
+$$
+
+과 비슷한 값을 가지며, $E_b/N_0$가 증가할수록 BER이 감소하는 결과를 확인할 수 있다.`,
+    },
+    { // 문제 5.C2
+      "id": "22-5C2",
+      "title": "5.C2.",
+      "type": "essay",
+      "prompt": `문제 5.C1에서 얻은 simulated QPSK BER curve와 theoretical BER curve를 비교하시오.
+
+(a) 두 BER curve가 대체로 일치하는지 쓰시오.
+(b) 본 simulation에서는 누적 error bit 수가 $N_{errs}=50$이상이 되면 simulation을 종료한다. $N_{errs}$를 더 작게 설정하면 simulation 시간과 BER 측정의 정확도는 각각 어떻게 변할 것으로 예상되는지 설명하시오.`,
+        referenceAnswer: `(a) Simulated QPSK BER curve와 theoretical BER curve는 전체적으로 거의 일치한다. 난수를 이용한 유한 길이 simulation이므로 각 $E_b/N_0$에서 작은 오차는 발생할 수 있다.
+
+(b) $N_{errs}$를 작게 설정하면 필요한 error bit가 더 빨리 누적되므로 simulation 시간은 짧아진다.
+
+그러나 더 적은 error sample만으로 BER을 계산하게 되므로 통계적 변동이 커지고 theoretical BER과의 오차가 증가할 수 있다.
+
+따라서
+
+$$
+N_{errs}\\downarrow
+\\quad\\Rightarrow\\quad
+\\text{simulation 시간}\\downarrow,
+\\qquad
+\\text{BER 측정 정확도}\\downarrow
+$$
+
+라고 할 수 있다.`,
+    },
+    { // 문제 5.C3
+      "id": "22-5C3",
+      "title": "5.C3.",
+      "type": "essay",
+      "prompt": `문제 5.C1의 theoretical BER은 BPSK의 theoretical BER $P_b=\\dfrac{1}{2}\\operatorname{erfc}\\left(\\sqrt{\\dfrac{E_b}{N_0}}\\right)$을 사용하였다. 그러나, simulation에서 사용한 송신신호는 QPSK이다. 실험을 통해 얻은 QPSK의 BER이 BPSK의 theoretical BER과 일치하는 이유를 QPSK의 I/Q 채널 구조와 비트 에너지 $E_b$의 관점에서 설명하시오.`,
+      referenceAnswer: `QPSK 신호는 서로 직교하는 I 채널과 Q 채널의 두 BPSK 신호의 합으로 표현할 수 있다.
+
+$$
+s(t)=x(t)+y(t)
+$$
+
+I 채널과 Q 채널은 각각 한 비트를 전송하며, 각 채널의 bit energy는 동일하게 $E_b$이다. 또한 두 기저신호가 서로 직교하므로 수신기의 상관기에서는 두 채널을 서로 간섭 없이 분리하여 검출할 수 있다.
+
+AWGN을 각 직교 기저 방향으로 projection하면 각 채널의 noise variance는 동일하게
+
+$$
+\\frac{N_0}{2}
+$$
+
+가 된다.
+
+따라서 I와 Q 각각은 AWGN 환경의 BPSK와 동일한 detection problem이 되며, 각 채널의 BER은
+
+$$
+P_b
+=
+\\frac12
+\\operatorname{erfc}
+\\left(
+\\sqrt{\\frac{E_b}{N_0}}
+\\right)
+$$
+
+이다.
+
+결과적으로 QPSK는 한 심벌에 두 비트를 전송하지만 bit당 BER 성능은 BPSK와 동일하다.`,
+    },
+    { // 문제 5.C4
+      "id": "22-5C4",
+      "title": "5.C4.",
+      "type": "python",
+      "starterCode": `EbN0dB_vector = [0, 1, 3, 5, 7]
+
+phase_error_list = [
+    np.pi / 12,
+    np.pi / 2
+]
+
+for phase_error in phase_error_list:
+
+    BER_phase = []
+    BER_bpsk = []
+
+    for EbN0dB in EbN0dB_vector:
+
+        BER, _, _, _ = simulate_qpsk_ber(
+            EbN0dB,
+            Nerrs=50,
+            phase_error=phase_error,
+            seed_I=XX
+        )
+
+        BER_phase.append(BER)
+
+        EbN0 = 10 ** (EbN0dB / 10)
+
+        BER_bpsk.append(
+            0.5 * erfc(np.sqrt(EbN0))
+        )
+
+    plt.figure(figsize=(8, 6))
+
+    plt.semilogy(
+        EbN0dB_vector,
+        BER_phase,
+        'o-',
+        label='Simulated'
+    )
+
+    plt.semilogy(
+        EbN0dB_vector,
+        BER_bpsk,
+        's-',
+        label='BPSK Theory'
+    )
+
+    plt.xlabel('Eb/N0 [dB]')
+    plt.ylabel('BER')
+
+    plt.title(
+        f'Phase Error = '
+        f'{phase_error / np.pi:.3g}π'
+    )
+
+    plt.grid(True, which='both')
+    plt.legend()
+    plt.show()`,
+      "prompt": `송수신기 사이에 다음 두 위상오차가 존재하도록 설정하고 BER simulation을 반복하시오.
+$$
+\\theta=\\frac{\\pi}{12}
+$$
+$$
+\\theta=\\frac{\\pi}{2}
+$$
+각 경우에 대해 simulated BER과 위상오차가 없다고 가정한 BPSK theoretical BER을 같은 그래프에 나타내고, 다음을 관찰하시오.
+
+(a) $\\theta=\\pi/12$일 때 위상오차가 없는 경우와 비교하여 BER 성능은 어떻게 변하는가?
+(b) $\\theta=\\pi/2$일 때 $E_b/N_0$를 증가시켜도 BER이 크게 감소하지 않는 이유는 무엇일지 생각해 보시오.`,
+      responseEnabled: true,
+      referenceAnswer: `(a) $\\theta=\\pi/12=15^\\circ$의 위상오차가 존재하면 위상오차가 없는 경우보다 BER 성능이 나빠진다.
+
+수신 constellation이 회전하면서 I/Q decision boundary에 대한 거리가 달라지기 때문이다. 특히 한 채널의 decision margin이 감소하므로 동일한 $E_b/N_0$에서도 bit error가 더 자주 발생한다.
+
+따라서 simulated BER curve는 위상오차가 없는 BPSK theoretical BER curve보다 위쪽에 나타난다.
+
+(b) $\\theta=\\pi/2=90^\\circ$이면 constellation이 90도 회전한다. 이 경우 원래의 I/Q 축과 수신기의 decision axis가 크게 어긋나므로 $E_b/N_0$를 높여 noise를 감소시켜도 올바른 bit decision을 할 수 없는 경우가 계속 발생한다.
+
+이론적으로 $\\theta=\\pi/2$를 위상오차가 있는 QPSK BER 식에 대입하면
+
+$$
+P_b=\\frac12
+$$
+
+가 된다.
+
+따라서 높은 $E_b/N_0$에서도 BER이 약 0.5 부근에 머물게 된다.`,
+    },
+    { // 문제 5.C5(a)
+      "id": "22-5C5",
+      "title": "5.C5.",
+      "type": "proof",
+      "prompt": `이제 문제 5.C4에서 관찰한 위상오차에 따른 BER 변화를 이론적으로 분석해 보자.
+
+Python의 Integrate-and-Dump 출력은 $L=256$개의 sample 값을 합하므로 실제 출력의 크기는 약 $\\pm1024$이다. BER 이론 유도에서는 공통 scale factor $L$을 제거한 normalized correlation 좌표 $X=\\dfrac{\\mathrm{corr}_I}{L}, Y=\\dfrac{\\mathrm{corr}_Q}{L}$를 사용한다.
+
+위상오차가 없고 noise도 없을 때 이상적인 좌표는 $\\pm\\sqrt{E_b}$이다. 본 Python 실습의 mapping $0\\rightarrow-1, 1\\rightarrow+1$을 사용할 때 다음 표의 빈칸을 채우시오.
+[[table:
+caption:위상오차가 없는 QPSK constellation 좌표
+$(b_I,b_Q)$ | $X$ | $Y$
+$(1,1)$ | $+\\sqrt{E_b}$ | $+\\sqrt{E_b}$
+$(1,0)$ | ? | ?
+$(0,1)$ | ? | ?
+$(0,0)$ | ? | ?
+]]`,
+        referenceAnswer: `본 Python 실습에서는
+
+$$
+0\\rightarrow-1,
+\\qquad
+1\\rightarrow+1
+$$
+
+mapping을 사용한다.
+
+따라서 위상오차와 noise가 없을 때 normalized constellation 좌표는 다음과 같다.
+
+[[table:
+caption:위상오차가 없는 QPSK constellation 좌표
+$(b_I,b_Q)$ | $X$ | $Y$
+$(1,1)$ | $+\\sqrt{E_b}$ | $+\\sqrt{E_b}$
+$(1,0)$ | $+\\sqrt{E_b}$ | $-\\sqrt{E_b}$
+$(0,1)$ | $-\\sqrt{E_b}$ | $+\\sqrt{E_b}$
+$(0,0)$ | $-\\sqrt{E_b}$ | $-\\sqrt{E_b}$
+]]
+
+$E_b=16$인 경우 $\\sqrt{E_b}=4$이므로 normalized 좌표는
+
+$$
+(4,4),\\;(4,-4),\\;(-4,4),\\;(-4,-4)
+$$
+
+이다.
+
+실제 Integrate-and-Dump 출력에서는 여기에 $L=256$의 scale factor가 적용되어 약 $(\\pm1024,\\pm1024)$의 좌표가 나타난다.`,
+    },
+    { // 문제 5.C5(b)
+      "id": "22-5C6",
+      "title": "5.C6.",
+      "type": "proof",
+      "prompt": `수신기에 위상오차 $\\theta$가 존재하면 constellation 전체가 원점을 중심으로 $\\theta$만큼 회전한다.
+
+$(b_I,b_Q)=(1,1)$의 경우 위상오차가 없을 때 constellation의 위상은 $\\dfrac{\\pi}{4}$이다. 따라서 위상오차 $\\theta$가 존재할 때
+$$
+X
+=
+\\sqrt{2E_b}
+\\cos
+\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+$$
+$$
+Y
+=
+\\sqrt{2E_b}
+\\sin
+\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+$$
+가 된다.
+
+같은 방법으로 다음 네 경우의 normalized constellation 좌표 $(X,Y)$를 모두 구하시오.
+$$
+(1,1),\\quad
+(1,0),\\quad
+(0,1),\\quad
+(0,0)
+$$`,
+        referenceAnswer: `위상오차가 $\\theta$만큼 존재하면 constellation 좌표는 원점을 중심으로 $\\theta$만큼 회전한다.
+
+따라서 각 데이터 비트 조합에 대한 normalized constellation 좌표는 다음과 같다.
+
+$$
+(1,1):
+$$
+
+$$
+X
+=
+\\sqrt{2E_b}
+\\cos\\left(
+\\frac{\\pi}{4}+\\theta
+\\right),
+\\qquad
+Y
+=
+\\sqrt{2E_b}
+\\sin\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+$$
+
+$$
+(1,0):
+$$
+
+$$
+X
+=
+\\sqrt{2E_b}
+\\cos\\left(
+-\\frac{\\pi}{4}+\\theta
+\\right),
+\\qquad
+Y
+=
+\\sqrt{2E_b}
+\\sin\\left(
+-\\frac{\\pi}{4}+\\theta
+\\right)
+$$
+
+$$
+(0,1):
+$$
+
+$$
+X
+=
+\\sqrt{2E_b}
+\\cos\\left(
+\\frac{3\\pi}{4}+\\theta
+\\right),
+\\qquad
+Y
+=
+\\sqrt{2E_b}
+\\sin\\left(
+\\frac{3\\pi}{4}+\\theta
+\\right)
+$$
+
+$$
+(0,0):
+$$
+
+$$
+X
+=
+\\sqrt{2E_b}
+\\cos\\left(
+-\\frac{3\\pi}{4}+\\theta
+\\right),
+\\qquad
+Y
+=
+\\sqrt{2E_b}
+\\sin\\left(
+-\\frac{3\\pi}{4}+\\theta
+\\right)
+$$
+
+즉, 네 constellation point는 원점과의 거리는 유지하면서 위상오차 $\\theta$만큼 함께 회전한다.`,
+    },
+    { // 문제 5.C5(c)
+      "id": "22-5C7",
+      "title": "5.C7.",
+      "type": "proof",
+      "prompt": `먼저 위상오차가 없는 경우를 생각하자.
+[[image:/images/ch22/figure22_6.png|그림 22.6 위상오차가 없고, $b_I=1$일 때, BER|50]]
+$(b_I,b_Q)=(1,1)$이 전송되었다고 하면 I 채널의 normalized correlator 출력 $X$는
+$$
+X
+\\sim
+\\mathcal{N}
+\\left(
+\\sqrt{E_b},
+\\frac{N_0}{2}
+\\right)
+$$
+의 Gaussian random variable이 된다. $b_I=1$이므로 수신기에서는 $X>0$일 때 올바른 비트로 판정한다.
+
+다음의 순서에 따라 I 채널의 BER을 구하시오.
+(a) I 채널에서 bit error가 발생하는 조건을 쓰시오.
+(b) Gaussian 분포를 이용하여 error probability를 구하시오.
+(c) 나머지 constellation 좌표에서도 동일한 결과가 얻어지는지 확인하시오.
+(d) 최종 QPSK bit error probability가 $P_b=\\dfrac{1}{2}\\operatorname{erfc}\\left(\\sqrt{\\dfrac{E_b}{N_0}}\\right)$가 됨을 보이시오.`,
+        referenceAnswer: `(a) $(b_I,b_Q)=(1,1)$이 전송된 경우 $b_I=1$이므로 정상적인 I 채널 출력은 양수이다.
+
+따라서 bit error가 발생하는 조건은
+
+$$
+X<0
+$$
+
+이다.
+
+(b) 이때
+
+$$
+X
+\\sim
+\\mathcal{N}
+\\left(
+\\sqrt{E_b},
+\\frac{N_0}{2}
+\\right)
+$$
+
+이므로
+
+$$
+P(e_I)
+=
+P(X<0)
+$$
+
+이다.
+
+표준화하면
+
+$$
+P(e_I)
+=
+Q\\left(
+\\frac{\\sqrt{E_b}}
+{\\sqrt{N_0/2}}
+\\right)
+=
+Q\\left(
+\\sqrt{\\frac{2E_b}{N_0}}
+\\right).
+$$
+
+$Q$ 함수와 erfc의 관계
+
+$$
+Q(x)
+=
+\\frac12
+\\operatorname{erfc}
+\\left(
+\\frac{x}{\\sqrt2}
+\\right)
+$$
+
+를 이용하면
+
+$$
+P(e_I)
+=
+\\frac12
+\\operatorname{erfc}
+\\left(
+\\sqrt{\\frac{E_b}{N_0}}
+\\right).
+$$
+
+(c) 나머지 constellation point에서도 신호의 부호만 반대가 되고 decision boundary와 신호점 사이의 거리는 동일하므로 같은 error probability를 얻는다.
+
+Q 채널도 동일하다.
+
+(d) 따라서 최종 QPSK의 bit error probability는
+
+$$
+\\boxed{
+P_b
+=
+\\frac12
+\\operatorname{erfc}
+\\left(
+\\sqrt{\\frac{E_b}{N_0}}
+\\right)
+}
+$$
+
+가 되며, 이는 BPSK의 theoretical BER과 동일하다.`,
+    },
+    { // 문제 5.C5(d)
+      "id": "22-5C8",
+      "title": "5.C8.",
+      "type": "essay",
+      "prompt": `송수신기 사이에 위상오차 $\\theta$가 존재하는 경우를 생각하자. 수신기의 기저신호는 여전히 서로 직교하며 AWGN은 모든 방향에 대해 동일한 통계적 특성을 갖는다.
+
+다음 물음에 답하시오.
+(a) 위상오차 $\\theta$가 존재할 때 normalized correlator 출력에 포함되는 noise 성분의 분산은 $\\theta$에 따라 변하는가?
+(b) 위상오차가 존재할 때 $X$, $Y$의 평균은 문제 5.C6의 결과와 같이 변한다. 이때 각 좌표의 noise variance를 쓰시오.`,
+        referenceAnswer: `(a) 위상오차 $\\theta$가 존재하더라도 normalized correlator 출력의 noise variance는 변하지 않는다.
+
+AWGN은 모든 방향에서 동일한 통계적 특성을 가지며, 수신기의 두 기저신호 역시 위상오차가 존재하더라도 서로 직교하는 단위에너지 기저이다.
+
+따라서 기저축이 회전하더라도 각 축으로 projection된 noise의 분산은 동일하다.
+
+(b) 위상오차가 존재하면 $X$, $Y$의 평균값은 constellation의 회전에 따라 변하지만 각 좌표의 noise variance는
+
+$$
+\\boxed{
+\\operatorname{Var}(X)
+=
+\\operatorname{Var}(Y)
+=
+\\frac{N_0}{2}
+}
+$$
+
+로 위상오차가 없는 경우와 동일하다.`,
+    },
+    { // 문제 5.C5(e)
+      "id": "22-5C9",
+      "title": "5.C9.",
+      "type": "proof",
+      "prompt": `문제 5.C6~5.C8의 결과를 이용하여 위상오차 $\\theta$가 존재하는 QPSK의 평균 BER을 유도하시오.
+
+최종적으로 BER이
+$$
+P_b(\\theta)
+=
+\\frac14
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\cos
+\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right]
+$$
+$$
+\\qquad
++
+\\frac14
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\sin
+\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right]
+$$
+의 형태로 나타남을 보이시오. 또한, $\\theta=0$을 대입했을 때 문제 5.C3에서 사용한 BPSK BER 식과 동일해지는지 확인하시오.`,
+        referenceAnswer: `위상오차가 $\\theta$만큼 존재한다고 하자.
+
+예를 들어 $(b_I,b_Q)=(1,1)$일 때
+
+$$
+X
+\\sim
+\\mathcal{N}
+\\left(
+\\sqrt{2E_b}
+\\cos\\left(
+\\frac{\\pi}{4}+\\theta
+\\right),
+\\frac{N_0}{2}
+\\right)
+$$
+
+이고
+
+$$
+Y
+\\sim
+\\mathcal{N}
+\\left(
+\\sqrt{2E_b}
+\\sin\\left(
+\\frac{\\pi}{4}+\\theta
+\\right),
+\\frac{N_0}{2}
+\\right)
+$$
+
+이다.
+
+I 채널에서 error가 발생할 확률은
+
+$$
+P_{e,I}
+=
+P(X<0)
+$$
+
+이므로
+
+$$
+P_{e,I}
+=
+\\frac12
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\cos\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right].
+$$
+
+같은 방법으로 Q 채널의 error probability는
+
+$$
+P_{e,Q}
+=
+\\frac12
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\sin\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right].
+$$
+
+I/Q 두 비트의 평균 BER은
+
+$$
+P_b(\\theta)
+=
+\\frac{P_{e,I}+P_{e,Q}}{2}
+$$
+
+이므로
+
+$$
+\\boxed{
+P_b(\\theta)
+=
+\\frac14
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\cos\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right]
++
+\\frac14
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\sin\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right]
+}
+$$
+
+이다.
+
+$\\theta=0$을 대입하면
+
+$$
+\\cos\\frac{\\pi}{4}
+=
+\\sin\\frac{\\pi}{4}
+=
+\\frac{1}{\\sqrt2}
+$$
+
+이므로
+
+$$
+P_b(0)
+=
+\\frac12
+\\operatorname{erfc}
+\\left(
+\\sqrt{\\frac{E_b}{N_0}}
+\\right)
+$$
+
+가 되어 위상오차가 없는 BPSK theoretical BER과 동일해진다.`,
+    },
+    { // 문제 5.C5(f)
+      "id": "22-5C10",
+      "title": "5.C10.",
+      "type": "python",
+      "starterCode": `theta = np.pi / 12
+
+BER_theory_phase = []
+
+for EbN0dB in EbN0dB_vector:
+
+    EbN0 = 10 ** (EbN0dB / 10)
+
+    BER = 0.5 * (
+        0.5 * erfc(
+            np.sqrt(2 * EbN0)
+            * np.cos(np.pi / 4 + theta)
+        )
+        +
+        0.5 * erfc(
+            np.sqrt(2 * EbN0)
+            * np.sin(np.pi / 4 + theta)
+        )
+    )
+
+    BER_theory_phase.append(BER)`,
+      "prompt": `문제 5.C9에서 유도한 식을 이용하여 $\\theta=\\dfrac{\\pi}{12}$일 때 theoretical QPSK BER을 계산하는 Python 코드를 완성하고 실행하시오.
+
+위 코드가 문제 5.C9의 theoretical BER 식과 동일한지 확인하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `문제 5.C9에서 유도한 식에
+
+$$
+\\theta=\\frac{\\pi}{12}
+$$
+
+를 대입하면 다음과 같다.
+
+\`\`\`python
+theta = np.pi / 12
+
+BER_theory_phase = []
+
+for EbN0dB in EbN0dB_vector:
+
+    EbN0 = 10 ** (EbN0dB / 10)
+
+    BER = 0.5 * (
+        0.5 * erfc(
+            np.sqrt(2 * EbN0)
+            * np.cos(np.pi / 4 + theta)
+        )
+        +
+        0.5 * erfc(
+            np.sqrt(2 * EbN0)
+            * np.sin(np.pi / 4 + theta)
+        )
+    )
+
+    BER_theory_phase.append(BER)
+\`\`\`
+
+이는
+
+$$
+P_b(\\theta)
+=
+\\frac14
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\cos\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right]
++
+\\frac14
+\\operatorname{erfc}
+\\left[
+\\sqrt{2\\frac{E_b}{N_0}}
+\\sin\\left(
+\\frac{\\pi}{4}+\\theta
+\\right)
+\\right]
+$$
+
+에 $\\theta=\\pi/12$를 대입한 것과 동일하다.`,
+    },
+    { // 문제 5.C5(g)
+      "id": "22-5C11",
+      "title": "5.C11.",
+      "type": "python",
+      "starterCode": `theta = np.pi / 12
+
+BER_sim_phase = []
+BER_theory_phase = []
+
+for EbN0dB in EbN0dB_vector:
+
+    BER_sim, _, _, _ = simulate_qpsk_ber(
+        EbN0dB,
+        Nerrs=50,
+        phase_error=theta,
+        seed_I=XX
+    )
+
+    BER_sim_phase.append(BER_sim)
+
+    EbN0 = 10 ** (EbN0dB / 10)
+
+    BER_theory_phase.append(
+        0.5 * (
+            0.5 * erfc(
+                np.sqrt(2 * EbN0)
+                * np.cos(
+                    np.pi / 4 + theta
+                )
+            )
+            +
+            0.5 * erfc(
+                np.sqrt(2 * EbN0)
+                * np.sin(
+                    np.pi / 4 + theta
+                )
+            )
+        )
+    )
+
+
+plt.figure(figsize=(8, 6))
+
+plt.semilogy(
+    EbN0dB_vector,
+    BER_sim_phase,
+    'o-',
+    label='Simulated'
+)
+
+plt.semilogy(
+    EbN0dB_vector,
+    BER_theory_phase,
+    's-',
+    label='Theory'
+)
+
+plt.xlabel('Eb/N0 [dB]')
+plt.ylabel('BER')
+
+plt.title(
+    'QPSK BER with Phase Error = π/12'
+)
+
+plt.grid(True, which='both')
+plt.legend()
+plt.show()`,
+      "prompt": `송수신기 사이에 $\\theta=\\dfrac{\\pi}{12}$의 위상오차가 존재할 때 simulated BER과 문제 5.C9에서 유도한 theoretical BER을 같은 그래프에 나타내시오. 두 BER curve가 대체로 일치하는지 확인하고 결과를 설명하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `송수신기 사이에
+
+$$
+\\theta=\\frac{\\pi}{12}
+$$
+
+의 위상오차가 존재하는 경우 simulated BER과 위상오차를 고려하여 유도한 theoretical BER은 전체적으로 거의 일치한다.
+
+Simulation은 유한한 수의 random bit와 AWGN sample을 이용하므로 각 $E_b/N_0$에서 작은 통계적 오차가 발생할 수 있다.
+
+그러나 $E_b/N_0$ 증가에 따른 BER 감소 경향과 전체 BER curve의 형태가 theoretical BER과 거의 일치하므로, 문제 5.C9에서 유도한 위상오차가 존재하는 QPSK BER 식이 simulation 결과를 올바르게 설명함을 확인할 수 있다.`,
+    },
+  ]
+},
+    { // 문제 6
+  "id": "22-6",
+  "title": "6. 펄스성형 및 순간 진폭",
+  "problems": [
+    { // 문제 6.A
+      "id": "22-6A",
+      "title": "6.A.",
+      "prompt": `문제 2에서 구현한 QPSK 송신기를 다시 살펴보자. 현재 송신기에서는 I/Q binary data를 bipolar 신호로 변환한 후 각 심벌을 $L=256$개의 sample로 단순 반복하여 기저대역 신호를 생성하였다. 따라서, 반송파를 곱하기 전의 I/Q 기저대역 신호는 한 심벌 구간 동안 일정한 값을 유지하는 사각 펄스(rectangular pulse) 형태이다.
+[[image:/images/ch22/figure22_7.png|그림 22.7 펄스성형된 QPSK 송신 신호 Signal trajectory 및 eye diagram 관찰 구성도|80]]
+본 문제에서는 먼저 현재 사용하고 있는 기저대역 펄스의 형태를 확인하고, 이후 Raised-Cosine pulse shaping을 적용하여 QPSK 송신신호의 순간진폭 특성을 관찰해 보자.
+`,
+    },
+    { // 문제 6.A1
+      "id": "22-6A1",
+      "title": "6.A1.",
+      "type": "python",
+      "starterCode": `import numpy as np
+import matplotlib.pyplot as plt
+
+Ts = 1
+L = 256
+Eb = 16
+fc = 30
+Ns = 10
+
+seed_I = XX
+
+rng_I = np.random.default_rng(seed_I)
+rng_Q = np.random.default_rng(seed_I + 1)
+
+bI = rng_I.integers(0, 2, Ns)
+bQ = rng_Q.integers(0, 2, Ns)
+
+# 0 -> -1, 1 -> +1
+aI = 2 * bI - 1
+aQ = 2 * bQ - 1
+
+# 기존 사각 펄스 기저대역 신호
+I_rect = np.sqrt(Eb) * np.repeat(aI, L)
+Q_rect = np.sqrt(Eb) * np.repeat(aQ, L)
+
+t = np.arange(Ns * L) * (Ts / L)
+
+plt.figure(figsize=(11, 6))
+
+plt.subplot(2, 1, 1)
+plt.step(
+    t,
+    I_rect,
+    where='post'
+)
+plt.ylabel('I(t)')
+plt.grid()
+
+plt.subplot(2, 1, 2)
+plt.step(
+    t,
+    Q_rect,
+    where='post'
+)
+plt.xlabel('Time (s)')
+plt.ylabel('Q(t)')
+plt.grid()
+
+plt.tight_layout()
+plt.show()`,
+      "prompt": `현재 QPSK 송신기의 I/Q 기저대역 신호를 10초 동안 관찰하시오.
+
+두 신호가 각 심벌 구간 $T_s=1$ sec 동안 일정한 값을 유지하는 사각파 형태인지 확인하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `출력된 $I(t)$와 $Q(t)$는 각 심벌 구간 $T_s=1$ sec 동안 일정한 값을 유지하는 사각파 형태이다.
+
+각 채널의 bipolar symbol은
+
+$$
+0\\rightarrow-1,
+\\qquad
+1\\rightarrow+1
+$$
+
+로 변환되고 $\\sqrt{E_b}=4$가 곱해지므로 기저대역 신호의 값은 각 심벌 구간에서
+
+$$
++4
+\\quad\\text{또는}\\quad
+-4
+$$
+
+중 하나를 유지한다.
+
+따라서 현재 QPSK 송신기는 별도의 pulse shaping 없이 rectangular pulse를 사용하고 있음을 확인할 수 있다.`,
+    },
+    { // 문제 6.A2
+      "id": "22-6A2",
+      "title": "6.A2.",
+      "type": "proof",
+      "prompt": `문제 6.A1에서 관찰한 결과를 바탕으로 현재 QPSK 송신기에서 사용하는 기저대역 pulse $p(t)$를 수식으로 나타내시오. 한 심벌의 길이는 $T_s=1\\text{ sec}$이다.`,
+        referenceAnswer: `현재 송신기에서 사용하는 pulse $p(t)$는 한 심벌 구간 동안 값이 1이고 그 외에는 0인 rectangular pulse이다.
+
+$$
+p(t)
+=
+\\begin{cases}
+1, & 0\\le t<T_s,\\\\
+0, & \\text{otherwise}.
+\\end{cases}
+$$
+
+본 실습에서는 $T_s=1$ sec이므로
+
+$$
+p(t)
+=
+\\begin{cases}
+1, & 0\\le t<1,\\\\
+0, & \\text{otherwise}.
+\\end{cases}
+$$
+
+이다.`,
+    },
+    { // 문제 6.B
+      "id": "22-6B",
+      "title": "6.B.",
+      "type": "python",
+      "starterCode": `import numpy as np
+import matplotlib.pyplot as plt
+
+# -------------------------------------------------
+# Raised-Cosine pulse
+# -------------------------------------------------
+
+def raised_cosine_pulse(
+    alpha=0.75,
+    sps=256,
+    span=10
+):
+    """
+    Raised-Cosine pulse
+
+    alpha : roll-off factor
+    sps   : samples per symbol
+    span  : Python 구현에서 pulse를
+            유한 길이로 자르기 위한 symbol 수
+    """
+
+    t = np.arange(
+        -span * sps / 2,
+         span * sps / 2 + 1
+    ) / sps
+
+    h = np.zeros_like(t, dtype=float)
+
+    for k, tau in enumerate(t):
+
+        if np.isclose(tau, 0):
+            h[k] = 1.0
+
+        elif np.isclose(
+            abs(2 * alpha * tau),
+            1.0
+        ):
+            # t = ±Ts/(2 alpha)의 극한값
+            h[k] = (
+                np.pi / 4
+                * np.sinc(1 / (2 * alpha))
+            )
+
+        else:
+            h[k] = (
+                np.sinc(tau)
+                * np.cos(
+                    np.pi * alpha * tau
+                )
+                /
+                (
+                    1
+                    - (2 * alpha * tau) ** 2
+                )
+            )
+
+    return h
+
+
+def raised_cosine_shape(
+    symbols,
+    alpha=0.75,
+    sps=256,
+    span=10
+):
+    # symbol impulse train
+    impulses = np.zeros(
+        len(symbols) * sps
+    )
+
+    impulses[::sps] = symbols
+
+    h = raised_cosine_pulse(
+        alpha=alpha,
+        sps=sps,
+        span=span
+    )
+
+    # pulse shaping
+    shaped = np.convolve(
+        impulses,
+        h,
+        mode='same'
+    )
+
+    return shaped
+
+
+# -------------------------------------------------
+# QPSK baseband data
+# -------------------------------------------------
+
+Ts = 1
+L = 256
+Eb = 16
+fc = 30
+Ns = 20
+
+seed_I = XX
+
+rng_I = np.random.default_rng(seed_I)
+rng_Q = np.random.default_rng(seed_I + 1)
+
+bI = rng_I.integers(0, 2, Ns)
+bQ = rng_Q.integers(0, 2, Ns)
+
+aI = 2 * bI - 1
+aQ = 2 * bQ - 1
+
+I_symbols = np.sqrt(Eb) * aI
+Q_symbols = np.sqrt(Eb) * aQ
+
+# Raised-Cosine parameters
+alpha = ??
+sps = ??
+
+I_shaped = raised_cosine_shape(
+    I_symbols,
+    alpha=alpha,
+    sps=sps
+)
+
+Q_shaped = raised_cosine_shape(
+    Q_symbols,
+    alpha=alpha,
+    sps=sps
+)
+
+t = np.arange(len(I_shaped)) / L
+
+plt.figure(figsize=(11, 6))
+
+plt.subplot(2, 1, 1)
+plt.plot(t, I_shaped)
+plt.ylabel('I(t)')
+plt.grid()
+
+plt.subplot(2, 1, 2)
+plt.plot(t, Q_shaped)
+plt.xlabel('Time (s)')
+plt.ylabel('Q(t)')
+plt.grid()
+
+plt.tight_layout()
+plt.show()`,
+      "prompt": `사각 펄스는 주파수 영역에서 sinc 형태의 스펙트럼을 가지므로 대역폭 효율이 좋지 않다. 따라서 I/Q 기저대역 신호에 Raised-Cosine pulse shaping을 적용해 보자.
+
+Raised-Cosine pulse의 설정은 다음과 같다.
+- Roll-off factor: $0.75$
+- Samples per symbol: $256$
+
+다음 코드의 두 빈칸을 채우고 pulse-shaped I/Q 신호를 관찰하시오.
+\`\`\`python
+alpha = ??
+sps = ??
+\`\`\`
+※ Python에서는 무한 길이의 Raised-Cosine pulse를 직접 구현할 수 없으므로, 실습을 위해 pulse를 유한 길이로 자르는 \`span=10\`을 사용한다.`,
+      responseEnabled: true,
+      referenceAnswer: `원래 실습에서 설정한 Raised-Cosine pulse shaping의 주요 파라미터는
+
+$$
+\\alpha=0.75
+$$
+
+와
+
+$$
+L=256
+$$
+
+samples/symbol이다.
+
+따라서 빈칸은 다음과 같다.
+
+\`\`\`python
+alpha = 0.75
+sps = 256
+\`\`\`
+
+Raised-Cosine pulse shaping을 적용하면 기존 rectangular pulse처럼 심벌 경계에서 값이 갑자기 바뀌지 않고, 인접 심벌 구간에 걸쳐 부드럽게 변화하는 $I(t)$와 $Q(t)$를 확인할 수 있다.`,
+    },
+    { // 문제 6.C
+      "id": "22-6C",
+      "title": "6.C.",
+      "prompt": `문제 6.B에서 Raised-Cosine pulse shaping된 I/Q 기저대역 신호를 각각 $I(t), Q(t)$라 하자. 두 신호는 각각 cosine 및 sine 반송파와 곱해진 후 더해져 최종 통과대역 QPSK 송신신호가 된다. 통과대역 송신신호 $s(t)$는 [[equation:22.5]]와 같이 나타낼 수 있다.
+$$
+s(t)
+=
+I(t)
+\\sqrt{\\frac{2}{T_s}}
+\\cos(\\omega_ct)
++
+Q(t)
+\\sqrt{\\frac{2}{T_s}}
+\\sin(\\omega_ct)
+\\qquad \\text{(식 22.5)}
+$$
+이를 하나의 cosine 형태로 나타내면
+$$
+s(t)
+=
+\\sqrt{\\frac{2}{T_s}}
+\\sqrt{I^2(t)+Q^2(t)}
+\\cos
+\\left[
+\\omega_ct
+-
+\\tan^{-1}
+\\left(
+\\frac{Q(t)}{I(t)}
+\\right)
+\\right].
+$$
+따라서 통과대역 QPSK 신호의 순간진폭은 $\\sqrt{\\dfrac{2}{T_s}\\left(I^2(t)+Q^2(t)\\right)}$에 비례한다. 즉, $(I(t),Q(t))$ 벡터가 시간에 따라 이동하는 경로를 관찰하면 QPSK 송신신호의 순간진폭 변화를 알 수 있다. 시간에 따른 $(I(t),Q(t))$의 궤적을 Signal trajectory라 한다.`,
+    },
+    { // 문제 6.C1
+      "id": "22-6C1",
+      "title": "6.C1.",
+      "type": "python",
+      "starterCode": `# 문제 6.B의 코드를 먼저 실행한다.
+
+# -------------------------------------------------
+# Passband QPSK signal
+# -------------------------------------------------
+
+psi1 = np.sqrt(2 / Ts) * np.cos(
+    2 * np.pi * fc * t
+)
+
+psi2 = np.sqrt(2 / Ts) * np.sin(
+    2 * np.pi * fc * t
+)
+
+x_shaped = I_shaped * psi1
+y_shaped = Q_shaped * psi2
+
+s_shaped = x_shaped + y_shaped
+
+
+# -------------------------------------------------
+# Signal trajectory
+# -------------------------------------------------
+
+plt.figure(figsize=(7, 7))
+
+plt.plot(
+    I_shaped,
+    Q_shaped,
+    linewidth=0.8
+)
+
+plt.axhline(0)
+plt.axvline(0)
+
+plt.xlabel('I(t)')
+plt.ylabel('Q(t)')
+plt.title('QPSK Signal Trajectory')
+
+plt.grid()
+plt.axis('equal')
+plt.show()
+
+
+# -------------------------------------------------
+# Eye diagram helper
+# -------------------------------------------------
+
+def eye_diagram(
+    signal,
+    sps,
+    traces=80
+):
+    samples_per_trace = 2 * sps
+
+    # edge effect가 큰 앞/뒤 구간 제외
+    start_symbol = 5
+
+    available = (
+        len(signal) // sps
+        - start_symbol
+        - 2
+    )
+
+    traces = min(
+        traces,
+        available
+    )
+
+    tau = np.arange(
+        samples_per_trace
+    ) / sps
+
+    for k in range(traces):
+
+        start = (
+            start_symbol + k
+        ) * sps
+
+        segment = signal[
+            start:
+            start + samples_per_trace
+        ]
+
+        if len(segment) == samples_per_trace:
+            plt.plot(
+                tau,
+                segment,
+                alpha=0.25
+            )
+
+
+# I-channel eye diagram
+plt.figure(figsize=(9, 5))
+
+eye_diagram(
+    I_shaped,
+    L
+)
+
+plt.xlabel('Time / Ts')
+plt.ylabel('I(t)')
+plt.title('I-channel Eye Diagram')
+plt.grid()
+plt.show()
+
+
+# Q-channel eye diagram
+plt.figure(figsize=(9, 5))
+
+eye_diagram(
+    Q_shaped,
+    L
+)
+
+plt.xlabel('Time / Ts')
+plt.ylabel('Q(t)')
+plt.title('Q-channel Eye Diagram')
+plt.grid()
+plt.show()`,
+      "prompt": `문제 6.B에서 생성한 pulse-shaped $I(t)$, $Q(t)$를 이용하여 다음을 관찰하시오.
+
+(a) $(I(t),Q(t))$의 Signal trajectory
+(b) I 채널의 eye diagram
+(c) Q 채널의 eye diagram
+
+Eye diagram은 원래 실습과 동일하게 한 trace에 두 심벌 구간이 나타나도록 구성한다. 출력된 Signal trajectory와 eye diagram의 모양을 관찰하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `Signal trajectory는 시간에 따라 변하는
+
+$$
+(I(t),Q(t))
+$$
+
+를 I-Q 평면에 순서대로 나타낸 궤적이다.
+
+Raised-Cosine pulse shaping에 의해 $I(t)$와 $Q(t)$는 심벌 사이에서 연속적으로 변화하므로 trajectory 역시 네 개의 이상적인 QPSK 신호점 사이를 연속적인 경로로 이동한다.
+
+I/Q eye diagram에서는 여러 심벌 구간의 pulse-shaped waveform이 두 심벌 길이로 겹쳐서 나타난다.
+
+각 eye가 크게 열려 있는 위치에서는 $I(t)$ 또는 $Q(t)$가 이상적인 심벌값 부근에 위치하며, 두 eye opening 사이의 중간에서는 다음 심벌값으로 transition하는 과정이 나타난다.`,
+    },
+    { // 문제 6.C2
+      "id": "22-6C2",
+      "title": "6.C2.",
+      "type": "python",
+      "starterCode": `# 문제 6.C1의 s_shaped를 사용한다.
+
+plt.figure(figsize=(12, 4))
+
+plt.plot(
+    t,
+    s_shaped
+)
+
+plt.xlim(0, 18)
+
+plt.xlabel('Time (s)')
+plt.ylabel('s(t)')
+plt.title(
+    'Pulse-shaped QPSK Signal'
+)
+
+plt.grid()
+plt.show()`,
+      "prompt": `Raised-Cosine pulse shaping이 적용된 통과대역 QPSK 송신신호 $s(t)$를 약 18초 동안 관찰하시오.
+
+(a) 출력 파형을 관찰하시오.
+(b) 시간에 따라 신호의 진폭이 어떻게 변화하는지 설명하시오. 특히 순간적으로 진폭이 0에 가까워지는 구간이 존재하는지 확인하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `(a) Raised-Cosine pulse shaping된 통과대역 QPSK 신호에서는 시간에 따라 신호의 envelope가 일정하지 않고 변화하는 모습을 확인할 수 있다.
+
+(b) 기존의 pulse shaping이 없는 QPSK와 달리, pulse-shaped $I(t)$와 $Q(t)$가 심벌 사이에서 연속적으로 변화하므로 통과대역 신호의 진폭도 커졌다가 작아지는 변화를 반복한다.
+
+특히 일부 심벌 transition에서는
+
+$$
+I(t)\\approx0,
+\\qquad
+Q(t)\\approx0
+$$
+
+이 동시에 발생하여
+
+$$
+\\sqrt{I^2(t)+Q^2(t)}
+\\approx0
+$$
+
+이 되므로 송신신호의 순간진폭이 0에 가까워지는 구간도 나타난다.`,
+    },
+    { // 문제 6.C3
+      "id": "22-6C3",
+      "title": "6.C3.",
+      "type": "python",
+      "starterCode": `# 더 많은 심벌을 이용하여
+# trajectory와 eye diagram을 관찰한다.
+
+Ns_long = 200
+
+rng_I_long = np.random.default_rng(
+    seed_I
+)
+
+rng_Q_long = np.random.default_rng(
+    seed_I + 1
+)
+
+bI_long = rng_I_long.integers(
+    0, 2, Ns_long
+)
+
+bQ_long = rng_Q_long.integers(
+    0, 2, Ns_long
+)
+
+aI_long = 2 * bI_long - 1
+aQ_long = 2 * bQ_long - 1
+
+I_long = raised_cosine_shape(
+    np.sqrt(Eb) * aI_long,
+    alpha=0.75,
+    sps=L
+)
+
+Q_long = raised_cosine_shape(
+    np.sqrt(Eb) * aQ_long,
+    alpha=0.75,
+    sps=L
+)
+
+
+# Signal trajectory
+plt.figure(figsize=(7, 7))
+
+plt.plot(
+    I_long,
+    Q_long,
+    linewidth=0.35,
+    alpha=0.6
+)
+
+plt.axhline(0)
+plt.axvline(0)
+
+plt.xlabel('I(t)')
+plt.ylabel('Q(t)')
+
+plt.grid()
+plt.axis('equal')
+plt.show()
+
+
+# I eye diagram
+plt.figure(figsize=(9, 5))
+eye_diagram(I_long, L, traces=120)
+plt.xlabel('Time / Ts')
+plt.ylabel('I(t)')
+plt.grid()
+plt.show()
+
+
+# Q eye diagram
+plt.figure(figsize=(9, 5))
+eye_diagram(Q_long, L, traces=120)
+plt.xlabel('Time / Ts')
+plt.ylabel('Q(t)')
+plt.grid()
+plt.show()`,
+      "prompt": `충분히 많은 QPSK 심벌을 생성하여 Signal trajectory와 I/Q eye diagram을 다시 관찰하시오. 문제 6.C1보다 많은 심벌을 사용했을 때 가능한 신호 전이 경로가 충분히 나타나는지 확인하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `충분히 많은 심벌을 생성하면 QPSK에서 가능한 다양한 심벌 transition이 Signal trajectory에 나타난다.
+
+Trajectory는 네 개의 QPSK 신호점 사이를 연결하는 여러 경로로 구성되며, 일부 transition에서는 궤적이 원점 또는 원점에 매우 가까운 곳을 통과하는 것을 확인할 수 있다.
+
+I/Q eye diagram에서는 eye가 최대로 열리는 지점과 심벌 transition이 일어나는 중간지점을 반복적으로 확인할 수 있다.`,
+    },
+    { // 문제 6.C4
+      "id": "22-6C4",
+      "title": "6.C4.",
+      "type": "essay",
+      "prompt": `문제 6.C3의 Signal trajectory와 eye diagram을 바탕으로 다음에 답하시오.
+
+(a) 대부분의 trajectory는 원점으로부터 떨어져 있지만 일부 transition에서는 trajectory가 원점 또는 원점에 매우 가까운 곳을 지나간다. 통과대역 신호의 순간진폭이 $\\sqrt{I^2(t)+Q^2(t)}$임을 이용하여, 이 결과가 QPSK 송신신호의 순간진폭 변화와 어떤 관계가 있는지 설명하시오.
+(b) Signal trajectory가 원점을 지나가는 순간을 I/Q eye diagram에서 찾으시오. 이 순간은 다음 두 시점 중 어느 것에 해당하는가? 그 이유와 함께 설명하시오.
+① eye가 최대로 열리는 지점
+② eye가 최대로 열리는 이웃한 두 지점의 중간지점
+`,
+        referenceAnswer: `(a) QPSK 통과대역 송신신호의 순간진폭은
+
+$$
+A(t)
+=
+\\sqrt{\\frac{2}{T_s}}
+\\sqrt{I^2(t)+Q^2(t)}
+$$
+
+에 비례한다.
+
+따라서 Signal trajectory에서 $(I(t),Q(t))$가 원점에서 멀리 있을 때는 순간진폭이 크고, trajectory가 원점에 가까워질수록 순간진폭은 작아진다.
+
+실제 Signal trajectory를 보면 대부분의 구간에서는 원점으로부터 떨어진 경로를 지나지만 일부 심벌 transition에서는 원점에 매우 가까워지거나 원점을 통과한다.
+
+이때
+
+$$
+I(t)\\approx0,
+\\qquad
+Q(t)\\approx0
+$$
+
+이므로 순간진폭도 거의 0이 된다.
+
+따라서 QPSK 신호에는 순간진폭이 크게 변화하는 구간이 존재한다.
+
+(b) Signal trajectory가 원점을 통과하는 순간은
+
+② eye가 최대로 열리는 이웃한 두 지점의 중간지점
+
+에 해당한다.
+
+Eye가 최대로 열리는 지점은 각 심벌값이 안정적으로 결정되는 시점이므로 $I(t)$와 $Q(t)$가 이상적인 심벌값 부근에 있다.
+
+반면 두 eye opening의 중간에서는 이전 심벌에서 다음 심벌로 transition하는 과정이 진행된다.
+
+I 채널과 Q 채널이 동시에 부호가 반전되는 경우에는 이 중간시점에서 두 신호가 동시에 0을 지나므로 Signal trajectory도 원점을 통과하게 된다.`,
+    },
+    { // 문제 6.D
+      "id": "22-6D",
+      "title": "6.D.",
+      "prompt": `문제 6.C에서는 일부 심벌 transition에서 $I(t)\\approx0, Q(t)\\approx0$이 동시에 발생하면서 통과대역 QPSK 신호의 순간진폭도 0에 가까워질 수 있음을 확인하였다. 이제 이러한 zero crossing이 어떤 데이터 비트의 변화에서 발생하는지 분석해 보자.`,
+    },
+    { // 문제 6.D1
+      "id": "22-6D1",
+      "title": "6.D1.",
+      "type": "essay",
+      "prompt": `Signal trajectory가 원점에 가까워지는 순간은 constellation의 어느 사분면에서 어느 사분면으로 이동할 때 발생하는지 쓰시오. 가능한 모든 사분면 간 이동을 쓰시오.`,
+      referenceAnswer: `Signal trajectory가 원점을 통과하거나 원점에 가까워지는 경우는 서로 반대편에 위치한 QPSK 신호점 사이를 이동할 때이다.
+
+즉,
+
+$$
+\\text{제1사분면}
+\\leftrightarrow
+\\text{제3사분면}
+$$
+
+또는
+
+$$
+\\text{제2사분면}
+\\leftrightarrow
+\\text{제4사분면}
+$$
+
+으로 이동하는 경우이다.
+
+이 경우에는 I 성분과 Q 성분의 부호가 동시에 반전되므로 transition 과정에서
+
+$$
+I(t)=0,
+\\qquad
+Q(t)=0
+$$
+
+이 동시에 나타날 수 있다.`,
+    },
+    { // 문제 6.D2
+      "id": "22-6D2",
+      "title": "6.D2.",
+      "type": "essay",
+      "prompt": `문제 6.D1에서 찾은 원점을 통과하는 transition은 I 채널과 Q 채널의 부호가 동시에 반전되는 경우이다. 본 Python 실습에서 사용하는 mapping $0\\rightarrow-1, 1\\rightarrow+1$을 기준으로 데이터 비트 쌍 $(b_I,b_Q)$이 어떤 값에서 어떤 값으로 바뀔 때 이러한 transition이 발생하는지 가능한 모든 경우를 쓰시오.`,
+      referenceAnswer: `본 Python 실습에서는
+
+$$
+0\\rightarrow-1,
+\\qquad
+1\\rightarrow+1
+$$
+
+mapping을 사용한다.
+
+따라서 각 비트 조합과 사분면의 관계는
+
+$$
+(1,1)
+\\rightarrow
+\\text{제1사분면},
+$$
+
+$$
+(0,1)
+\\rightarrow
+\\text{제2사분면},
+$$
+
+$$
+(0,0)
+\\rightarrow
+\\text{제3사분면},
+$$
+
+$$
+(1,0)
+\\rightarrow
+\\text{제4사분면}
+$$
+
+이다.
+
+따라서 제1사분면과 제3사분면 사이의 transition은
+
+$$
+(1,1)
+\\leftrightarrow
+(0,0)
+$$
+
+이고, 제2사분면과 제4사분면 사이의 transition은
+
+$$
+(0,1)
+\\leftrightarrow
+(1,0)
+$$
+
+이다.
+
+즉, 가능한 경우는
+
+$$
+(1,1)\\rightarrow(0,0),
+\\qquad
+(0,0)\\rightarrow(1,1),
+$$
+
+$$
+(0,1)\\rightarrow(1,0),
+\\qquad
+(1,0)\\rightarrow(0,1)
+$$
+
+이다.
+
+이 네 경우는 모두 $b_I$와 $b_Q$가 동시에 반전되는 경우이며, 이 때문에 $I(t)$와 $Q(t)$가 동시에 0을 지나면서 QPSK 신호의 순간진폭이 0에 가까워질 수 있다.`,
+    },
+  ]
+},
+    { // 문제 7
+  "id": "22-7",
+  "title": "7. OQPSK 설계",
+  "problems": [
+    { // 문제 7.A
+      "id": "22-7A",
+      "title": "7.A.",
+      "prompt": `문제 6에서 확인한 것처럼 QPSK에서는 I 채널과 Q 채널의 심벌이 동시에 반전될 수 있다. 이 경우 Signal trajectory가 서로 반대편의 QPSK 신호점 사이를 이동하면서 원점을 통과할 수 있고, $I(t)\\approx0, Q(t)\\approx0$이 동시에 발생하여 통과대역 송신신호의 순간진폭이 0에 가까워질 수 있다. 순간진폭의 변화가 큰 신호는 하드웨어 구현에서 큰 선형 동작 영역을 요구하므로 바람직하지 않을 수 있다.
+
+이를 개선하기 위해 I 또는 Q 채널 중 하나를 반 심벌주기만큼 지연시킨다. 본 실습에서는 Q 채널을 $\\dfrac{T_s}{2}$만큼 지연시킨다. 한 심벌당 sample 수가 $L=256$이므로 필요한 delay sample 수는 $\\dfrac{L}{2}=128$이다. 이와 같이 I와 Q 채널의 심벌 전환 시점을 반 심벌만큼 어긋나게 하는 변조방식을 OQPSK(Offset QPSK)라 한다.
+[[image:/images/ch22/figure22_8.png|그림 22.8 OQPSK 신호 생성 및 Signal trajectory와 eye diagram 관찰 구조|80]]`,
+    },
+    { // 문제 7.A1
+      "id": "22-7A1",
+      "title": "7.A1.",
+      "type": "python",
+      "starterCode": `# 문제 6.B의 raised_cosine_shape()와
+# 문제 6.C1의 eye_diagram()을 먼저 실행한다.
+
+import numpy as np
+import matplotlib.pyplot as plt
+
+Ts = 1
+L = 256
+Eb = 16
+fc = 30
+
+Ns = 200
+alpha = 0.75
+
+seed_I = XX
+
+rng_I = np.random.default_rng(seed_I)
+rng_Q = np.random.default_rng(seed_I + 1)
+
+bI = rng_I.integers(0, 2, Ns)
+bQ = rng_Q.integers(0, 2, Ns)
+
+# 0 -> -1, 1 -> +1
+aI = 2 * bI - 1
+aQ = 2 * bQ - 1
+
+# Raised-Cosine pulse shaping
+I_shaped = raised_cosine_shape(
+    np.sqrt(Eb) * aI,
+    alpha=alpha,
+    sps=L
+)
+
+Q_shaped = raised_cosine_shape(
+    np.sqrt(Eb) * aQ,
+    alpha=alpha,
+    sps=L
+)
+
+# -------------------------------------------------
+# OQPSK: Q channel을 반 심벌만큼 지연
+# -------------------------------------------------
+
+delay_samples = ??
+
+Q_offset = np.zeros_like(Q_shaped)
+
+Q_offset[delay_samples:] = (
+    Q_shaped[:-delay_samples]
+)
+
+# -------------------------------------------------
+# Signal trajectory
+# -------------------------------------------------
+
+# filter와 delay의 시작/끝 transient 제외
+margin = 6 * L
+
+I_view = I_shaped[
+    margin:-margin
+]
+
+Q_view = Q_offset[
+    margin:-margin
+]
+
+plt.figure(figsize=(7, 7))
+
+plt.plot(
+    I_view,
+    Q_view,
+    linewidth=0.35,
+    alpha=0.6
+)
+
+plt.axhline(0)
+plt.axvline(0)
+
+plt.xlabel('I(t)')
+plt.ylabel('Q(t)')
+plt.title('OQPSK Signal Trajectory')
+
+plt.grid()
+plt.axis('equal')
+plt.show()`,
+      "prompt": `문제 6의 QPSK 송신기를 OQPSK 송신기로 수정한다. Q 채널의 pulse-shaped signal을 반 심벌주기만큼 지연시키기 위해 다음 빈칸을 채우시오.
+\`\`\`python
+delay_samples = ??
+\`\`\`
+완성된 코드를 실행하여 OQPSK의 Signal trajectory를 관찰하시오.
+(a) 출력된 Signal trajectory를 관찰하시오.
+(b) 문제 6.C3의 QPSK Signal trajectory와 비교하시오.
+
+특히, QPSK에서는 존재했던 원점을 통과하는 zero crossing이 OQPSK에서도 나타나는지 확인하고, 이를 바탕으로 두 신호 중 어느 신호의 순간진폭 변화가 더 작을 것으로 예상되는지 설명하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `Q 채널을 반 심벌주기만큼 지연시키기 위해 필요한 sample 수는
+
+$$
+\\frac{L}{2}
+=
+\\frac{256}{2}
+=
+128
+$$
+
+이므로 빈칸은 다음과 같다.
+
+\`\`\`python
+delay_samples = L // 2
+\`\`\`
+
+(a) OQPSK의 Signal trajectory를 관찰하면 QPSK와 달리 trajectory가 원점을 통과하는 zero crossing이 나타나지 않는다.
+
+(b) QPSK에서는 I 채널과 Q 채널이 동시에 반전될 수 있으므로 두 성분이 동시에 0을 지나면서 Signal trajectory가 원점을 통과할 수 있다.
+
+반면 OQPSK에서는 Q 채널을 반 심벌주기만큼 지연시키므로 I 채널과 Q 채널의 transition 시점이 서로 어긋난다.
+
+따라서 한 채널이 transition하는 동안 다른 채널은 기존 값을 유지하므로
+
+$$
+I(t)\\approx0,
+\\qquad
+Q(t)\\approx0
+$$
+
+이 동시에 발생하는 상황을 피할 수 있다.
+
+결과적으로 OQPSK에서는 원점을 통과하는 zero crossing이 사라지고, QPSK보다 순간진폭의 변화가 더 작을 것으로 예상된다.`,
+    },
+    { // 문제 7.A2
+      "id": "22-7A2",
+      "title": "7.A2.",
+      "type": "python",
+      "starterCode": `# 문제 7.A1의 I_shaped, Q_offset을 사용한다.
+
+# I-channel eye diagram
+plt.figure(figsize=(9, 5))
+
+eye_diagram(
+    I_shaped,
+    L,
+    traces=120
+)
+
+plt.xlabel('Time / Ts')
+plt.ylabel('I(t)')
+plt.title('OQPSK I-channel Eye Diagram')
+
+plt.grid()
+plt.show()
+
+
+# Q-channel eye diagram
+plt.figure(figsize=(9, 5))
+
+# Q 채널은 반 심벌 지연되어 있으므로
+# 시간축에서도 그 offset을 그대로 관찰한다.
+samples_per_trace = 2 * L
+traces = 120
+
+tau = np.arange(
+    samples_per_trace
+) / L
+
+start_symbol = 5
+
+for k in range(traces):
+
+    start = (
+        start_symbol * L
+        + k * L
+    )
+
+    segment = Q_offset[
+        start:
+        start + samples_per_trace
+    ]
+
+    if len(segment) == samples_per_trace:
+        plt.plot(
+            tau,
+            segment,
+            alpha=0.25
+        )
+
+plt.xlabel('Time / Ts')
+plt.ylabel('Q(t)')
+plt.title('OQPSK Q-channel Eye Diagram')
+
+plt.grid()
+plt.show()`,
+      "prompt": `OQPSK의 I 채널과 Q 채널 eye diagram을 관찰하시오.
+
+(a) 두 eye diagram의 eye가 최대로 열리는 시점을 비교하시오.
+(b) Q 채널에 반 심벌주기의 delay를 적용함으로써 I 채널과 Q 채널의 심벌 transition 시점이 서로 어긋난다.
+
+이러한 특성이 다음 현상을 어떻게 방지하는지 설명하시오.
+$$
+I(t)=0
+\\quad\\text{and}\\quad
+Q(t)=0
+$$
+즉, I 채널과 Q 채널의 두 비트가 동시에 반전되는 것을 OQPSK가 어떻게 피하는지 설명하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `(a) OQPSK의 I/Q eye diagram을 비교하면 두 채널의 eye가 최대로 열리는 시점이 서로 반 심벌주기
+
+$$
+\\frac{T_s}{2}
+$$
+
+만큼 어긋나 있는 것을 확인할 수 있다.
+
+Q 채널에 128 samples의 delay가 적용되었으므로 I 채널의 symbol transition 시점과 Q 채널의 symbol transition 시점은 서로 일치하지 않는다.
+
+(b) QPSK에서는 I 채널과 Q 채널의 두 비트가 동시에 반전될 수 있다. 이 경우 두 기저대역 성분이 동시에 0을 지나
+
+$$
+I(t)=0,
+\\qquad
+Q(t)=0
+$$
+
+이 발생할 수 있다.
+
+OQPSK에서는 Q 채널을 반 심벌주기만큼 지연시키므로 I 채널이 반전되는 순간에는 Q 채널이 기존 값을 유지하고, 반 심벌주기 후 Q 채널이 반전될 때에는 I 채널이 값을 유지한다.
+
+즉, I와 Q의 두 비트가 동시에 반전되는 것을 피할 수 있으므로 $I(t)$와 $Q(t)$가 동시에 0이 되는 현상이 발생하지 않는다.
+
+따라서 OQPSK는 QPSK보다 순간진폭의 큰 변화를 줄일 수 있다.`,
+    },
+    { // 문제 7.B
+      "id": "22-7B",
+      "title": "7.B.",
+      "prompt": `이제 OQPSK의 실제 통과대역 송신신호를 생성하여 순간진폭의 변화를 직접 확인해 보자. QPSK와 마찬가지로 OQPSK 통과대역 신호는 $s_{OQPSK}(t)=I(t)\\sqrt{\\frac{2}{T_s}}\\cos(2\\pi f_ct)+Q_{offset}(t)\\sqrt{\\frac{2}{T_s}}\\sin(2\\pi f_ct)$로 생성할 수 있다. 문제 6.C2의 QPSK 통과대역 신호와 같은 시간 구간에서 파형을 관찰하여 두 신호의 순간진폭 변화를 비교해 보자.`,
+    },
+    { // 문제 7.B1
+      "id": "22-7B1",
+      "title": "7.B1.",
+      "type": "python",
+      "starterCode": `# 문제 7.A1의 I_shaped, Q_offset 사용
+
+t = (
+    np.arange(len(I_shaped))
+    * Ts / L
+)
+
+psi1 = np.sqrt(2 / Ts) * np.cos(
+    2 * np.pi * fc * t
+)
+
+psi2 = np.sqrt(2 / Ts) * np.sin(
+    2 * np.pi * fc * t
+)
+
+# OQPSK passband signal
+s_oqpsk = (
+    I_shaped * psi1
+    +
+    Q_offset * psi2
+)
+
+# 순간진폭의 크기를 확인하기 위한 envelope
+envelope_oqpsk = np.sqrt(
+    I_shaped ** 2
+    +
+    Q_offset ** 2
+)
+
+# -------------------------------------------------
+# 18초 동안 통과대역 신호 관찰
+# -------------------------------------------------
+
+plt.figure(figsize=(12, 5))
+
+plt.plot(
+    t,
+    s_oqpsk,
+    linewidth=0.8
+)
+
+plt.plot(
+    t,
+    envelope_oqpsk,
+    '--',
+    linewidth=1
+)
+
+plt.plot(
+    t,
+    -envelope_oqpsk,
+    '--',
+    linewidth=1
+)
+
+plt.xlim(0, 18)
+
+plt.xlabel('Time (s)')
+plt.ylabel('Amplitude')
+
+plt.title(
+    'OQPSK Passband Signal'
+)
+
+plt.grid()
+plt.show()`,
+      "prompt": `OQPSK 통과대역 송신신호를 약 18초 동안 관찰하시오. 그래프의 점선은 $\\sqrt{I^2(t)+Q_{offset}^2(t)}$로 계산한 envelope이다.
+(a) OQPSK 통과대역 송신신호의 파형을 관찰하시오.
+(b) 문제 7.A1에서 예상한 것처럼 QPSK에서 나타났던 순간진폭이 0에 가까워지는 현상이 OQPSK에서는 사라졌는지 확인하시오. 이를 바탕으로 OQPSK의 순간진폭 변화가 QPSK보다 작은지 설명하시오.`,
+      responseEnabled: true,
+      referenceAnswer: `(a) OQPSK 통과대역 송신신호를 관찰하면 반송파의 진폭은 시간에 따라 변화하지만, QPSK에서 나타났던 것처럼 envelope가 순간적으로 0까지 감소하는 현상은 나타나지 않는다.
+
+점선으로 나타낸
+
+$$
+\\sqrt{I^2(t)+Q_{offset}^2(t)}
+$$
+
+역시 0까지 감소하지 않는 것을 확인할 수 있다.
+
+(b) 문제 7.A1에서 예상한 것처럼 OQPSK에서는 Q 채널의 반 심벌주기 offset으로 인해 I와 Q가 동시에 transition하지 않는다.
+
+따라서
+
+$$
+I(t)=0,
+\\qquad
+Q_{offset}(t)=0
+$$
+
+이 동시에 발생하는 것을 피할 수 있고, Signal trajectory도 원점을 통과하지 않는다.
+
+그 결과 QPSK에서 관찰되었던 순간진폭이 0에 가까워지는 zero crossing이 OQPSK에서는 사라진다.
+
+따라서 실제 통과대역 파형에서도 OQPSK의 순간진폭 변화가 QPSK보다 작음을 확인할 수 있다.`,
+    },
+    { // 문제 7.B2
+      "id": "22-7B2",
+      "title": "7.B2.",
+      "type": "essay",
+      "prompt": `문제 7.B1에서 관찰한 OQPSK 통과대역 송신신호와 문제 6.C2에서 관찰한 QPSK 통과대역 송신신호를 비교하시오.
+
+다음 두 항목을 중심으로 차이점을 설명하시오.
+1. 순간진폭의 변화 정도
+2. 순간진폭이 0에 가까워지는 zero crossing의 존재 여부
+
+또한, 이러한 차이가 Q 채널에 적용한 반 심벌주기 offset과 어떤 관계가 있는지 설명하시오.`,
+        referenceAnswer: `QPSK와 OQPSK의 통과대역 송신신호를 비교하면 다음과 같다.
+
+1. 순간진폭의 변화
+
+QPSK에서는 I 채널과 Q 채널이 동시에 반전될 수 있으므로 일부 transition에서
+
+$$
+\\sqrt{I^2(t)+Q^2(t)}
+$$
+
+가 매우 작아지고 순간진폭의 변화가 크게 나타난다.
+
+반면 OQPSK에서는 Q 채널을 반 심벌주기만큼 지연시켜 I와 Q의 transition 시점을 서로 어긋나게 하므로 순간진폭의 변화가 상대적으로 작다.
+
+2. Zero crossing의 존재 여부
+
+QPSK에서는 I와 Q가 동시에 0을 지나는 경우가 존재하여 통과대역 신호의 순간진폭이 0에 가까워지는 zero crossing을 관찰할 수 있다.
+
+OQPSK에서는 한 채널이 transition하는 동안 다른 채널이 기존 값을 유지하므로 두 성분이 동시에 0이 되지 않는다.
+
+따라서 OQPSK에서는 QPSK에서 나타났던 순간진폭의 zero crossing이 사라진다.
+
+결론적으로 반 심벌주기의 offset은 I/Q 채널의 동시 반전을 방지하고, 이로 인해 OQPSK는 QPSK보다 순간진폭 변화가 작은 특성을 갖는다.`,
+    },
+  ]
+},
   ]
 } as const;

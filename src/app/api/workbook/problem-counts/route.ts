@@ -24,10 +24,10 @@ import { chapter as chapter19 } from "@/app/workbook/ch19/ch19";
 import { chapter as chapter20 } from "@/app/workbook/ch20/ch20";
 import { chapter as chapter21 } from "@/app/workbook/ch21/ch21";
 import { chapter as chapter22 } from "@/app/workbook/ch22/ch22";
-/*
 import { chapter as chapter23 } from "@/app/workbook/ch23/ch23";
-import { chapter as chapter24 } from "@/app/workbook/ch24/ch24";
 import { chapter as chapter25 } from "@/app/workbook/ch25/ch25";
+/*
+import { chapter as chapter24 } from "@/app/workbook/ch24/ch24";
 import { chapter as chapter26 } from "@/app/workbook/ch26/ch26";
 import { chapter as chapter27 } from "@/app/workbook/ch27/ch27";
 import { chapter as chapter28 } from "@/app/workbook/ch28/ch28";
@@ -63,10 +63,10 @@ const AVAILABLE_CHAPTERS = {
   20: chapter20,
   21: chapter21,
   22: chapter22,
-  /*
   23: chapter23,
-  24: chapter24,
   25: chapter25,
+  /*
+  24: chapter24,
   26: chapter26,
   27: chapter27,
   28: chapter28,
